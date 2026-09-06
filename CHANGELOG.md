@@ -6,6 +6,13 @@
 
 See the [feature mapping](docs/FEATURES.md) for planned work.
 
+## v0.1.4 · 2026-09-06
+
+### Improved
+
+- Enlarge sidebar items to three-row click targets with outlined, highlighted, bold selection styling.
+- Use two-row items in short terminals to keep all eight destinations visible; show footer status only when it fits below navigation.
+
 ## v0.1.3 · 2026-09-06
 
 ### Fixed

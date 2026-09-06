@@ -199,27 +199,47 @@ fn sidebar(f: &mut Frame, app: &mut App, r: Rect, p: Palette, compact: bool) {
     text(f, Rect::new(x, 2, w, 1), "╲╱  CLASH", p.accent);
     text(f, Rect::new(x, 3, w, 1), "    VERGE TUI", p.text);
     text(f, Rect::new(x, 5, w, 1), "TERMINAL / 01", p.muted);
+    let item_height = if r.height >= 32 { 3 } else { 2 };
+    let nav_top = r.y + 7;
     for (i, page) in Page::ALL.into_iter().enumerate() {
-        let y = r.y + 7 + i as u16 * 2;
-        let label = format!(" {}  {}", i + 1, page.title());
         let selected = app.page == page;
-        let row = Rect::new(r.x + 1, y, r.width - 2, 1);
-        f.render_widget(
-            Paragraph::new(label).style(
-                Style::default()
-                    .fg(if selected { p.accent } else { p.muted })
-                    .bg(if selected { p.raised } else { p.panel })
-                    .add_modifier(if selected {
-                        Modifier::BOLD
-                    } else {
-                        Modifier::empty()
-                    }),
-            ),
-            row,
+        let row = Rect::new(
+            r.x + 1,
+            nav_top + i as u16 * item_height,
+            r.width - 2,
+            item_height,
         );
+        let style = Style::default()
+            .fg(if selected { p.accent } else { p.muted })
+            .bg(if selected { p.raised } else { p.panel });
+        let outline = if selected {
+            Block::default()
+                .borders(if item_height == 3 {
+                    Borders::ALL
+                } else {
+                    Borders::LEFT
+                })
+                .border_type(BorderType::Rounded)
+                .border_style(Style::default().fg(p.accent))
+        } else {
+            Block::default()
+        };
+        f.render_widget(outline.style(style), row);
+        f.render_widget(
+            Paragraph::new(format!(" {}  {}", i + 1, page.title())).style(style.add_modifier(
+                if selected {
+                    Modifier::BOLD
+                } else {
+                    Modifier::empty()
+                },
+            )),
+            Rect::new(row.x + 1, row.y + item_height / 2, row.width - 2, 1),
+        );
+        // Include padding and the outline, not just the text line, in the hit target.
         app.hits.push((row, Action::Page(page)));
     }
-    if r.height > 31 {
+    let nav_bottom = nav_top + Page::ALL.len() as u16 * item_height;
+    if r.bottom().saturating_sub(9) >= nav_bottom {
         text(
             f,
             Rect::new(x, r.bottom() - 9, w, 1),
@@ -243,7 +263,7 @@ fn sidebar(f: &mut Frame, app: &mut App, r: Rect, p: Palette, compact: bool) {
             p.muted,
         );
     }
-    if r.height > 25 {
+    if r.bottom().saturating_sub(3) >= nav_bottom {
         text(
             f,
             Rect::new(x, r.bottom() - 3, w, 1),

@@ -699,3 +699,62 @@ fn home_profile_button_selects_before_opening_without_a_double_click_deadline() 
         assert_eq!(a.page, Page::Profiles);
     }
 }
+
+#[test]
+fn sidebar_highlight_and_click_targets_include_padding_without_overlapping() {
+    for (width, height) in [
+        (76, 24),
+        (100, 30),
+        (120, 32),
+        (120, 34),
+        (120, 40),
+        (180, 52),
+    ] {
+        let mut a = app();
+        render(&mut a, width, height);
+        let items: Vec<_> = a
+            .hits
+            .iter()
+            .filter_map(|(rect, action)| {
+                if let Action::Page(page) = action {
+                    Some((*rect, *page))
+                } else {
+                    None
+                }
+            })
+            .collect();
+        assert_eq!(items.len(), 8);
+        for adjacent in items.windows(2) {
+            assert!(adjacent[0].0.bottom() <= adjacent[1].0.y);
+        }
+        for (rect, page) in items {
+            assert_eq!(rect.height, if height >= 32 { 3 } else { 2 });
+            assert!(rect.bottom() <= height);
+            for y in rect.y..rect.bottom() {
+                for x in [rect.x, rect.right() - 1] {
+                    a.mouse(crossterm::event::MouseEvent {
+                        kind: crossterm::event::MouseEventKind::Down(
+                            crossterm::event::MouseButton::Left,
+                        ),
+                        column: x,
+                        row: y,
+                        modifiers: KeyModifiers::NONE,
+                    });
+                    assert_eq!(a.page, page);
+                }
+            }
+            let mut terminal = Terminal::new(TestBackend::new(width, height)).unwrap();
+            terminal.draw(|f| ui::draw(f, &mut a)).unwrap();
+            let buffer = terminal.backend().buffer();
+            assert_eq!(
+                buffer[(rect.x + 1, rect.y)].bg,
+                buffer[(rect.x + 1, rect.bottom() - 1)].bg
+            );
+            assert_ne!(buffer[(rect.x + 1, rect.y)].bg, buffer[(0, rect.y)].bg);
+            assert_eq!(
+                buffer[(rect.x, rect.y)].symbol(),
+                if rect.height == 3 { "╭" } else { "│" }
+            );
+        }
+    }
+}
