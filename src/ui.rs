@@ -143,12 +143,43 @@ pub fn draw(f: &mut Frame, app: &mut App) {
     );
     if parts[0].width > 44 {
         let badge = Rect::new(parts[0].right() - 24, parts[0].y, 24, 1);
-        text(f, badge, "● DEMO  /  未连接 mihomo", p.yellow);
+        let label = match &app.live {
+            Some(live) if live.connected => "● LIVE / 已连接 mihomo",
+            Some(_) => "○ LIVE / 连接中断",
+            None => "● DEMO  /  未连接 mihomo",
+        };
+        text(
+            f,
+            badge,
+            label,
+            if app.live.as_ref().is_some_and(|l| l.connected) {
+                p.green
+            } else {
+                p.yellow
+            },
+        );
     }
     let banner = Line::from(vec![
-        Span::styled(" 演示工作区 ", Style::default().fg(p.yellow).bg(p.raised)),
         Span::styled(
-            "  所有网络数据为示例 · 操作仅保存在本地",
+            if app.live.is_some() {
+                " 真实内核 "
+            } else {
+                " 演示工作区 "
+            },
+            Style::default()
+                .fg(if app.live.is_some() {
+                    p.green
+                } else {
+                    p.yellow
+                })
+                .bg(p.raised),
+        ),
+        Span::styled(
+            if app.live.is_some() {
+                "  数据来自 mihomo · 未接入的操作会单独说明"
+            } else {
+                "  所有网络数据为示例 · 操作仅保存在本地"
+            },
             Style::default().fg(p.muted),
         ),
     ]);
@@ -249,13 +280,23 @@ fn sidebar(f: &mut Frame, app: &mut App, r: Rect, p: Palette, compact: bool) {
         text(
             f,
             Rect::new(x, r.bottom() - 7, w, 1),
-            "○  内核未连接",
-            p.yellow,
+            match &app.live {
+                Some(l) if l.connected => "●  内核已连接",
+                Some(_) => "○  等待连接",
+                None => "○  内核未连接",
+            },
+            if app.live.as_ref().is_some_and(|l| l.connected) {
+                p.green
+            } else {
+                p.yellow
+            },
         );
         text(
             f,
             Rect::new(x, r.bottom() - 5, w, 1),
-            if compact {
+            if app.live.is_some() {
+                "MIHOMO / LIVE"
+            } else if compact {
                 "UI PREVIEW"
             } else {
                 "本地演示 · 独立状态"
@@ -308,28 +349,58 @@ fn home(f: &mut Frame, app: &mut App, r: Rect, p: Palette) {
     .split(parts[1]);
     let down = 2.40 + (app.tick % 19) as f64 / 10.0;
     let up = 128 + app.tick % 80;
-    let values = [
-        (
-            "下载速率 · 演示",
-            format!("{down:.2} MiB/s"),
-            "累计  1.82 GiB".to_string(),
-        ),
-        (
-            "上传速率 · 演示",
-            format!("{up} KiB/s"),
-            "累计  248.6 MiB".to_string(),
-        ),
-        (
-            "活动连接 · 演示",
-            format!("{} 会话", app.state.connections.len()),
-            if app.state.value("memory") == "开启" {
-                "内存  48.2 MiB"
-            } else {
-                "内存显示已关闭"
-            }
-            .to_string(),
-        ),
-    ];
+    let values = if let Some(live) = &app.live {
+        [
+            (
+                "下载速率",
+                live.down_rate
+                    .map(|v| format!("{}/s", crate::live::bytes(v)))
+                    .unwrap_or("等待采样".into()),
+                format!("累计 {}", crate::live::bytes(live.downloaded)),
+            ),
+            (
+                "上传速率",
+                live.up_rate
+                    .map(|v| format!("{}/s", crate::live::bytes(v)))
+                    .unwrap_or("等待采样".into()),
+                format!("累计 {}", crate::live::bytes(live.uploaded)),
+            ),
+            (
+                "活动连接",
+                format!("{} 会话", app.state.connections.len()),
+                if app.state.value("memory") == "开启" {
+                    live.memory
+                        .map(|v| format!("内存 {}", crate::live::bytes(v)))
+                        .unwrap_or("内核未提供内存数据".into())
+                } else {
+                    "内存显示已关闭".into()
+                },
+            ),
+        ]
+    } else {
+        [
+            (
+                "下载速率 · 演示",
+                format!("{down:.2} MiB/s"),
+                "累计  1.82 GiB".to_string(),
+            ),
+            (
+                "上传速率 · 演示",
+                format!("{up} KiB/s"),
+                "累计  248.6 MiB".to_string(),
+            ),
+            (
+                "活动连接 · 演示",
+                format!("{} 会话", app.state.connections.len()),
+                if app.state.value("memory") == "开启" {
+                    "内存  48.2 MiB"
+                } else {
+                    "内存显示已关闭"
+                }
+                .to_string(),
+            ),
+        ]
+    };
     for (i, (title, value, extra)) in values.into_iter().enumerate() {
         f.render_widget(block(title, p), cards[i]);
         let inner = inset(cards[i], 2, 1);
@@ -342,28 +413,55 @@ fn home(f: &mut Frame, app: &mut App, r: Rect, p: Palette) {
         text(f, line_area(inner, 2, 1), extra, p.muted);
     }
     let graph = inset(parts[2], 0, 0);
-    f.render_widget(block("流量趋势 / 最近 60 个采样 · 演示", p), graph);
+    f.render_widget(
+        block(
+            if app.live.is_some() {
+                "流量趋势 / 最近 60 个采样"
+            } else {
+                "流量趋势 / 最近 60 个采样 · 演示"
+            },
+            p,
+        ),
+        graph,
+    );
     if app.state.value("traffic_graph") == "开启" {
         let inner = inset(graph, 2, 1);
         let lines = Layout::vertical([Constraint::Min(1), Constraint::Length(1)]).split(inner);
-        let history: Vec<u64> = (0..60)
-            .map(|i| {
-                let n = (i + app.tick) % 60;
-                15 + (n * 17 % 31) + if (20..35).contains(&n) { 35 } else { 0 }
-            })
-            .collect();
+        let history: Vec<u64> = if let Some(live) = &app.live {
+            live.history.iter().copied().collect()
+        } else {
+            (0..60)
+                .map(|i| {
+                    let n = (i + app.tick) % 60;
+                    15 + (n * 17 % 31) + if (20..35).contains(&n) { 35 } else { 0 }
+                })
+                .collect()
+        };
         // Preserve the same history interval at every terminal width.
         let data = resample(&history, lines[0].width as usize);
         f.render_widget(
             Sparkline::default()
                 .data(&data)
-                .max(90)
+                .max(if app.live.is_some() {
+                    history.iter().copied().max().unwrap_or(1).max(1)
+                } else {
+                    90
+                })
                 .style(Style::default().fg(p.green)),
             lines[0],
         );
         let labels =
             Layout::horizontal([Constraint::Min(0), Constraint::Length(14)]).split(lines[1]);
-        text(f, labels[0], "-60", p.muted);
+        text(
+            f,
+            labels[0],
+            if app.live.is_some() {
+                format!("-{}", history.len())
+            } else {
+                "-60".into()
+            },
+            p.muted,
+        );
         f.render_widget(
             Paragraph::new("现在   ↓ 下载")
                 .right_aligned()
@@ -455,10 +553,17 @@ fn home(f: &mut Frame, app: &mut App, r: Rect, p: Palette) {
         text(
             f,
             line_area(inner, 2, 1),
-            format!("{} / {} GB · 示例配额", profile.used, profile.total),
+            if let Some(live) = &app.live {
+                live.profiles
+                    .get(app.state.active_profile)
+                    .map(|p| format!("{} 节点 · {} 策略组", p.proxies, p.groups))
+                    .unwrap_or("外部内核管理".into())
+            } else {
+                format!("{} / {} GB · 示例配额", profile.used, profile.total)
+            },
             p.muted,
         );
-        if inner.height > 5 {
+        if inner.height > 5 && app.live.is_none() {
             f.render_widget(
                 Gauge::default()
                     .ratio(
@@ -490,6 +595,47 @@ fn home(f: &mut Frame, app: &mut App, r: Rect, p: Palette) {
     }
 }
 fn toolbar(app: &App) -> Vec<(&'static str, Action)> {
+    if app.live.is_some() {
+        return match app.page {
+            Page::Proxies => vec![
+                ("Enter 选择", Action::Activate),
+                ("r 测速", Action::Key('r')),
+                ("s 排序", Action::Key('s')),
+                ("m 模式", Action::Key('m')),
+            ],
+            Page::Profiles if app.sub == 0 => vec![
+                ("Enter 应用", Action::Activate),
+                ("r 重读订阅", Action::Key('r')),
+            ],
+            Page::Connections => vec![
+                ("Enter 详情", Action::Activate),
+                ("d 关闭", Action::Key('d')),
+                ("D 全部关闭", Action::Key('D')),
+                ("s 排序", Action::Key('s')),
+            ],
+            Page::Rules if app.sub == 0 => vec![
+                ("Enter 启停", Action::Activate),
+                ("r 刷新", Action::Key('r')),
+            ],
+            Page::Rules => vec![
+                ("Enter 详情", Action::Activate),
+                ("r 更新集合", Action::Key('r')),
+            ],
+            Page::Logs => vec![
+                (
+                    if app.paused { "p 继续" } else { "p 暂停" },
+                    Action::Key('p'),
+                ),
+                ("c 清空", Action::Key('c')),
+                ("Enter 详情", Action::Activate),
+            ],
+            Page::Settings => vec![
+                ("Enter 打开", Action::Activate),
+                ("r 刷新", Action::Key('r')),
+            ],
+            _ => vec![],
+        };
+    }
     match app.page {
         Page::Proxies => vec![
             ("Enter 选择", Action::Activate),
@@ -589,13 +735,20 @@ fn page(f: &mut Frame, app: &mut App, r: Rect, p: Palette) {
         }
     }
     let summary = match app.page {
-        Page::Proxies => format!(
-            "{}  /  {}    当前：{}    模式：{}",
-            app.state.groups[app.sub].name,
-            app.state.groups[app.sub].kind,
-            app.state.groups[app.sub].selected,
-            ["规则", "全局", "直连"][app.state.mode]
-        ),
+        Page::Proxies => app
+            .state
+            .groups
+            .get(app.sub)
+            .map(|g| {
+                format!(
+                    "{} / {}  当前：{}  模式：{}",
+                    g.name,
+                    g.kind,
+                    g.selected,
+                    ["规则", "全局", "直连"][app.state.mode]
+                )
+            })
+            .unwrap_or("等待内核策略组数据".into()),
         Page::Profiles if app.sub == 0 => format!(
             "{} 份订阅    当前：{}",
             app.state.profiles.len(),
@@ -623,6 +776,32 @@ fn page(f: &mut Frame, app: &mut App, r: Rect, p: Palette) {
             app.state.backups.len()
         ),
         _ => String::new(),
+    };
+    let summary = if let Some(live) = &app.live {
+        match app.page {
+            Page::Connections => format!(
+                "{} 个活动会话    累计 ↓ {}   ↑ {}",
+                app.state.connections.len(),
+                crate::live::bytes(live.downloaded),
+                crate::live::bytes(live.uploaded)
+            ),
+            Page::Rules => "规则来自 mihomo；启停为运行时操作".into(),
+            Page::Logs => format!(
+                "{} 条日志 · {} · UTC 时间",
+                app.state.logs.len(),
+                if app.paused {
+                    "已暂停"
+                } else {
+                    live.log_status.as_str()
+                }
+            ),
+            Page::Settings => "真实模式 · 仅已接入的网络参数可修改".into(),
+            Page::Unlock => "真实解锁检测尚未接入".into(),
+            Page::Profiles if app.sub == 1 => "真实配置增强尚未接入".into(),
+            _ => summary,
+        }
+    } else {
+        summary
     };
     f.render_widget(
         Paragraph::new(summary)
@@ -705,7 +884,9 @@ fn page(f: &mut Frame, app: &mut App, r: Rect, p: Palette) {
         text(
             f,
             Rect::new(inner.x + 2, inner.y + 1, inner.width.saturating_sub(4), 1),
-            if app.query.is_empty() {
+            if app.live.is_some() && app.query.is_empty() {
+                "暂无真实数据 · 连接或功能状态见上方说明"
+            } else if app.query.is_empty() {
                 "暂无条目 · 使用上方操作添加或重新载入"
             } else {
                 "没有匹配结果 · Esc 清除筛选"
@@ -781,7 +962,11 @@ fn columns(app: &App) -> (Vec<&'static str>, Vec<Constraint>) {
             vec![Length(4), Length(16), Min(15), Length(12)],
         ),
         Page::Rules => (
-            vec!["集合名称", "行为", "规则数", "策略", "状态"],
+            if app.live.is_some() {
+                vec!["集合名称", "行为", "规则数", "来源", "更新"]
+            } else {
+                vec!["集合名称", "行为", "规则数", "策略", "状态"]
+            },
             vec![Min(12), Length(18), Length(8), Length(8), Length(10)],
         ),
         Page::Logs => (
@@ -913,8 +1098,18 @@ fn modal(f: &mut Frame, app: &mut App, area: Rect, p: Palette) {
             ..
         } => {
             f.render_widget(
-                block(format!("{title}  /  本地演示"), p)
-                    .border_style(Style::default().fg(p.accent)),
+                block(
+                    format!(
+                        "{title}  /  {}",
+                        if app.live.is_some() {
+                            "真实模式"
+                        } else {
+                            "本地演示"
+                        }
+                    ),
+                    p,
+                )
+                .border_style(Style::default().fg(p.accent)),
                 r,
             );
             let inner = inset(r, 2, 1);
@@ -1029,7 +1224,11 @@ fn modal(f: &mut Frame, app: &mut App, area: Rect, p: Palette) {
                 y += height;
             }
             let hint = if error.is_empty() {
-                "网络设置仅保存演示值；Esc 取消未保存修改".to_string()
+                if app.live.is_some() {
+                    "网络参数发送至内核；Esc 取消未保存修改".into()
+                } else {
+                    "网络设置仅保存演示值；Esc 取消未保存修改".to_string()
+                }
             } else {
                 error
             };

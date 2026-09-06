@@ -48,6 +48,7 @@ pub enum Confirm {
     Enhancement(usize),
     Connection(usize),
     AllConnections,
+    CoreConnection(String),
     Rule(usize),
     Logs,
     Restore(usize),
@@ -223,6 +224,7 @@ struct PendingClick {
 
 pub struct App {
     pub state: DemoState,
+    pub live: Option<crate::live::LiveState>,
     pub page: Page,
     pub home_focus: HomeFocus,
     pub sub: usize,
@@ -249,6 +251,7 @@ impl App {
             .unwrap_or(Page::Home);
         Self {
             state,
+            live: None,
             page,
             home_focus: HomeFocus::Controls,
             sub: 0,
@@ -321,11 +324,25 @@ impl App {
                 .nodes
                 .iter()
                 .enumerate()
+                .filter(|(_, n)| {
+                    self.live.as_ref().is_none_or(|live| {
+                        self.state
+                            .groups
+                            .get(self.sub)
+                            .and_then(|g| live.members.get(&g.name))
+                            .is_some_and(|members| members.contains(&n.name))
+                    })
+                })
                 .map(|(i, n)| {
                     row(
                         i,
                         vec![
-                            if self.state.groups[self.sub].selected == n.name {
+                            if self
+                                .state
+                                .groups
+                                .get(self.sub)
+                                .is_some_and(|g| g.selected == n.name)
+                            {
                                 "[✓]".into()
                             } else {
                                 "[ ]".into()
@@ -333,7 +350,13 @@ impl App {
                             n.name.clone(),
                             n.protocol.clone(),
                             n.region.clone(),
-                            n.delay.map(|d| format!("{d} ms")).unwrap_or("超时".into()),
+                            n.delay
+                                .map(|d| format!("{d} ms"))
+                                .unwrap_or(if self.live.is_some() {
+                                    "—".into()
+                                } else {
+                                    "超时".into()
+                                }),
                         ],
                     )
                 })
@@ -353,7 +376,14 @@ impl App {
                                 "[ ]".into()
                             },
                             p.name.clone(),
-                            format!("{} / {} GB", p.used, p.total),
+                            if let Some(live) = &self.live {
+                                live.profiles
+                                    .get(i)
+                                    .map(|p| format!("{} 节点", p.proxies))
+                                    .unwrap_or("—".into())
+                            } else {
+                                format!("{} / {} GB", p.used, p.total)
+                            },
                             format!("{} min", p.interval),
                             p.updated.clone(),
                         ],
@@ -411,6 +441,18 @@ impl App {
                             r.target.clone(),
                         ],
                     )
+                })
+                .collect(),
+            Page::Rules if self.live.is_some() => self
+                .live
+                .as_ref()
+                .unwrap()
+                .providers
+                .iter()
+                .enumerate()
+                .map(|(id, cells)| DataRow {
+                    id,
+                    cells: cells.clone(),
                 })
                 .collect(),
             Page::Rules => [
@@ -895,6 +937,10 @@ impl App {
             self.navigate(Page::Profiles);
             return;
         }
+        if self.live.is_some() {
+            self.activate_live();
+            return;
+        }
         let Some(id) = self.selected_id() else { return };
         match self.page {
             Page::Home=>match id {0=>{self.state.toggle("system_proxy");self.note("演示：系统代理状态已切换");},1=>{self.state.toggle("tun");self.note("演示：TUN 状态已切换");},2=>self.command('m'),3=>self.navigate(Page::Profiles),4=>self.runtime(),_=>self.environment()},
@@ -910,6 +956,9 @@ impl App {
         }
     }
     pub fn command(&mut self, c: char) {
+        if self.live.is_some() && self.command_live(c) {
+            return;
+        }
         let id = self.selected_id();
         match c {
             'm' if matches!(self.page, Page::Home | Page::Proxies) => {
@@ -1193,7 +1242,7 @@ impl App {
             "运行配置"=>self.runtime(),
             "诊断与目录"=>self.detail("诊断与目录",format!("Clash Verge TUI v{}\n状态目录：{}\n状态文件：demo-state.json\n数据模式：本地演示\n后端连接：未接入\n备份数量：{}\n\n未读取 Clash Verge 的真实配置、密钥或订阅。\n网络设置仅保存为演示值；实际生效的是主题、导航、\n图表、鼠标、Vim 键位、启动页与刷新间隔。",env!("CARGO_PKG_VERSION"),self.data_dir.display(),self.state.backups.len())),
             "桌面功能映射"=>self.detail("桌面功能映射","终端适配\n\n桌面导航 → 数字键 1–8 / 鼠标侧栏\n托盘快捷操作 → 首页快捷控制\n全局热键 → 终端内快捷键\n配置编辑器 → 多行表单\n文件选择 → 路径与文本输入\n开发者工具 → 诊断页 / --snapshot\n\n不适用的视觉设置\n窗口标题栏、托盘图标、字体、CSS 注入由终端或桌面管理。\n终端语言：简体中文。v0.1.0 未提供多语言切换。\n\n后续系统集成\nTUN 权限、代理守卫、后台服务、系统自启与真实备份同步。"),
-            _=>self.detail("关于 Clash Verge TUI",format!("CLASH VERGE / TERMINAL\n\nv{}  ·  UI PREVIEW\n\n独立的终端客户端界面，以 Clash Verge Rev v2.5.2 为参照。\nRust + Ratatui + Crossterm\nMIT\n\n本版本覆盖八个主页面和常用二级设置表单。\n网络能力尚未接入；所有网络指标明确标记为演示。\n\n源码参考：https://github.com/clash-verge-rev/clash-verge-rev\n内核计划：https://github.com/MetaCubeX/mihomo",env!("CARGO_PKG_VERSION"))),
+            _=>self.detail("关于 Clash Verge TUI",format!("CLASH VERGE / TERMINAL\n\nv{}  ·  UI PREVIEW\n\n独立的终端客户端界面，以 Clash Verge Rev v2.5.2 为参照。\nRust + Ratatui + Crossterm\nMIT\n\n本版本覆盖八个主页面和常用二级设置表单。\n当前为演示模式；使用 --connect 或 --core 连接真实内核。\n\n源码参考：https://github.com/clash-verge-rev/clash-verge-rev\n内核计划：https://github.com/MetaCubeX/mihomo",env!("CARGO_PKG_VERSION"))),
         }
     }
     fn runtime(&mut self) {
@@ -1240,7 +1289,12 @@ impl App {
         self.note("本地演示快照已创建 · R 恢复最近备份 · 最多保留 10 份");
     }
     fn execute_confirm(&mut self, target: Confirm) {
+        if self.live.is_some() {
+            self.confirm_live(&target);
+            return;
+        }
         match target {
+            Confirm::CoreConnection(_) => return,
             Confirm::Backup(i) => {
                 self.state.backups.remove(i);
             }
@@ -1334,6 +1388,10 @@ impl App {
         }
         let fields = fields.clone();
         let target = target.clone();
+        if self.live.is_some() {
+            self.save_live_form(&fields, &target);
+            return;
+        }
         let get = |key: &str| {
             fields
                 .iter()
@@ -1399,6 +1457,9 @@ impl App {
         self.note("已保存到本地演示状态 · 网络配置尚未应用到 mihomo");
     }
     pub fn tick(&mut self) {
+        if self.live.is_some() {
+            return;
+        }
         self.tick += 1;
         if !self.paused && self.tick.is_multiple_of(10) {
             self.state.logs.push(Log {
@@ -1418,7 +1479,7 @@ impl App {
         self.selected = self.selected.min(self.rows().len().saturating_sub(1));
     }
     pub fn help(&mut self) {
-        self.detail("键盘操作","导航\n  1–8               切换主页面\n  Tab / Shift+Tab   切换区域或分组\n  ← → / h l         首页左右区域；其他页面切换分组\n  ↑ ↓ / j k         选择条目\n  PgUp / PgDn       快速翻页\n  Enter / Space     执行主操作\n  /                 搜索当前列表\n  :                 页面跳转面板\n  Esc               取消弹窗 / 清除搜索\n  t                 切换深色 / 浅色主题\n  q / Ctrl+C        退出\n\n页面操作\n  a / e / d         新建 / 编辑 / 删除\n  r                 演示刷新或检测\n  s                 排序（代理 / 连接）\n  m                 代理模式切换\n  v                 编辑订阅 YAML\n  [ / ]             上移 / 下移订阅或增强链\n  D                 关闭全部演示连接\n  p / c             暂停 / 清空日志\n  b / R             创建 / 恢复最近演示备份（设置页）\n\n表单\n  Tab / ↑ ↓         切换字段\n  ← → / Space       切换开关或选项\n  Home / End        文本首尾\n  Ctrl+U            清空当前字段\n  Enter             下一字段；多行字段换行\n  Ctrl+S            校验并保存\n\n鼠标\n  点击侧栏、标签、工具按钮；单击行选择，双击等同 Enter\n  同一行同一位置附近 400 毫秒内双击；备份恢复仍需确认\n  滚轮移动选择；Shift+鼠标使用终端原生文本选择\n\n所有网络行为均为本地演示。表单只做基础校验，\nYAML、JavaScript 与完整 mihomo 配置校验留待内核接入。" );
+        self.detail("键盘操作","导航\n  1–8               切换主页面\n  Tab / Shift+Tab   切换区域或分组\n  ← → / h l         首页左右区域；其他页面切换分组\n  ↑ ↓ / j k         选择条目\n  PgUp / PgDn       快速翻页\n  Enter / Space     执行主操作\n  /                 搜索当前列表\n  :                 页面跳转面板\n  Esc               取消弹窗 / 清除搜索\n  t                 切换深色 / 浅色主题\n  q / Ctrl+C        退出\n\n页面操作（以当前模式工具栏为准）\n  a / e / d         新建 / 编辑 / 删除\n  r                 演示刷新或检测\n  s                 排序（代理 / 连接）\n  m                 代理模式切换\n  v                 编辑订阅 YAML\n  [ / ]             上移 / 下移订阅或增强链\n  D                 关闭全部演示连接\n  p / c             暂停 / 清空日志\n  b / R             创建 / 恢复最近演示备份（设置页）\n\n表单\n  Tab / ↑ ↓         切换字段\n  ← → / Space       切换开关或选项\n  Home / End        文本首尾\n  Ctrl+U            清空当前字段\n  Enter             下一字段；多行字段换行\n  Ctrl+S            校验并保存\n\n鼠标\n  点击侧栏、标签、工具按钮；单击行选择，双击等同 Enter\n  同一行同一位置附近 400 毫秒内双击；备份恢复仍需确认\n  滚轮移动选择；Shift+鼠标使用终端原生文本选择\n\n演示与真实模式使用独立数据；真实操作以页面工具栏为准。\n--connect 附加现有内核，--core 独立运行；详情见 README。" );
     }
 }
 

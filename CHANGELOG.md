@@ -6,6 +6,28 @@
 
 See the [feature mapping](docs/FEATURES.md) for planned work.
 
+## v0.2.0 · 2026-09-07
+
+### Added
+
+- Attach to an existing HTTP(S) controller with `--connect`, secret-file or `MIHOMO_SECRET` authentication, and headless `--check` diagnostics.
+- Start an isolated local mihomo with `--core`, default loopback ports 17897 / 19097, and child-process cleanup on exit.
+- JSON subscription manifests, Clash YAML validation, original-config caching, partial-import handling, and explicit download proxies.
+- Live group membership, manual selection, group delay tests, modes, connection details and closing, rule toggles, and provider updates.
+- Actual rates, totals, memory, log streaming, and reconnection, with background requests independent of terminal input.
+- Reread cached profiles and switch configurations in managed mode; persist live UI preferences separately from demo data.
+
+### Improved
+
+- Explain unsupported live operations instead of simulating success; redraw on input and data changes for larger rule lists.
+- Remove authentication fields from runtime JSON; store subscription and runtime files privately and exclude test credentials from Git.
+- Add regressions for authentication, errors, URL encoding, proxy downloads, reconnection, membership, and live actions; verify two supplied subscriptions in an isolated core.
+
+### Scope
+
+- Clash YAML is supported. Base64 / URI subscriptions, scheduled updates, enhancements, system proxy, TUN management, WebDAV, and unlock detection remain pending.
+- `--core` owns a child process. Use `--connect` with an independent service when the core should remain running after UI exit.
+
 ## v0.1.5 · 2026-09-07
 
 ### Repository

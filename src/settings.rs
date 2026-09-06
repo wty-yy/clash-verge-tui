@@ -52,7 +52,7 @@ pub fn sections() -> Vec<Section> {
  Section{category:3,name:"运行配置",description:"查看组合后的演示配置",fields:vec![]},
  Section{category:3,name:"诊断与目录",description:"状态路径、版本和诊断信息",fields:vec![]},
  Section{category:3,name:"轻量模式",description:"后台保留与空闲刷新设置",fields:vec![f("lite","自动轻量模式","关闭",Toggle),f("lite_delay","空闲延迟 / 秒","60",Number)]},
- Section{category:4,name:"关于 Clash Verge TUI",description:"界面预览 · MIT",fields:vec![]},
+ Section{category:4,name:"关于 Clash Verge TUI",description:"终端客户端 · MIT",fields:vec![]},
  Section{category:4,name:"桌面功能映射",description:"桌面专有功能的终端适配说明",fields:vec![]},
  ]
 }
