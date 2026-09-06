@@ -6,6 +6,13 @@
 
 See the [feature mapping](docs/FEATURES.md) for planned work.
 
+## v0.1.3 · 2026-09-06
+
+### Fixed
+
+- Focus the home profile-management button on the first click and activate it on a subsequent click, without a double-click time limit.
+- Require selection again after returning to the left panel; preserve keyboard Enter behavior.
+
 ## v0.1.2 · 2026-09-06
 
 ### Added

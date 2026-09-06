@@ -661,3 +661,41 @@ fn home_mouse_selection_and_double_click_cooperate_with_keyboard_focus() {
     a.mouse(event);
     assert_eq!(a.page, Page::Profiles);
 }
+
+#[test]
+fn home_profile_button_selects_before_opening_without_a_double_click_deadline() {
+    use clash_verge_tui::app::HomeFocus;
+    for (width, height) in [(76, 24), (120, 40)] {
+        let mut a = app();
+        render(&mut a, width, height);
+        let (rect, _) = a
+            .hits
+            .iter()
+            .find(|(_, action)| matches!(action, Action::ProfileButton))
+            .unwrap();
+        let event = crossterm::event::MouseEvent {
+            kind: crossterm::event::MouseEventKind::Down(crossterm::event::MouseButton::Left),
+            column: rect.x + 3,
+            row: rect.y,
+            modifiers: KeyModifiers::NONE,
+        };
+        a.mouse(event);
+        assert_eq!(a.page, Page::Home);
+        assert_eq!(a.home_focus, HomeFocus::Profile);
+        assert!(render(&mut a, width, height).contains("› 进入订阅管理 ↵"));
+        key(&mut a, KeyCode::Left);
+        a.mouse(event);
+        assert_eq!(a.page, Page::Home);
+        assert_eq!(a.home_focus, HomeFocus::Profile);
+        // The second click relies on focus, not on the transient double-click record.
+        a.cancel_pending_click();
+        render(&mut a, width, height);
+        a.mouse(event);
+        assert_eq!(a.page, Page::Profiles);
+        a.navigate(Page::Home);
+        key(&mut a, KeyCode::Right);
+        render(&mut a, width, height);
+        a.mouse(event);
+        assert_eq!(a.page, Page::Profiles);
+    }
+}

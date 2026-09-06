@@ -30,6 +30,7 @@ pub enum Action {
     Field(usize),
     BackupSelect(usize),
     HomeFocus(HomeFocus),
+    ProfileButton,
     Submit,
     Cancel,
 }
@@ -723,6 +724,15 @@ impl App {
                 }
             }
             Action::HomeFocus(focus) => self.home_focus = focus,
+            Action::ProfileButton => {
+                if self.page == Page::Home {
+                    if self.home_focus == HomeFocus::Profile {
+                        self.activate();
+                    } else {
+                        self.home_focus = HomeFocus::Profile;
+                    }
+                }
+            }
             Action::Activate => self.activate(),
             Action::Key(c) => self.key(KeyEvent::new(KeyCode::Char(c), KeyModifiers::NONE)),
             Action::Field(i) => {

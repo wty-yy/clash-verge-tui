@@ -463,7 +463,7 @@ fn home(f: &mut Frame, app: &mut App, r: Rect, p: Palette) {
             } else {
                 "进入订阅管理 →"
             },
-            Action::Page(Page::Profiles),
+            Action::ProfileButton,
             p,
             profile_focused,
         );
