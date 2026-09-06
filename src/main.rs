@@ -6,13 +6,13 @@ use clash_verge_tui::{
     live::ManagedSettings,
     model::{DemoState, Page},
     storage,
-    subscriptions::{self, ManagedCore},
+    subscriptions::{self},
     ui,
 };
 use crossterm::{
     event::{
-        self, DisableBracketedPaste, DisableMouseCapture, EnableBracketedPaste, EnableMouseCapture,
-        Event, KeyEventKind,
+        self, DisableBracketedPaste, DisableFocusChange, DisableMouseCapture, EnableBracketedPaste,
+        EnableFocusChange, EnableMouseCapture, Event, KeyEventKind,
     },
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
@@ -56,12 +56,18 @@ struct Args {
     /// 读取一次真实内核状态并输出 JSON，适合连接诊断
     #[arg(long)]
     check: bool,
+    /// 作为后台服务运行，不打开终端界面
+    #[arg(long,requires="core",conflicts_with_all=["demo","check","snapshot","import_only"])]
+    daemon: bool,
+    /// 管理当前数据目录的 systemd 用户服务
+    #[arg(long,value_parser=["install","start","stop","restart","status","uninstall"],conflicts_with_all=["demo","check","snapshot","import_only","daemon"])]
+    service: Option<String>,
     /// 独立内核的代理端口
-    #[arg(long, default_value_t = 17897)]
-    mixed_port: u16,
+    #[arg(long)]
+    mixed_port: Option<u16>,
     /// 独立内核的控制器端口（仅监听 127.0.0.1）
-    #[arg(long, default_value_t = 19097)]
-    controller_port: u16,
+    #[arg(long)]
+    controller_port: Option<u16>,
     /// 启动时使用的已下载订阅编号，从 1 开始
     #[arg(long, requires = "core")]
     profile: Option<usize>,
@@ -87,6 +93,7 @@ impl Drop for TerminalGuard {
             io::stdout(),
             DisableMouseCapture,
             DisableBracketedPaste,
+            DisableFocusChange,
             LeaveAlternateScreen,
             crossterm::cursor::Show
         );
@@ -102,6 +109,8 @@ fn main() -> Result<()> {
     }
     if !args.check
         && !args.import_only
+        && !args.daemon
+        && args.service.is_none()
         && (!io::stdin().is_terminal() || !io::stdout().is_terminal())
     {
         bail!("交互界面需要终端；静态预览使用 --snapshot home，连接诊断使用 --connect URL --check");
@@ -115,6 +124,22 @@ fn main() -> Result<()> {
     let runtime = tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()?;
+    if let Some(action) = &args.service {
+        if action == "install" {
+            let binary = args
+                .core
+                .as_ref()
+                .context("安装服务需要 --core 指定内核路径")?;
+            runtime.block_on(clash_verge_tui::service::install(&dir, binary, true))?;
+            println!("installed: {}", clash_verge_tui::service::name(&dir));
+        } else {
+            println!(
+                "{}",
+                runtime.block_on(clash_verge_tui::service::action(&dir, action))?
+            );
+        }
+        return Ok(());
+    }
     if let Some(path) = &args.subscriptions_file {
         if !args.import_only && args.core.is_none() {
             bail!("订阅导入请使用 --import-only，或同时使用 --core 启动独立内核");
@@ -152,56 +177,57 @@ fn main() -> Result<()> {
     let mut managed_core = None;
     let mut worker = None;
     let mut app = if args.core.is_some() || args.connect.is_some() {
-        let profiles = if args.core.is_some() {
-            subscriptions::load_profiles(&dir.join("profiles"))?
-        } else {
-            Vec::new()
-        };
-        let stored_active = std::fs::read_to_string(dir.join("profiles/active.json"))
-            .ok()
-            .and_then(|s| s.parse::<usize>().ok())
-            .unwrap_or(0);
-        let active = match args.profile {
-            Some(0) => bail!("订阅编号从 1 开始"),
-            Some(n) => n - 1,
-            None => stored_active,
-        };
-        let (endpoint, secret, managed) = if let Some(binary) = &args.core {
-            let profile = profiles.get(active).context(
-                "没有对应的订阅；先通过 --subscriptions-file 导入，或检查 --profile 编号",
-            )?;
-            let core = ManagedCore::start(
+        let (endpoint, secret, managed, profiles, active) = if let Some(binary) = &args.core {
+            if args.profile == Some(0) {
+                bail!("订阅编号从 1 开始");
+            }
+            eprintln!("准备 mihomo 工作区…");
+            let running = runtime.block_on(clash_verge_tui::service::open(
+                &dir,
                 binary,
-                &dir.join("core"),
-                profile,
                 args.mixed_port,
                 args.controller_port,
-            )?;
-            let endpoint = core.controller.clone();
-            let secret = core.secret.clone();
+                args.profile.map(|n| n - 1),
+            ))?;
             let managed = ManagedSettings {
-                controller: format!("127.0.0.1:{}", args.controller_port),
-                secret: secret.clone(),
-                port: args.mixed_port,
+                controller: running.context.controller,
+                secret: running.context.secret.clone(),
+                port: running.context.port,
+                binary: running.context.binary,
             };
-            managed_core = Some(core);
-            (endpoint, secret, Some(managed))
+            managed_core = running.child;
+            (
+                running.endpoint,
+                managed.secret.clone(),
+                Some(managed),
+                running.profiles,
+                running.active,
+            )
         } else {
             let secret = if let Some(path) = &args.secret_file {
                 std::fs::read_to_string(path)
                     .context("无法读取控制器密钥文件")?
                     .trim()
-                    .to_string()
+                    .into()
             } else {
                 std::env::var("MIHOMO_SECRET").unwrap_or_default()
             };
-            (args.connect.clone().unwrap(), secret, None)
+            (args.connect.clone().unwrap(), secret, None, Vec::new(), 0)
         };
         let client = CoreClient::new(&endpoint, secret.clone())?;
         if let Some(core) = managed_core.as_mut() {
             eprintln!("正在启动独立 mihomo…");
             runtime.block_on(core.wait_ready(&client))?;
         }
+        let context = managed
+            .as_ref()
+            .map(|m| clash_verge_tui::workspace::WorkspaceContext {
+                dir: dir.clone(),
+                binary: m.binary.clone(),
+                controller: m.controller.clone(),
+                secret: m.secret.clone(),
+                port: m.port,
+            });
         if args.check {
             let snapshot = runtime.block_on(client.snapshot())?;
             let proxies = snapshot.proxies["proxies"].as_object().unwrap();
@@ -213,23 +239,97 @@ fn main() -> Result<()> {
             );
             return Ok(());
         }
-        worker = Some(Worker::spawn(CoreClient::new(&endpoint, secret)?)?);
+        if !profiles.is_empty() && managed.is_some() {
+            clash_verge_tui::workspace::set_active_on_start(&dir, active)?;
+        }
+        if let Some(context) = &context {
+            let snapshot = clash_verge_tui::workspace::load(&dir)?;
+            if snapshot
+                .state
+                .preferences
+                .get("system_proxy")
+                .is_some_and(|s| s == "开启")
+            {
+                runtime.block_on(clash_verge_tui::platform::apply_proxy(
+                    &dir,
+                    &snapshot.state.preferences,
+                    context.port,
+                ))?;
+            }
+        }
+        worker = Some(Worker::spawn_with_workspace(
+            CoreClient::new(&endpoint, secret)?,
+            context,
+        )?);
         App::new_live(dir.clone(), endpoint, profiles, active, managed)?
     } else {
         App::new(storage::load(&dir)?, dir)
     };
+    if args.daemon {
+        runtime.block_on(async {
+            let mut term=tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())?;
+            loop {
+                tokio::select!{_=tokio::signal::ctrl_c()=>break,_=term.recv()=>break,_=tokio::time::sleep(Duration::from_secs(1))=>{}}
+                if let Some(worker)=&worker{for event in worker.events.try_iter().take(64){app.handle_core(event);}for event in worker.logs.try_iter().take(300){app.handle_log(event);}}
+                if app.live.as_ref().unwrap().connected {let _=subscriptions::private_write(&app.data_dir.join("daemon.ready"),std::process::id().to_string().as_bytes());}else{let _=std::fs::remove_file(app.data_dir.join("daemon.ready"));}
+                if !app.live.as_ref().unwrap().connected {
+                    if managed_core.as_mut().is_some_and(|core|!core.is_running()){managed_core.take();}
+                    if managed_core.is_none(){if let Ok(running)=clash_verge_tui::service::open(&app.data_dir,args.core.as_ref().unwrap(),args.mixed_port,args.controller_port,None).await{let context=running.context;worker=Some(Worker::spawn_with_workspace(CoreClient::new(&running.endpoint,context.secret.clone())?,Some(context.clone()))?);app=App::new_live(context.dir.clone(),running.endpoint,running.profiles,running.active,Some(ManagedSettings{controller:context.controller,secret:context.secret,port:context.port,binary:context.binary}))?;managed_core=running.child;}}
+                }
+            }
+            Ok::<(),anyhow::Error>(())
+        })?;
+        drop(worker);
+        let _ = std::fs::remove_file(app.data_dir.join("daemon.ready"));
+        let _ = runtime.block_on(
+            clash_verge_tui::platform::SystemProxy::new(app.data_dir.clone()).restore_if_owned(),
+        );
+        drop(managed_core);
+        return Ok(());
+    }
     enable_raw_mode()?;
     let _guard = TerminalGuard;
     execute!(
         io::stdout(),
         EnterAlternateScreen,
         EnableMouseCapture,
-        EnableBracketedPaste
+        EnableBracketedPaste,
+        EnableFocusChange
     )?;
     let mut terminal = Terminal::new(CrosstermBackend::new(io::stdout()))?;
     let mut last = Instant::now();
     let mut redraw = true;
+    let mut last_input = Instant::now();
+    let mut focused = true;
+    let mut light = false;
     while !app.quit {
+        if let Some(live) = app.live.as_mut().filter(|l| !l.connected) {
+            if let Some(managed) = live.managed.as_mut() {
+                if let Ok(secret) =
+                    std::fs::read_to_string(app.data_dir.join("core/controller.secret"))
+                {
+                    let secret = secret.trim();
+                    if !secret.is_empty() && secret != managed.secret {
+                        managed.secret = secret.into();
+                        let context = clash_verge_tui::workspace::WorkspaceContext {
+                            dir: app.data_dir.clone(),
+                            binary: managed.binary.clone(),
+                            controller: managed.controller.clone(),
+                            secret: secret.into(),
+                            port: managed.port,
+                        };
+                        worker = Some(Worker::spawn_with_workspace(
+                            CoreClient::new(&live.endpoint, secret.into())?,
+                            Some(context),
+                        )?);
+                        live.pending = false;
+                        live.outbox.clear();
+                        app.status = "控制器密钥已变更，正在重新连接".into();
+                        redraw = true;
+                    }
+                }
+            }
+        }
         if let Some(worker) = &worker {
             for event in worker.events.try_iter().take(64) {
                 app.handle_core(event);
@@ -246,13 +346,40 @@ fn main() -> Result<()> {
                 }
             }
         }
-        if redraw {
+        if let Some(worker) = &worker {
+            let delay = app
+                .state
+                .value("lite_delay")
+                .parse::<u64>()
+                .unwrap_or(60)
+                .max(1);
+            let desired = app.state.value("lite") == "开启"
+                && (!focused || last_input.elapsed() >= Duration::from_secs(delay));
+            if desired != light
+                && worker
+                    .send(clash_verge_tui::core::Command::PollEvery(if desired {
+                        10
+                    } else {
+                        1
+                    }))
+                    .is_ok()
+            {
+                light = desired;
+            }
+        }
+        if redraw && (!light || focused) {
             terminal.draw(|f| ui::draw(f, &mut app))?;
             redraw = false;
         }
         if event::poll(Duration::from_millis(50))? {
             redraw = true;
-            match event::read()? {
+            let input = event::read()?;
+            if !matches!(input, Event::FocusLost) {
+                last_input = Instant::now();
+            }
+            match input {
+                Event::FocusLost => focused = false,
+                Event::FocusGained => focused = true,
                 Event::Key(key) if key.kind != KeyEventKind::Release => app.key(key),
                 Event::Mouse(mouse) => app.mouse(mouse),
                 Event::Paste(text) => app.paste(&text),
@@ -283,6 +410,13 @@ fn main() -> Result<()> {
         }
     }
     drop(worker);
+    if managed_core.is_some()
+        && runtime.block_on(clash_verge_tui::service::status(&app.data_dir)) != "active"
+    {
+        let _ = runtime.block_on(
+            clash_verge_tui::platform::SystemProxy::new(app.data_dir.clone()).restore_if_owned(),
+        );
+    }
     drop(managed_core);
     Ok(())
 }

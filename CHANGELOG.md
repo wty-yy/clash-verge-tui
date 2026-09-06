@@ -6,6 +6,26 @@
 
 See the [feature mapping](docs/FEATURES.md) for planned work.
 
+## v1.0.0 · 2026-09-07
+
+### Linux feature release
+
+- Connect GNOME manual/PAC proxy, guard and restoration, TUN, DNS, LAN, ports, and traffic tunnels.
+- Add systemd user services, login startup, foreground attachment, and core crash recovery.
+- Add encrypted local backups, 10-file retention, WebDAV upload/list/restore/delete, and corrupt-file handling.
+- Add reachability/region checks, GeoData, workspace-only core upgrades, WebUI, version checks, log rotation, and diagnostics.
+- Use private Unix sockets; controller address/secret changes take effect after restart without replacing the system core binary.
+- Improve large-file editing, lightweight polling, automatic delay checks, and rollback; see the acceptance scope and limitations.
+
+## v0.3.0 · 2026-09-07
+
+### Added
+
+- Live profile CRUD, ordering, local file/YAML import, usage details, and scheduled refresh.
+- Ordered YAML / JavaScript enhancements with core validation before application and rollback on failure.
+- Empty-workspace direct startup, atomic manifests, interprocess locks, isolated validation, and Linux parent-death cleanup.
+- Preserve unsaved forms while previous operations are pending.
+
 ## v0.2.0 · 2026-09-07
 
 ### Added

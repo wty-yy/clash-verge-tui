@@ -10,3 +10,13 @@
 /live-preferences.json
 /subscriptions.json
 *.secret
+
+/workspace-state.json
+/workspace.lock
+/backups/
+/reports/
+/system-proxy-backup.json
+/startup.log
+/daemon.ready
+/proxy.pac
+/service.previous

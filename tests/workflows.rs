@@ -890,3 +890,19 @@ fn secondary_lists_and_form_fields_do_not_have_spacer_rows() {
         assert_eq!(pair[0].bottom(), pair[1].y);
     }
 }
+
+#[test]
+fn multiline_editor_handles_large_profiles_and_vertical_navigation() {
+    let content = format!("{}\n中文行\nlast", "a".repeat(100000));
+    let mut field = Field::new("content", "YAML", &content, Kind::Multiline);
+    field.insert("!");
+    assert!(field.value.ends_with("last!"));
+    field.key(KeyEvent::new(KeyCode::Up, KeyModifiers::NONE));
+    field.key(KeyEvent::new(KeyCode::Home, KeyModifiers::NONE));
+    field.insert("前");
+    assert!(field.value.contains("\n前中文行\n"));
+    field.key(KeyEvent::new(KeyCode::Home, KeyModifiers::CONTROL));
+    assert_eq!(field.cursor, 0);
+    field.key(KeyEvent::new(KeyCode::End, KeyModifiers::CONTROL));
+    assert_eq!(field.cursor, field.value.len());
+}

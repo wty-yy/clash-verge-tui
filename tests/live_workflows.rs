@@ -63,7 +63,9 @@ fn live_group_membership_and_pending_operations_never_simulate_success() {
         .unwrap();
     a.selected = 0;
     a.activate();
-    assert!(a.status.contains("自动选择"));
+    assert!(
+        matches!(a.live.as_ref().unwrap().outbox.last(),Some(Command::Select{group,..}) if group=="AUTO")
+    );
 }
 #[test]
 fn real_rule_index_and_connection_uuid_are_used_after_confirmation() {
@@ -138,4 +140,22 @@ fn live_preferences_do_not_persist_core_config_credentials_or_connections() {
     assert!(!dir.path().join("demo-state.json").exists());
     let value: serde_json::Value = serde_json::from_str(&text).unwrap();
     assert_eq!(value["theme"], json!("浅色"));
+}
+
+#[test]
+fn busy_workspace_preserves_unsaved_form_input() {
+    let mut a = app();
+    a.navigate(Page::Settings);
+    a.sub = 2;
+    a.activate();
+    let fields = if let Some(clash_verge_tui::app::Modal::Form { fields, .. }) = &a.modal {
+        fields.clone()
+    } else {
+        panic!("expected form")
+    };
+    a.live.as_mut().unwrap().pending = true;
+    a.save_live_form(&fields, &clash_verge_tui::app::SaveTarget::Settings(0));
+    assert!(
+        matches!(&a.modal,Some(clash_verge_tui::app::Modal::Form{error,..}) if error.contains("Ctrl+S"))
+    );
 }

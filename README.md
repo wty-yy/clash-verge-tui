@@ -4,7 +4,7 @@
 
 A mihomo terminal client built with Rust and Ratatui, with an interface referencing Clash Verge Rev v2.5.2.
 
-`v0.2.0` connects to an existing core or starts an isolated mihomo instance from subscriptions. Live status, proxy selection, latency testing, modes, connection closing, rule toggles, rule-provider updates, and logs are connected. Demo mode retains the complete UI preview.
+`v1.0.0` connects to an existing core or starts an isolated mihomo instance from subscriptions. Profiles and enhancements, network settings, system proxy, TUN, services, backups/WebDAV, page reachability checks, core maintenance, and diagnostics are connected. Demo mode retains the complete UI preview.
 
 ![Demo interface](docs/previews/home.png)
 
@@ -52,11 +52,13 @@ clash-verge-tui --import-only --subscriptions-file .local/sources.json --data-di
 clash-verge-tui --import-only --subscriptions-file .local/extra-sources.json --subscription-proxy http://127.0.0.1:17897 --data-dir .local/live
 ```
 
-Managed mode defaults to mixed proxy `127.0.0.1:17897` and controller `127.0.0.1:19097`; override them with `--mixed-port` / `--controller-port`. A controller secret is generated automatically. Subscription listener addresses, TUN, external controllers, and provider file paths are overridden for isolated operation. The system proxy is not changed.
+Managed mode defaults to mixed proxy `127.0.0.1:17897` and controller `127.0.0.1:19097`; override them with `--mixed-port` / `--controller-port`. A controller secret is generated automatically. Subscription listener addresses, TUN, external controllers, and provider file paths are overridden for isolated operation. The system proxy is unchanged by default and can be enabled explicitly in Settings.
 
-The child started by `--core` stops when the interface exits. `--connect` neither manages the existing core's lifetime nor takes over its subscriptions. A subscription can specify a `proxy` field, or use `--subscription-proxy`; that download proxy must already be running.
+Without a background service, exiting `--core` stops the child it started. When a service is already running, `--core` attaches and UI exit leaves the service running. Switching from foreground to service can briefly restart the core. `--connect` neither manages the existing core's lifetime nor takes over its subscriptions. A subscription can specify a `proxy` field, or use `--subscription-proxy`; that download proxy must already be running.
 
-After importing another subscription, press `r` on the managed profile page to reread the local index, then `Enter` to apply it. This page's `r` does not download remote subscriptions. Clash YAML is supported; Base64 / URI lists and JavaScript enhancements are not yet supported.
+The managed profile page supports `a/e/d` for create/edit/delete, `r` for remote updates, `R` for rereading the local manifest, `Enter` to apply, `v` for YAML editing, `i` for usage and expiration, and `[/]` for ordering. Forms accept a remote URL, local file, or YAML content. An interval of 0 disables scheduled updates.
+
+Enhancements support ordered YAML overrides and JavaScript `main(config)`. Changes are validated by mihomo before application; failures preserve the previous configuration. JavaScript requires local Node.js 18+, with execution-time and memory limits, and is intended for user-written or trusted scripts. An empty workspace can start with `--core` in direct mode, then import profiles from the UI.
 
 | Key | Action |
 | --- | --- |
@@ -74,8 +76,34 @@ After importing another subscription, press `r` on the managed profile page to r
 
 Sidebar items have large click targets and full-area highlighting; content lists use consecutive rows. A single click selects a row, and a double click within 400 ms acts as `Enter`. The home profile-management button first takes focus and opens on a later click while focused, without a time limit. In multiline forms, `Enter` inserts a newline and `Tab` changes fields; Vim letters remain text input.
 
+## Services, TUN, and backups
+
+```bash
+# Install and start this data directory's systemd user service; installation enables login startup
+clash-verge-tui --service install --core /usr/bin/verge-mihomo --data-dir .local/live
+clash-verge-tui --service start --data-dir .local/live
+clash-verge-tui --service status --data-dir .local/live
+
+# Open the service's control interface
+clash-verge-tui --core /usr/bin/verge-mihomo --data-dir .local/live
+
+# Stop or uninstall the service
+clash-verge-tui --service stop --data-dir .local/live
+clash-verge-tui --service uninstall --data-dir .local/live
+
+# An administrator can grant TUN access after the core is created; repeat after updates if necessary
+sudo setcap cap_net_admin,cap_net_bind_service+ep .local/live/core/mihomo
+```
+
+Service names are derived from data directories for isolated workspaces. User services start after login without opening a terminal, so desktop silent-start is not a separate setting. Startup scripts run with the current user's permissions; use `CLASH_VERGE_SKIP_STARTUP=1` for recovery after a script failure.
+
+Settings → Advanced → Backup and restore: `b` creates, `Enter` restores, `d` deletes, `←/→` switches local/WebDAV, `u` uploads, and `e` configures. The latest 10 local backups are retained. A configured backup password enables scrypt + AES-256-GCM encryption; otherwise files are private plaintext. WebDAV requires the user's own server and credentials and retains TLS verification.
+
 ## Implementation
 
+- `src/platform.rs`, `src/service.rs`: GNOME proxy integration, restoration, user services, and process lifetime.
+- `src/backup.rs`, `src/extras.rs`: encrypted backups, WebDAV, reachability, update checks, and log maintenance.
+- `src/workspace.rs`: profile transactions, scheduled updates, enhancements, isolated validation, and workspace locking.
 - `src/core.rs`: authenticated HTTP API, background communication, log streaming, and reconnection.
 - `src/subscriptions.rs`: downloads, isolated configuration, and core process management.
 - `src/live.rs`: live state mapping, command queues, confirmations, and UI preferences.
@@ -90,8 +118,10 @@ Default directory: `${XDG_STATE_HOME:-$HOME/.local/state}/clash-verge-tui`. Only
 | --- | --- |
 | `demo-state.json` | Demo state, compatible with earlier UI releases |
 | `live-preferences.json` | Live UI preferences, excluding core connection data |
+| `workspace-state.json` | Authoritative atomic manifest for profiles, active selection, and enhancements |
 | `profiles/index.json`, `profiles/profile-N.yaml` | Private subscription index and original configurations |
 | `profiles/active.json` | Applied profile index |
+| `backups/`, `reports/` | Private backups, exported logs, and sanitized diagnostics |
 | `core/config.yaml`, `core/controller.secret` | Isolated core configuration and access secret |
 | `core/core.log` | Child process logs, which may contain subscription information |
 
@@ -99,7 +129,9 @@ These state files use Unix `0600` permissions and are not encrypted. Do not comm
 
 Live mode does not fabricate traffic or successful operations. Rates are calculated from cumulative byte differences and sample intervals; logs use their UTC reception time. Background requests do not block keyboard input. Actions are followed by core state reads, and disconnected views retain their last data with an explicit status.
 
-Only connected operations are enabled in live mode. System proxy, TUN management, unlock checks, scheduled subscription updates, enhancements, WebDAV, and some settings remain pending. IPv6, unified delay, and log level are connected network settings; other settings explain their availability.
+System proxy integration supports GNOME, original-setting restoration, a guard, and generated or custom PAC scripts. TUN requires `CAP_NET_ADMIN` and has been verified in an isolated network namespace. Website checks report page reachability and exit-region information, not paid playback authorization; verification and login pages are marked separately.
+
+Network settings are validated by mihomo before persistence. Controller address and secret changes take effect after restart; internal control uses a Unix socket, so external HTTP can be disabled. On Settings, `u` updates the selected core/WebUI or checks app versions, `g` updates GeoData, `o` opens directories/WebUI, and `x` exports logs or sanitized diagnostics. App updates provide version checks and source-install commands; core updates only replace the workspace copy.
 
 ## Development and versions
 

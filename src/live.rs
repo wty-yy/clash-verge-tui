@@ -2,7 +2,7 @@ use crate::{
     app::{App, Confirm, Field, SaveTarget},
     core::{Command, CoreEvent, LogEvent, Snapshot},
     model::*,
-    settings::{self},
+    settings::{self, Kind},
     subscriptions::{self, StoredProfile},
 };
 use serde_json::{json, Value};
@@ -17,6 +17,7 @@ pub struct ManagedSettings {
     pub controller: String,
     pub secret: String,
     pub port: u16,
+    pub binary: PathBuf,
 }
 pub struct LiveState {
     pub endpoint: String,
@@ -25,6 +26,8 @@ pub struct LiveState {
     pub version: String,
     pub error: String,
     pub log_status: String,
+    pub system_proxy_status: String,
+    pub service_status: String,
     pub config: Value,
     pub members: BTreeMap<String, Vec<String>>,
     pub connection_ids: Vec<String>,
@@ -41,6 +44,9 @@ pub struct LiveState {
     pub profiles: Vec<StoredProfile>,
     pub managed: Option<ManagedSettings>,
     pub pending_profile: Option<usize>,
+    pub workspace: crate::workspace::WorkspaceState,
+    pub backups: Vec<crate::backup::BackupMeta>,
+    pub backups_remote: bool,
 }
 impl LiveState {
     pub fn new(
@@ -55,6 +61,8 @@ impl LiveState {
             version: String::new(),
             error: String::new(),
             log_status: "日志流连接中".into(),
+            system_proxy_status: "检测中".into(),
+            service_status: "检测中".into(),
             config: Value::Null,
             members: BTreeMap::new(),
             connection_ids: vec![],
@@ -71,6 +79,9 @@ impl LiveState {
             profiles,
             managed,
             pending_profile: None,
+            workspace: crate::workspace::WorkspaceState::default(),
+            backups: Vec::new(),
+            backups_remote: false,
         }
     }
 }
@@ -123,7 +134,7 @@ impl App {
         state.connections.clear();
         state.rules.clear();
         state.logs.clear();
-        state.unlocks.clear();
+        state.unlocks = crate::extras::initial();
         state.backups.clear();
         for profile in &profiles {
             state.profiles.push(Profile {
@@ -137,9 +148,7 @@ impl App {
             });
         }
         state.active_profile = active.min(profiles.len().saturating_sub(1));
-        state
-            .settings
-            .insert("system_proxy".into(), "未接入".into());
+        state.settings.insert("system_proxy".into(), "关闭".into());
         let file = dir.join("live-preferences.json");
         if file.exists() {
             let preferences: BTreeMap<String, String> = serde_json::from_slice(&fs::read(file)?)
@@ -152,6 +161,51 @@ impl App {
         }
         let mut app = Self::new(state, dir);
         app.live = Some(LiveState::new(endpoint, profiles, managed));
+        if app.live.as_ref().unwrap().managed.is_some() {
+            let snapshot = crate::workspace::load(&app.data_dir)?;
+            app.apply_workspace(snapshot);
+            app.state.active_profile = active;
+        }
+        if let Some(managed) = app.live.as_ref().and_then(|l| l.managed.as_ref()) {
+            app.state.settings.insert(
+                "controller".into(),
+                if managed.controller.is_empty() {
+                    "关闭"
+                } else {
+                    "开启"
+                }
+                .into(),
+            );
+            app.state
+                .settings
+                .insert("controller_addr".into(), managed.controller.clone());
+            app.state
+                .settings
+                .insert("secret".into(), managed.secret.clone());
+            if !app
+                .live
+                .as_ref()
+                .unwrap()
+                .workspace
+                .preferences
+                .contains_key("webui_url")
+            {
+                if let Ok(address) = managed.controller.parse::<std::net::SocketAddr>() {
+                    let host = if address.ip().is_unspecified() {
+                        std::net::Ipv4Addr::LOCALHOST.into()
+                    } else {
+                        address.ip()
+                    };
+                    app.state.settings.insert(
+                        "webui_url".into(),
+                        format!(
+                            "http://{}/ui/",
+                            std::net::SocketAddr::new(host, address.port())
+                        ),
+                    );
+                }
+            }
+        }
         app.status = "正在连接 mihomo…".into();
         Ok(app)
     }
@@ -169,6 +223,37 @@ impl App {
     }
     pub fn handle_core(&mut self, event: CoreEvent) {
         match event {
+            CoreEvent::Extra(result) => match result {
+                crate::extras::ExtraResult::Detected(items) => {
+                    for (i, item) in items {
+                        if let Some(row) = self.state.unlocks.get_mut(i) {
+                            *row = item;
+                        }
+                    }
+                    self.status = "检测完成；结果表示网页可达性，地区为出口参考".into();
+                }
+                crate::extras::ExtraResult::Update(message) => self.detail("应用更新", message),
+                crate::extras::ExtraResult::Opened => self.status = "已请求打开".into(),
+            },
+            CoreEvent::Backups(result) => {
+                if let Some(snapshot) = result.restored {
+                    self.apply_workspace(snapshot);
+                }
+                let live = self.live.as_mut().unwrap();
+                live.backups = result.items;
+                live.backups_remote = result.remote;
+                self.status = result.message;
+            }
+            CoreEvent::ServiceStatus(status) => self.live.as_mut().unwrap().service_status = status,
+            CoreEvent::SystemProxyStatus(status) => {
+                self.live.as_mut().unwrap().system_proxy_status = status
+            }
+            CoreEvent::BackgroundNotice(status) => {
+                if !self.live.as_ref().unwrap().pending {
+                    self.status = status;
+                }
+            }
+            CoreEvent::Workspace(snapshot) => self.apply_workspace(*snapshot),
             CoreEvent::Snapshot(snapshot) => self.apply_snapshot(*snapshot),
             CoreEvent::Offline(error) => {
                 let live = self.live.as_mut().unwrap();
@@ -206,6 +291,47 @@ impl App {
                 }
             }
         }
+    }
+    pub fn apply_workspace(&mut self, snapshot: crate::workspace::WorkspaceSnapshot) {
+        self.state.active_profile = snapshot.active;
+        self.state.enhancements = snapshot.state.enhancements.clone();
+        self.state
+            .settings
+            .extend(snapshot.state.preferences.clone());
+        self.state.profiles = snapshot
+            .profiles
+            .iter()
+            .map(|p| {
+                let schedule = snapshot
+                    .state
+                    .schedules
+                    .get(&p.file.to_string_lossy().into_owned());
+                Profile {
+                    name: p.name.clone(),
+                    url: p.url.clone(),
+                    interval: schedule
+                        .map(|s| s.interval_minutes.to_string())
+                        .unwrap_or("0".into()),
+                    used: 0,
+                    total: 0,
+                    updated: schedule
+                        .map(|s| format!("{}", s.updated_at))
+                        .unwrap_or("已下载".into()),
+                    content: String::new(),
+                }
+            })
+            .collect();
+        let live = self.live.as_mut().unwrap();
+        live.profiles = snapshot.profiles;
+        live.workspace = snapshot.state;
+        self.selected = self.selected.min(self.rows().len().saturating_sub(1));
+    }
+    fn workspace_command(&mut self, command: crate::workspace::WorkspaceCommand) {
+        if self.live.as_ref().unwrap().managed.is_none() {
+            self.status = "此操作需要独立内核工作区".into();
+            return;
+        }
+        self.queue_core(Command::Workspace(command));
     }
     pub fn handle_log(&mut self, event: LogEvent) {
         match event {
@@ -418,7 +544,16 @@ impl App {
     }
     pub fn queue_core(&mut self, command: Command) {
         let live = self.live.as_mut().unwrap();
-        if !live.connected {
+        let local_settings = matches!(&command,Command::Workspace(crate::workspace::WorkspaceCommand::Settings(values)) if values.keys().all(|k|["service","auto_launch","start_script","silent"].contains(&k.as_str())));
+        if !live.connected
+            && !local_settings
+            && !matches!(
+                &command,
+                Command::Backup(_)
+                    | Command::Extra(_)
+                    | Command::Workspace(crate::workspace::WorkspaceCommand::Read)
+            )
+        {
             self.status = "内核尚未连接，等待重连后再操作".into();
             return;
         }
@@ -434,29 +569,61 @@ impl App {
         let Some(id) = self.selected_id() else { return };
         match self.page {
             Page::Home => match id {
-                0 | 1 => self.detail(
-                    "系统集成尚未接入",
-                    "当前版本连接 mihomo API；系统代理与 TUN 权限管理尚未实现。",
-                ),
+                0 => self.workspace_command(crate::workspace::WorkspaceCommand::Settings(
+                    BTreeMap::from([(
+                        "system_proxy".into(),
+                        if self.live.as_ref().unwrap().system_proxy_status == "开启" {
+                            "关闭"
+                        } else {
+                            "开启"
+                        }
+                        .into(),
+                    )]),
+                )),
+                1 => self.workspace_command(crate::workspace::WorkspaceCommand::Settings(
+                    BTreeMap::from([
+                        (
+                            "tun".into(),
+                            if self.state.value("tun") == "开启" {
+                                "关闭"
+                            } else {
+                                "开启"
+                            }
+                            .into(),
+                        ),
+                        ("tun_device".into(), self.state.value("tun_device").into()),
+                    ]),
+                )),
                 2 => {
                     self.command_live('m');
                 }
                 3 => self.navigate(Page::Profiles),
                 4 => self.runtime_live(),
-                _ => self.detail(
-                    "代理地址",
-                    format!(
-                        "Mixed 端口：{}\n请按实际运行机器设置应用的代理地址。",
-                        self.state.value("mixed_port")
-                    ),
-                ),
+                _ => {
+                    if let Some(proxy) = self.proxy_url() {
+                        let command = match self.state.value("env_type") {
+                            "fish" => format!(
+                                "set -gx http_proxy '{proxy}'\nset -gx https_proxy '{proxy}'"
+                            ),
+                            "powershell" => {
+                                format!("$env:http_proxy = '{proxy}'\n$env:https_proxy = '{proxy}'")
+                            }
+                            _ => {
+                                format!("export http_proxy='{proxy}'\nexport https_proxy='{proxy}'")
+                            }
+                        };
+                        self.detail("环境变量", command);
+                    } else {
+                        self.status = "没有可用代理端口".into();
+                    }
+                }
             },
             Page::Proxies => {
                 let Some(group) = self.state.groups.get(self.sub) else {
                     return;
                 };
-                if !matches!(group.kind.as_str(), "Selector" | "select") {
-                    self.status = "该策略组由内核自动选择；此版本只支持手动选择组".into();
+                if matches!(group.kind.as_str(), "LoadBalance" | "Relay") {
+                    self.status = "此策略组不支持手动固定选择".into();
                     return;
                 }
                 self.queue_core(Command::Select {
@@ -465,32 +632,12 @@ impl App {
                 });
             }
             Page::Profiles => {
-                if self.sub != 0 {
-                    return;
-                }
-                let live = self.live.as_ref().unwrap();
-                let Some(managed) = &live.managed else {
-                    self.status = "附加到现有内核时不接管其订阅；请使用 --core 独立运行".into();
-                    return;
-                };
-                let result = fs::read_to_string(&live.profiles[id].file)
-                    .map_err(anyhow::Error::from)
-                    .and_then(|text| {
-                        subscriptions::normalized_config(
-                            &text,
-                            &managed.controller,
-                            &managed.secret,
-                            managed.port,
-                        )
-                    });
-                match result {
-                    Ok(payload) => {
-                        if live.connected && !live.pending {
-                            self.live.as_mut().unwrap().pending_profile = Some(id);
-                            self.queue_core(Command::Reload(payload));
-                        }
-                    }
-                    Err(_) => self.status = "本地订阅读取或校验失败".into(),
+                if self.sub == 0 {
+                    self.workspace_command(crate::workspace::WorkspaceCommand::Select(id));
+                } else {
+                    self.workspace_command(crate::workspace::WorkspaceCommand::ToggleEnhancement(
+                        id,
+                    ));
                 }
             }
             Page::Connections => {
@@ -512,7 +659,7 @@ impl App {
                 let l = &self.state.logs[id];
                 self.detail(format!("{} · {} UTC", l.level, l.time), l.message.clone());
             }
-            Page::Unlock => self.detail("解锁检测", "真实解锁检测尚未接入。"),
+            Page::Unlock => self.detect_live(vec![id]),
             Page::Settings => {
                 let section = settings::sections().remove(id);
                 match section.name {
@@ -521,6 +668,50 @@ impl App {
                             .fields
                             .iter()
                             .filter(|f| UI_KEYS.contains(&f.key))
+                            .map(|f| Field::from_spec(f, self.state.value(f.key)))
+                            .collect();
+                        self.form(section.name, fields, SaveTarget::Settings(id));
+                    }
+                    "启动与服务" | "系统代理" | "DNS 覆写" | "端口设置" | "虚拟网卡 TUN"
+                    | "流量隧道"
+                        if self.live.as_ref().unwrap().managed.is_some() =>
+                    {
+                        let fields = section
+                            .fields
+                            .iter()
+                            .filter(|f|f.key!="silent")
+                            .map(|f| Field::from_spec(f, self.state.value(f.key)))
+                            .collect();
+                        self.form(section.name, fields, SaveTarget::Settings(id));
+                    }
+                    "基础网络" if self.live.as_ref().unwrap().managed.is_some() => {
+                        let fields = section
+                            .fields
+                            .iter()
+                            .map(|f| Field::from_spec(f, self.state.value(f.key)))
+                            .collect();
+                        self.form(section.name, fields, SaveTarget::Settings(id));
+                    }
+                    "备份与恢复" if self.live.as_ref().unwrap().managed.is_some() => {
+                        self.modal = Some(crate::app::Modal::Backups { selected: 0 });
+                        self.queue_core(Command::Backup(crate::backup::BackupCommand::List {
+                            remote: false,
+                        }));
+                    }
+                    "外部控制器" if self.live.as_ref().unwrap().managed.is_some() => {
+                        let fields = section
+                            .fields
+                            .iter()
+                            .map(|f| Field::from_spec(f, self.state.value(f.key)))
+                            .collect();
+                        self.form("外部控制器 · 重启后生效", fields, SaveTarget::Settings(id));
+                    }
+                    "轻量模式" | "杂项设置" | "内核与 GeoData" | "网页界面"
+                        if self.live.as_ref().unwrap().managed.is_some() =>
+                    {
+                        let fields = section
+                            .fields
+                            .iter()
                             .map(|f| Field::from_spec(f, self.state.value(f.key)))
                             .collect();
                         self.form(section.name, fields, SaveTarget::Settings(id));
@@ -539,10 +730,8 @@ impl App {
                         let live = self.live.as_ref().unwrap();
                         self.detail(section.name,format!("Clash Verge TUI v{}\nmihomo {}\n控制器：{}\n日志：{}\n状态目录：{}\n\n节点切换、模式、测速、连接关闭和规则启停已接入。\nMIT",env!("CARGO_PKG_VERSION"),live.version,live.endpoint,live.log_status,self.data_dir.display()));
                     }
-                    _ => self.detail(
-                        section.name,
-                        "此设置尚未接入真实后端，当前不会修改系统或内核配置。",
-                    ),
+                    "桌面功能映射"=>self.detail("终端适配","托盘快捷操作对应首页控制；后台自启不打开窗口。\n字体、窗口装饰、桌面热键由终端和桌面环境管理。\n本客户端面向 Linux，界面为简体中文。"),
+                    _=>self.detail(section.name,"附加模式仅控制内核 API；工作区和系统设置请通过 --core 打开。"),
                 }
             }
         }
@@ -550,9 +739,16 @@ impl App {
     pub fn command_live(&mut self, c: char) -> bool {
         match c {
             't' | 's' | 'p' => return false,
-            'm' if matches!(self.page, Page::Home | Page::Proxies) => self.queue_core(
-                Command::Mode(["rule", "global", "direct"][(self.state.mode + 1) % 3].into()),
-            ),
+            'm' if matches!(self.page, Page::Home | Page::Proxies) => {
+                let mode = ["rule", "global", "direct"][(self.state.mode + 1) % 3].to_string();
+                if self.live.as_ref().unwrap().managed.is_some() {
+                    self.workspace_command(crate::workspace::WorkspaceCommand::Settings(
+                        BTreeMap::from([("mode".into(), mode)]),
+                    ));
+                } else {
+                    self.queue_core(Command::Mode(mode));
+                }
+            }
             'r' => match self.page {
                 Page::Proxies => {
                     if let Some(g) = self.state.groups.get(self.sub) {
@@ -575,8 +771,16 @@ impl App {
                         ));
                     }
                 }
-                Page::Profiles => self.reload_profile_index(),
-                Page::Unlock => self.detail("解锁检测", "真实检测尚未接入。"),
+                Page::Profiles => {
+                    if self.sub == 0 {
+                        if let Some(i) = self.selected_id() {
+                            self.workspace_command(crate::workspace::WorkspaceCommand::Refresh(i));
+                        }
+                    } else {
+                        self.workspace_command(crate::workspace::WorkspaceCommand::Read);
+                    }
+                }
+                Page::Unlock => self.detect_live(self.rows().iter().map(|r| r.id).collect()),
                 _ => self.queue_core(Command::Refresh),
             },
             'd' if self.page == Page::Connections => {
@@ -598,65 +802,587 @@ impl App {
                 self.state.logs.clear();
                 self.status = "已清空界面日志缓存".into();
             }
+            'c' if self.page == Page::Proxies => {
+                if let Some(g) = self.state.groups.get(self.sub) {
+                    if matches!(g.kind.as_str(), "URLTest" | "Fallback") {
+                        self.queue_core(Command::Unfix(g.name.clone()));
+                    } else {
+                        self.status = "此组没有自动选择固定状态".into();
+                    }
+                }
+            }
+            'u' if self.page == Page::Settings => {
+                let name = self
+                    .selected_id()
+                    .map(|i| settings::sections()[i].name)
+                    .unwrap_or("");
+                match name {
+                    "内核与 GeoData" => self.confirm(
+                        "更新独立内核",
+                        "下载并重启本工作区的内核？文件能力授权可能需要重新设置。",
+                        Confirm::CoreUpgrade,
+                    ),
+                    "网页界面" => self.queue_core(Command::Upgrade {
+                        kind: "ui".into(),
+                        channel: None,
+                    }),
+                    _ => self.queue_core(Command::Extra(crate::extras::ExtraCommand::CheckUpdates)),
+                }
+            }
+            'g' if self.page == Page::Settings => self.queue_core(Command::Upgrade {
+                kind: "geo".into(),
+                channel: None,
+            }),
+            'o' if self.page == Page::Settings => {
+                let name = self
+                    .selected_id()
+                    .map(|i| settings::sections()[i].name)
+                    .unwrap_or("");
+                let target = if name == "网页界面" {
+                    self.state.value("webui_url").into()
+                } else {
+                    self.data_dir.to_string_lossy().into_owned()
+                };
+                self.queue_core(Command::Extra(crate::extras::ExtraCommand::Open(target)));
+            }
+            'x' if matches!(self.page, Page::Settings | Page::Logs) => self.export_live(),
             'e' if self.page == Page::Settings => self.activate_live(),
-            'a' | 'e' | 'd' | 'v' | 'b' | 'R' | '[' | ']' => self.detail(
-                "功能尚未接入",
-                "当前版本不执行此真实操作。演示模式仍可预览完整交互。",
-            ),
+            'b' if self.page == Page::Settings => {
+                self.queue_core(Command::Backup(crate::backup::BackupCommand::Create))
+            }
+            'R' if self.page == Page::Settings => {
+                self.modal = Some(crate::app::Modal::Backups { selected: 0 });
+                self.queue_core(Command::Backup(crate::backup::BackupCommand::List {
+                    remote: false,
+                }));
+            }
+            'a' | 'e' if self.page == Page::Rules && self.sub == 0 => {
+                let index = if c == 'e' { self.selected_id() } else { None };
+                let r = index.and_then(|i| self.state.rules.get(i));
+                self.form(
+                    "覆写当前规则列表",
+                    vec![
+                        Field::new(
+                            "kind",
+                            "规则类型",
+                            r.map(|r| r.kind.as_str()).unwrap_or("DOMAIN-SUFFIX"),
+                            Kind::Text,
+                        ),
+                        Field::new(
+                            "payload",
+                            "匹配内容",
+                            r.map(|r| r.payload.as_str()).unwrap_or(""),
+                            Kind::Text,
+                        ),
+                        Field::new(
+                            "target",
+                            "出站策略",
+                            r.map(|r| r.target.as_str()).unwrap_or("DIRECT"),
+                            Kind::Text,
+                        ),
+                    ],
+                    SaveTarget::Rule(index),
+                );
+            }
+            'd' if self.page == Page::Rules && self.sub == 0 => {
+                if let Some(i) = self.selected_id() {
+                    self.confirm(
+                        "删除规则",
+                        "删除后持久化覆写当前规则列表？",
+                        Confirm::Rule(i),
+                    );
+                }
+            }
+            'R' if self.page == Page::Rules && self.sub == 0 => {
+                self.workspace_command(crate::workspace::WorkspaceCommand::ResetRules)
+            }
+            'a' if self.page == Page::Profiles => self.edit_workspace_profile(None),
+            'e' if self.page == Page::Profiles => {
+                if let Some(i) = self.selected_id() {
+                    self.edit_workspace_profile(Some(i));
+                }
+            }
+            'i' if self.page == Page::Profiles && self.sub == 0 => {
+                if let Some(i) = self.selected_id() {
+                    let p = &self.live.as_ref().unwrap().profiles[i];
+                    let origin = url::Url::parse(&p.url)
+                        .ok()
+                        .map(|u| u.origin().ascii_serialization())
+                        .unwrap_or("本地文件".into());
+                    let expiry = p
+                        .usage()
+                        .and_then(|(_, _, e)| e)
+                        .map(|e| {
+                            format!(
+                                "{} 天",
+                                e.saturating_sub(crate::workspace::timestamp())
+                                    .div_ceil(86400)
+                            )
+                        })
+                        .unwrap_or("未提供".into());
+                    self.detail(
+                        "订阅详情",
+                        format!(
+                            "名称：{}\n来源：{}\n节点：{}\n策略组：{}\n用量：{}\n到期剩余：{}",
+                            p.name,
+                            origin,
+                            p.proxies,
+                            p.groups,
+                            p.usage_label(),
+                            expiry
+                        ),
+                    );
+                }
+            }
+            'v' if self.page == Page::Profiles && self.sub == 0 => {
+                if let Some(i) = self.selected_id() {
+                    match fs::read_to_string(&self.live.as_ref().unwrap().profiles[i].file) {
+                        Ok(text) => self.form(
+                            "编辑订阅 YAML",
+                            vec![Field::new("content", "配置内容", &text, Kind::Multiline)],
+                            SaveTarget::ProfileContent(i),
+                        ),
+                        Err(_) => self.status = "配置文件读取失败".into(),
+                    }
+                }
+            }
+            'd' if self.page == Page::Profiles => {
+                if let Some(i) = self.selected_id() {
+                    self.confirm(
+                        "删除条目",
+                        "删除该条目并重新校验当前配置？",
+                        if self.sub == 0 {
+                            Confirm::Profile(i)
+                        } else {
+                            Confirm::Enhancement(i)
+                        },
+                    );
+                }
+            }
+            '[' | ']' if self.page == Page::Profiles => {
+                if let Some(i) = self.selected_id() {
+                    let len = if self.sub == 0 {
+                        self.state.profiles.len()
+                    } else {
+                        self.state.enhancements.len()
+                    };
+                    let destination = if c == '[' {
+                        i.saturating_sub(1)
+                    } else {
+                        (i + 1).min(len - 1)
+                    };
+                    self.workspace_command(if self.sub == 0 {
+                        crate::workspace::WorkspaceCommand::Move {
+                            index: i,
+                            destination,
+                        }
+                    } else {
+                        crate::workspace::WorkspaceCommand::MoveEnhancement {
+                            index: i,
+                            destination,
+                        }
+                    });
+                }
+            }
+            'R' if self.page == Page::Profiles => {
+                self.workspace_command(crate::workspace::WorkspaceCommand::Read)
+            }
+            'a' | 'e' | 'd' | 'v' | 'b' | 'R' | '[' | ']' => {
+                self.detail("当前页面没有此操作", "可用操作见页面工具栏和帮助。")
+            }
             _ => return false,
         }
         true
     }
-    fn reload_profile_index(&mut self) {
-        let live = self.live.as_mut().unwrap();
+    fn edit_workspace_profile(&mut self, index: Option<usize>) {
+        let live = self.live.as_ref().unwrap();
         if live.managed.is_none() {
-            self.status = "附加模式不接管外部内核的订阅".into();
+            self.status = "此操作需要独立内核工作区".into();
             return;
         }
-        match subscriptions::load_profiles(&self.data_dir.join("profiles")) {
-            Ok(profiles) => {
-                let active_url = live
-                    .profiles
-                    .get(self.state.active_profile)
-                    .map(|p| p.url.clone());
-                self.state.active_profile = active_url
-                    .and_then(|url| profiles.iter().position(|p| p.url == url))
-                    .unwrap_or(0);
-                self.state.profiles = profiles
-                    .iter()
-                    .map(|p| Profile {
-                        name: p.name.clone(),
-                        url: p.url.clone(),
-                        interval: "—".into(),
-                        used: 0,
-                        total: 0,
-                        updated: "已下载".into(),
-                        content: String::new(),
-                    })
-                    .collect();
-                live.profiles = profiles;
-                self.selected = self
-                    .selected
-                    .min(self.state.profiles.len().saturating_sub(1));
-                self.status =
-                    "已重读本地订阅；Enter 应用。远端更新使用 --subscriptions-file".into();
-            }
-            Err(_) => self.status = "订阅索引读取失败；原列表保留".into(),
+        if self.sub == 0 {
+            let p = index.and_then(|i| live.profiles.get(i));
+            let interval = p
+                .and_then(|p| {
+                    live.workspace
+                        .schedules
+                        .get(&p.file.to_string_lossy().into_owned())
+                })
+                .map(|s| s.interval_minutes)
+                .unwrap_or(720)
+                .to_string();
+            self.form(
+                "订阅配置",
+                vec![
+                    Field::new(
+                        "name",
+                        "名称",
+                        p.map(|p| p.name.as_str()).unwrap_or(""),
+                        Kind::Text,
+                    ),
+                    Field::new(
+                        "url",
+                        "远程 URL（本地配置留空）",
+                        p.map(|p| p.url.as_str()).unwrap_or(""),
+                        Kind::Text,
+                    ),
+                    Field::new(
+                        "proxy",
+                        "下载代理（可留空）",
+                        p.and_then(|p| p.proxy.as_deref()).unwrap_or(""),
+                        Kind::Text,
+                    ),
+                    Field::new(
+                        "interval",
+                        "更新间隔 / 分钟（0 关闭）",
+                        &interval,
+                        Kind::Number,
+                    ),
+                    Field::new("local_file", "导入本地文件（可留空）", "", Kind::Text),
+                    Field::new(
+                        "content",
+                        "本地 YAML（远程订阅可留空）",
+                        &p.filter(|p| p.url.is_empty())
+                            .and_then(|p| fs::read_to_string(&p.file).ok())
+                            .unwrap_or_default(),
+                        Kind::Multiline,
+                    ),
+                ],
+                SaveTarget::Profile(index),
+            );
+        } else {
+            let item = index.and_then(|i| self.state.enhancements.get(i));
+            self.form(
+                "配置增强 · 执行用户编写的脚本",
+                vec![
+                    Field::new(
+                        "name",
+                        "名称",
+                        item.map(|e| e.name.as_str()).unwrap_or(""),
+                        Kind::Text,
+                    ),
+                    Field::new(
+                        "kind",
+                        "类型",
+                        item.map(|e| e.kind.as_str()).unwrap_or("YAML"),
+                        Kind::Choice(&["YAML", "JavaScript"]),
+                    ),
+                    Field::new(
+                        "content",
+                        "内容",
+                        item.map(|e| e.content.as_str()).unwrap_or(""),
+                        Kind::Multiline,
+                    ),
+                ],
+                SaveTarget::Enhancement(index),
+            );
         }
     }
-
+    pub fn validate_live_form(&self, fields: &[Field], _: &SaveTarget) -> Result<(), String> {
+        for f in fields {
+            if f.key == "name" && f.value.trim().is_empty() {
+                return Err("名称不能为空".into());
+            }
+            if matches!(f.kind, Kind::Number) {
+                let n = f
+                    .value
+                    .parse::<u64>()
+                    .map_err(|_| format!("{}需要非负整数", f.label))?;
+                if f.key == "refresh" && n < 100 {
+                    return Err("刷新间隔不能小于 100 毫秒".into());
+                }
+            }
+            if f.key == "url"
+                && !f.value.is_empty()
+                && !url::Url::parse(&f.value).is_ok_and(|u| matches!(u.scheme(), "http" | "https"))
+            {
+                return Err("订阅 URL 无效".into());
+            }
+        }
+        Ok(())
+    }
+    pub fn backup_key(&mut self, key: crossterm::event::KeyCode, selected: usize) {
+        use crate::backup::BackupCommand as B;
+        let live = self.live.as_ref().unwrap();
+        let remote = live.backups_remote;
+        let length = live.backups.len();
+        match key {
+            crossterm::event::KeyCode::Up => {
+                self.modal = Some(crate::app::Modal::Backups {
+                    selected: selected.saturating_sub(1),
+                })
+            }
+            crossterm::event::KeyCode::Down => {
+                self.modal = Some(crate::app::Modal::Backups {
+                    selected: (selected + 1).min(length.saturating_sub(1)),
+                })
+            }
+            crossterm::event::KeyCode::Left
+            | crossterm::event::KeyCode::Right
+            | crossterm::event::KeyCode::Tab => {
+                self.modal = Some(crate::app::Modal::Backups { selected: 0 });
+                self.queue_core(Command::Backup(B::List { remote: !remote }));
+            }
+            crossterm::event::KeyCode::Char('b') => self.queue_core(Command::Backup(B::Create)),
+            crossterm::event::KeyCode::Char('e') => {
+                let sections = settings::sections();
+                let id = sections
+                    .iter()
+                    .position(|s| s.name == "备份与恢复")
+                    .unwrap();
+                let fields = sections[id]
+                    .fields
+                    .iter()
+                    .map(|f| Field::from_spec(f, self.state.value(f.key)))
+                    .collect();
+                self.form("备份与 WebDAV", fields, SaveTarget::Settings(id));
+            }
+            crossterm::event::KeyCode::Enter
+            | crossterm::event::KeyCode::Char('d')
+            | crossterm::event::KeyCode::Char('u')
+                if selected < length =>
+            {
+                let file = live.backups[selected].file.clone();
+                let command = match key {
+                    crossterm::event::KeyCode::Enter => B::Restore { file, remote },
+                    crossterm::event::KeyCode::Char('d') => B::Delete { file, remote },
+                    _ => B::Upload(file),
+                };
+                self.confirm(
+                    "确认备份操作",
+                    "执行所选操作？恢复会替换订阅、增强脚本和设置。",
+                    Confirm::LiveBackup(command),
+                );
+            }
+            _ => {}
+        }
+    }
+    fn proxy_url(&self) -> Option<String> {
+        let host = url::Url::parse(&self.live.as_ref()?.endpoint)
+            .ok()
+            .and_then(|u| u.host_str().map(str::to_string))
+            .unwrap_or("127.0.0.1".into());
+        let host = if host.contains(':') && !host.starts_with('[') {
+            format!("[{host}]")
+        } else {
+            host
+        };
+        for (key, scheme) in [
+            ("mixed_port", "http"),
+            ("http_port", "http"),
+            ("socks_port", "socks5h"),
+        ] {
+            if let Ok(port) = self.state.value(key).parse::<u16>() {
+                if port > 0 {
+                    return Some(format!("{scheme}://{host}:{port}"));
+                }
+            }
+        }
+        None
+    }
+    fn detect_live(&mut self, indices: Vec<usize>) {
+        if let Some(proxy) = self.proxy_url() {
+            self.queue_core(Command::Extra(crate::extras::ExtraCommand::Detect {
+                proxy,
+                indices,
+            }));
+        } else {
+            self.status = "没有可用的代理监听端口".into();
+        }
+    }
+    fn export_live(&mut self) {
+        let path = self
+            .data_dir
+            .join("reports")
+            .join(if self.page == Page::Logs {
+                "logs.txt"
+            } else {
+                "diagnostics.json"
+            });
+        let text = if self.page == Page::Logs {
+            self.rows()
+                .iter()
+                .map(|r| r.cells.join(" "))
+                .collect::<Vec<_>>()
+                .join("\n")
+        } else {
+            let live = self.live.as_ref().unwrap();
+            serde_json::to_string_pretty(&json!({"app":env!("CARGO_PKG_VERSION"),"core":live.version,"connected":live.connected,"nodes":self.state.nodes.len(),"groups":self.state.groups.len(),"rules":self.state.rules.len(),"connections":self.state.connections.len(),"mode":self.state.mode,"managed":live.managed.is_some()})).unwrap()
+        };
+        self.status = match subscriptions::private_write(&path, text.as_bytes()) {
+            Ok(()) => format!("已导出到 {}", path.display()),
+            Err(_) => "导出失败".into(),
+        };
+    }
     pub fn confirm_live(&mut self, target: &Confirm) -> bool {
         match target {
+            Confirm::CoreUpgrade if self.live.as_ref().unwrap().managed.is_none() => {
+                self.status = "附加模式不管理外部内核文件".into()
+            }
+            Confirm::CoreUpgrade => self.queue_core(Command::Upgrade {
+                kind: "core".into(),
+                channel: Some(
+                    if self.state.value("core_channel") == "Alpha" {
+                        "alpha"
+                    } else {
+                        "stable"
+                    }
+                    .into(),
+                ),
+            }),
+            Confirm::LiveBackup(command) => self.queue_core(Command::Backup(command.clone())),
+            Confirm::Profile(i) => {
+                self.workspace_command(crate::workspace::WorkspaceCommand::Delete(*i))
+            }
+            Confirm::Enhancement(i) => {
+                self.workspace_command(crate::workspace::WorkspaceCommand::DeleteEnhancement(*i))
+            }
             Confirm::CoreConnection(id) => self.queue_core(Command::Close(Some(id.clone()))),
+            Confirm::Rule(i) => {
+                self.workspace_command(crate::workspace::WorkspaceCommand::EditRule {
+                    index: Some(self.live.as_ref().unwrap().rule_indices[*i]),
+                    rule: None,
+                })
+            }
             Confirm::AllConnections => self.queue_core(Command::Close(None)),
             _ => self.status = "当前确认操作不支持真实模式".into(),
         }
         true
     }
     pub fn save_live_form(&mut self, fields: &[Field], target: &SaveTarget) {
-        if !matches!(target, SaveTarget::Settings(_)) {
-            self.status = "当前表单不支持真实模式".into();
+        let live = self.live.as_ref().unwrap();
+        let offline_safe = fields.iter().all(|f| {
+            UI_KEYS.contains(&f.key.as_str())
+                || ["service", "auto_launch", "start_script", "silent"].contains(&f.key.as_str())
+        });
+        if live.pending || !live.connected && !offline_safe {
+            if let Some(crate::app::Modal::Form { error, .. }) = &mut self.modal {
+                *error = if live.pending {
+                    "上一项操作尚未完成，请稍后按 Ctrl+S 重试"
+                } else {
+                    "内核未连接，输入已保留"
+                }
+                .into();
+            }
+            return;
+        }
+
+        let get = |key: &str| {
+            fields
+                .iter()
+                .find(|f| f.key == key)
+                .map(|f| f.value.clone())
+                .unwrap_or_default()
+        };
+        use crate::workspace::WorkspaceCommand as W;
+        let command = match target {
+            SaveTarget::Profile(index) => {
+                let text = if !get("local_file").is_empty() {
+                    match fs::read_to_string(get("local_file")) {
+                        Ok(s) if s.len() <= 8 * 1024 * 1024 => s,
+                        _ => {
+                            self.status = "本地文件读取失败或超过 8 MiB".into();
+                            return;
+                        }
+                    }
+                } else {
+                    get("content")
+                };
+                let content = if !text.trim().is_empty() {
+                    Some(text)
+                } else {
+                    None
+                };
+                if get("url").is_empty() && content.is_none() {
+                    self.status = "本地配置需要 YAML 内容或文件路径".into();
+                    return;
+                }
+                Some(W::PutProfile {
+                    index: *index,
+                    name: get("name"),
+                    url: get("url"),
+                    proxy: if get("proxy").is_empty() {
+                        None
+                    } else {
+                        Some(get("proxy"))
+                    },
+                    content,
+                    interval: get("interval").parse().unwrap_or(0),
+                })
+            }
+            SaveTarget::ProfileContent(index) => {
+                let p = &self.live.as_ref().unwrap().profiles[*index];
+                let interval = self
+                    .live
+                    .as_ref()
+                    .unwrap()
+                    .workspace
+                    .schedules
+                    .get(&p.file.to_string_lossy().into_owned())
+                    .map(|s| s.interval_minutes)
+                    .unwrap_or(0);
+                Some(W::PutProfile {
+                    index: Some(*index),
+                    name: p.name.clone(),
+                    url: p.url.clone(),
+                    proxy: p.proxy.clone(),
+                    content: Some(get("content")),
+                    interval,
+                })
+            }
+            SaveTarget::Rule(index) => {
+                let kind = match get("kind").as_str() {
+                    "Domain" => "DOMAIN".into(),
+                    "DomainSuffix" => "DOMAIN-SUFFIX".into(),
+                    "DomainKeyword" => "DOMAIN-KEYWORD".into(),
+                    "GeoIP" => "GEOIP".into(),
+                    "IPCIDR" => "IP-CIDR".into(),
+                    "RuleSet" => "RULE-SET".into(),
+                    "Match" => "MATCH".into(),
+                    value => value.to_ascii_uppercase(),
+                };
+                let rule = if kind == "MATCH" {
+                    format!("MATCH,{}", get("target"))
+                } else {
+                    format!("{},{},{}", kind, get("payload"), get("target"))
+                };
+                Some(W::EditRule {
+                    index: index.map(|i| self.live.as_ref().unwrap().rule_indices[i]),
+                    rule: Some(rule),
+                })
+            }
+            SaveTarget::Enhancement(index) => Some(W::PutEnhancement {
+                index: *index,
+                item: Enhancement {
+                    name: get("name"),
+                    kind: get("kind"),
+                    content: get("content"),
+                    enabled: index
+                        .and_then(|i| self.state.enhancements.get(i))
+                        .map(|e| e.enabled)
+                        .unwrap_or(true),
+                },
+            }),
+            _ => None,
+        };
+        if let Some(command) = command {
             self.modal = None;
+            self.workspace_command(command);
+            return;
+        }
+        if !matches!(target, SaveTarget::Settings(_)) {
+            self.status = "此表单尚未接入".into();
+            return;
+        }
+        let network = fields.iter().any(|f| !UI_KEYS.contains(&f.key.as_str()));
+        if network && self.live.as_ref().unwrap().managed.is_some() {
+            self.modal = None;
+            self.workspace_command(W::Settings(
+                fields
+                    .iter()
+                    .map(|f| (f.key.clone(), f.value.clone()))
+                    .collect(),
+            ));
             return;
         }
         let mut patch = serde_json::Map::new();
@@ -690,9 +1416,57 @@ impl App {
         }
     }
     fn runtime_live(&mut self) {
+        fn redact(value: &mut serde_yaml_ng::Value) {
+            match value {
+                serde_yaml_ng::Value::Mapping(map) => {
+                    for (key, value) in map.iter_mut() {
+                        let key = key.as_str().unwrap_or("").to_ascii_lowercase();
+                        if [
+                            "secret",
+                            "password",
+                            "uuid",
+                            "private-key",
+                            "authentication",
+                            "token",
+                            "authorization",
+                            "cookie",
+                        ]
+                        .contains(&key.as_str())
+                        {
+                            *value = "[hidden]".into();
+                        } else if key == "url" {
+                            if let Some(text) = value.as_str() {
+                                if let Ok(url) = url::Url::parse(text) {
+                                    *value =
+                                        format!("{}/…", url.origin().ascii_serialization()).into();
+                                }
+                            }
+                        } else {
+                            redact(value);
+                        }
+                    }
+                }
+                serde_yaml_ng::Value::Sequence(values) => {
+                    for value in values {
+                        redact(value);
+                    }
+                }
+                _ => {}
+            }
+        }
+        let live = self.live.as_ref().unwrap();
+        let mut value = if live.managed.is_some() {
+            fs::read_to_string(self.data_dir.join("core/config.yaml"))
+                .ok()
+                .and_then(|s| serde_yaml_ng::from_str(&s).ok())
+                .unwrap_or(serde_yaml_ng::Value::Null)
+        } else {
+            serde_yaml_ng::to_value(&live.config).unwrap_or_default()
+        };
+        redact(&mut value);
         self.detail(
-            "内核运行参数",
-            serde_json::to_string_pretty(&self.live.as_ref().unwrap().config).unwrap_or_default(),
+            "当前配置 · 认证信息已隐藏",
+            serde_yaml_ng::to_string(&value).unwrap_or_default(),
         );
     }
 }

@@ -1,6 +1,6 @@
 [package]
 name = "clash-verge-tui"
-version = "0.2.0"
+version = "1.0.0"
 edition = "2021"
 rust-version = "1.88"
 description = "A terminal interface and controller for mihomo"
@@ -16,12 +16,19 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 unicode-width = "0.2"
 
-reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "stream"] }
-tokio = { version = "1", features = ["rt", "time", "sync", "macros", "net", "io-util", "process"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "stream", "socks"] }
+tokio = { version = "1", features = ["rt", "time", "sync", "macros", "net", "io-util", "process", "signal"] }
 futures-util = "0.3"
 serde_yaml_ng = "0.10"
 url = "2"
 getrandom = "0.2"
+fs2 = "0.4"
+libc = "0.2"
+tempfile = "3"
+base64 = "0.22"
+aes-gcm = "0.10"
+scrypt = "0.11"
+roxmltree = "0.20"
+semver = "1"
 
 [dev-dependencies]
-tempfile = "3"

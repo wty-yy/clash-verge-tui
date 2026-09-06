@@ -49,6 +49,8 @@ pub enum Confirm {
     Connection(usize),
     AllConnections,
     CoreConnection(String),
+    CoreUpgrade,
+    LiveBackup(crate::backup::BackupCommand),
     Rule(usize),
     Logs,
     Restore(usize),
@@ -107,14 +109,80 @@ impl Field {
             .chars()
             .filter(|c| !c.is_control() || (*c == '\n' && matches!(self.kind, Kind::Multiline)))
             .collect();
-        if self.value.len() + s.len() > 65536 {
+        if self.value.len() + s.len()
+            > if matches!(self.kind, Kind::Multiline) {
+                8 * 1024 * 1024
+            } else {
+                65536
+            }
+        {
             return;
         }
         self.value.insert_str(self.cursor, &s);
         self.cursor += s.len();
     }
+    fn vertical(&mut self, delta: isize) {
+        let start = self.value[..self.cursor]
+            .rfind('\n')
+            .map(|i| i + 1)
+            .unwrap_or(0);
+        let column = self.value[start..self.cursor].chars().count();
+        let target = if delta < 0 {
+            if start == 0 {
+                return;
+            }
+            self.value[..start - 1]
+                .rfind('\n')
+                .map(|i| i + 1)
+                .unwrap_or(0)
+        } else {
+            let Some(end) = self.value[self.cursor..].find('\n') else {
+                return;
+            };
+            self.cursor + end + 1
+        };
+        let end = self.value[target..]
+            .find('\n')
+            .map(|i| target + i)
+            .unwrap_or(self.value.len());
+        self.cursor = self.value[target..end]
+            .char_indices()
+            .nth(column)
+            .map(|(i, _)| target + i)
+            .unwrap_or(end);
+    }
     pub fn key(&mut self, key: KeyEvent) {
         match key.code {
+            KeyCode::Up if matches!(self.kind, Kind::Multiline) => self.vertical(-1),
+            KeyCode::Down if matches!(self.kind, Kind::Multiline) => self.vertical(1),
+            KeyCode::PageUp if matches!(self.kind, Kind::Multiline) => {
+                for _ in 0..10 {
+                    self.vertical(-1);
+                }
+            }
+            KeyCode::PageDown if matches!(self.kind, Kind::Multiline) => {
+                for _ in 0..10 {
+                    self.vertical(1);
+                }
+            }
+            KeyCode::Home
+                if matches!(self.kind, Kind::Multiline)
+                    && !key.modifiers.contains(KeyModifiers::CONTROL) =>
+            {
+                self.cursor = self.value[..self.cursor]
+                    .rfind('\n')
+                    .map(|i| i + 1)
+                    .unwrap_or(0)
+            }
+            KeyCode::End
+                if matches!(self.kind, Kind::Multiline)
+                    && !key.modifiers.contains(KeyModifiers::CONTROL) =>
+            {
+                self.cursor = self.value[self.cursor..]
+                    .find('\n')
+                    .map(|i| self.cursor + i)
+                    .unwrap_or(self.value.len())
+            }
             KeyCode::Char('u') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                 self.value.clear();
                 self.cursor = 0;
@@ -302,7 +370,13 @@ impl App {
             Page::Home => vec![
                 row(
                     0,
-                    vec!["系统代理".into(), self.state.value("system_proxy").into()],
+                    vec![
+                        "系统代理".into(),
+                        self.live
+                            .as_ref()
+                            .map(|l| l.system_proxy_status.clone())
+                            .unwrap_or_else(|| self.state.value("system_proxy").into()),
+                    ],
                 ),
                 row(
                     1,
@@ -379,7 +453,7 @@ impl App {
                             if let Some(live) = &self.live {
                                 live.profiles
                                     .get(i)
-                                    .map(|p| format!("{} 节点", p.proxies))
+                                    .map(|p| p.usage_label())
                                     .unwrap_or("—".into())
                             } else {
                                 format!("{} / {} GB", p.used, p.total)
@@ -706,14 +780,17 @@ impl App {
                             cells: row.cells.clone(),
                         })
                     }
-                    (Action::BackupSelect(index), Some(Modal::Backups { .. })) => self
-                        .state
-                        .backups
-                        .get(*index)
-                        .map(|backup| ClickTarget::Backup {
+                    (Action::BackupSelect(index), Some(Modal::Backups { .. })) => {
+                        let name = if let Some(live) = &self.live {
+                            live.backups.get(*index).map(|b| b.file.clone())
+                        } else {
+                            self.state.backups.get(*index).map(|b| b.name.clone())
+                        };
+                        name.map(|name| ClickTarget::Backup {
                             index: *index,
-                            name: backup.name.clone(),
-                        }),
+                            name,
+                        })
+                    }
                     _ => None,
                 };
                 let double_click = match (&previous, &target) {
@@ -812,6 +889,10 @@ impl App {
             return;
         }
         if let Some(Modal::Backups { selected }) = self.modal.clone() {
+            if self.live.is_some() {
+                self.backup_key(key.code, selected);
+                return;
+            }
             match key.code {
                 KeyCode::Up => {
                     self.modal = Some(Modal::Backups {
@@ -869,6 +950,9 @@ impl App {
         match self.modal.as_mut().unwrap() {
             Modal::Backups { .. } => unreachable!("backup input handled above"),
             Modal::Form { fields, active, .. } => match key.code {
+                KeyCode::Up | KeyCode::Down if matches!(fields[*active].kind, Kind::Multiline) => {
+                    fields[*active].key(key)
+                }
                 KeyCode::Tab | KeyCode::Down => *active = (*active + 1) % fields.len(),
                 KeyCode::BackTab | KeyCode::Up => {
                     *active = (*active + fields.len() - 1) % fields.len()
@@ -1294,7 +1378,7 @@ impl App {
             return;
         }
         match target {
-            Confirm::CoreConnection(_) => return,
+            Confirm::CoreConnection(_) | Confirm::LiveBackup(_) | Confirm::CoreUpgrade => return,
             Confirm::Backup(i) => {
                 self.state.backups.remove(i);
             }
@@ -1380,7 +1464,12 @@ impl App {
         let Some(Modal::Form { fields, target, .. }) = self.modal.as_ref() else {
             return;
         };
-        if let Err(message) = Self::validate(fields, target) {
+        let validation = if self.live.is_some() {
+            self.validate_live_form(fields, target)
+        } else {
+            Self::validate(fields, target)
+        };
+        if let Err(message) = validation {
             if let Some(Modal::Form { error, .. }) = &mut self.modal {
                 *error = message;
             }

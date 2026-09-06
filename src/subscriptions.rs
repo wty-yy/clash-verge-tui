@@ -28,6 +28,43 @@ pub struct StoredProfile {
     #[serde(default)]
     pub proxy: Option<String>,
 }
+impl StoredProfile {
+    pub fn usage(&self) -> Option<(u64, u64, Option<u64>)> {
+        let fields: std::collections::BTreeMap<_, _> = self
+            .user_info
+            .as_deref()?
+            .split(';')
+            .filter_map(|part| {
+                let (key, value) = part.trim().split_once('=')?;
+                Some((key.trim(), value.trim().parse::<u64>().ok()?))
+            })
+            .collect();
+        let total = *fields.get("total")?;
+        if total == 0 {
+            return None;
+        }
+        Some((
+            fields
+                .get("upload")
+                .copied()
+                .unwrap_or(0)
+                .saturating_add(fields.get("download").copied().unwrap_or(0)),
+            total,
+            fields.get("expire").copied().filter(|e| *e > 0),
+        ))
+    }
+    pub fn usage_label(&self) -> String {
+        self.usage()
+            .map(|(used, total, _)| {
+                format!(
+                    "{} / {}",
+                    crate::live::bytes(used),
+                    crate::live::bytes(total)
+                )
+            })
+            .unwrap_or_else(|| format!("{} 节点", self.proxies))
+    }
+}
 #[derive(Clone, Debug)]
 pub struct ImportResult {
     pub name: String,
@@ -64,7 +101,13 @@ pub fn parse_config(text: &str) -> Result<Value> {
         .as_mapping()
         .map(Mapping::len)
         .unwrap_or(0);
-    if proxies == 0 && providers == 0 {
+    if proxies == 0
+        && providers == 0
+        && config
+            .get("rules")
+            .and_then(Value::as_sequence)
+            .is_none_or(Vec::is_empty)
+    {
         bail!("订阅不包含代理节点或代理集合");
     }
     Ok(config)
@@ -86,7 +129,10 @@ pub async fn download(source: &Source, dir: &Path, index: usize) -> Result<Store
     let client = builder.build()?;
     let response = client
         .get(url)
-        .header("User-Agent", "clash-verge-tui/0.2.0")
+        .header(
+            "User-Agent",
+            concat!("clash-verge-tui/", env!("CARGO_PKG_VERSION")),
+        )
         .send()
         .await
         .map_err(|e| anyhow!("下载失败：{}", e.without_url()))?;
@@ -129,6 +175,12 @@ pub async fn import_file(
     dir: &Path,
     proxy_override: Option<&str>,
 ) -> Result<Vec<ImportResult>> {
+    let root = if dir.file_name().is_some_and(|n| n == "profiles") {
+        dir.parent().unwrap_or(dir)
+    } else {
+        dir
+    };
+    let _lock = crate::workspace::Lock::acquire(root)?;
     let sources: Vec<Source> = serde_json::from_slice(&fs::read(path)?)
         .map_err(|_| anyhow!("订阅清单格式无效，应为 name/url 对象数组"))?;
     if sources.is_empty() {
@@ -145,7 +197,7 @@ pub async fn import_file(
             .iter()
             .position(|p| p.url == source.url)
             .unwrap_or(profiles.len());
-        match download(&source, dir, index).await {
+        match download(&source, dir, crate::workspace::next_file_id(dir)).await {
             Ok(profile) => {
                 if index < profiles.len() {
                     profiles[index] = profile.clone();
@@ -163,10 +215,14 @@ pub async fn import_file(
             }),
         }
     }
-    private_write(
-        &dir.join("index.json"),
-        &serde_json::to_vec_pretty(&profiles)?,
-    )?;
+    if root.join("workspace-state.json").exists() {
+        crate::workspace::synchronize_import(root, profiles)?;
+    } else {
+        private_write(
+            &dir.join("index.json"),
+            &serde_json::to_vec_pretty(&profiles)?,
+        )?;
+    }
     Ok(results)
 }
 pub fn load_profiles(dir: &Path) -> Result<Vec<StoredProfile>> {
@@ -269,10 +325,79 @@ pub fn normalized_config(
     Ok(serde_yaml_ng::to_string(&Value::Mapping(normalized))?)
 }
 
+pub fn prepare_binary(binary: &Path, dir: &Path) -> Result<PathBuf> {
+    fs::create_dir_all(dir)?;
+    let source = if binary.is_absolute() || binary.components().count() > 1 {
+        fs::canonicalize(binary)?
+    } else {
+        std::env::split_paths(&std::env::var_os("PATH").unwrap_or_default())
+            .map(|p| p.join(binary))
+            .find(|p| p.is_file())
+            .ok_or_else(|| anyhow!("找不到 mihomo 可执行文件"))?
+    };
+    let owned = dir.join("mihomo");
+    let metadata = fs::metadata(&source)?;
+    let fingerprint = format!(
+        "{}:{}:{}",
+        source.display(),
+        metadata.len(),
+        metadata
+            .modified()?
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs()
+    );
+    let source_record = dir.join("binary-source.txt");
+    if source != owned
+        && (!owned.exists()
+            || fs::read_to_string(&source_record).ok().as_deref() != Some(fingerprint.as_str()))
+    {
+        if fs::symlink_metadata(&owned)
+            .ok()
+            .is_some_and(|m| m.file_type().is_symlink())
+        {
+            bail!("独立内核文件不能是符号链接");
+        }
+        let staging = dir.join("mihomo-new");
+        fs::copy(&source, &staging)?;
+        fs::rename(staging, &owned)?;
+        private_write(&source_record, fingerprint.as_bytes())?;
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            fs::set_permissions(&owned, fs::Permissions::from_mode(0o700))?;
+        }
+    }
+    if fs::symlink_metadata(&owned)?.file_type().is_symlink() {
+        bail!("独立内核文件不能是符号链接");
+    }
+    Ok(owned)
+}
+pub fn ensure_secret(dir: &Path, configured: Option<&str>) -> Result<String> {
+    fs::create_dir_all(dir)?;
+    let file = dir.join("controller.secret");
+    if let Some(value) = configured.filter(|s| !s.is_empty()) {
+        private_write(&file, value.as_bytes())?;
+        return Ok(value.into());
+    }
+    if file.exists() {
+        let value = fs::read_to_string(&file)?.trim().to_string();
+        if !value.is_empty() {
+            return Ok(value);
+        }
+    }
+    let mut bytes = [0; 32];
+    getrandom::getrandom(&mut bytes).map_err(|_| anyhow!("生成控制器密钥失败"))?;
+    let value = bytes.iter().map(|b| format!("{b:02x}")).collect::<String>();
+    private_write(&file, value.as_bytes())?;
+    Ok(value)
+}
 pub struct ManagedCore {
     child: Child,
     pub controller: String,
     pub secret: String,
+    pub binary: PathBuf,
+    pub external_controller: String,
 }
 impl ManagedCore {
     pub fn start(
@@ -281,6 +406,16 @@ impl ManagedCore {
         profile: &StoredProfile,
         port: u16,
         controller_port: u16,
+    ) -> Result<Self> {
+        Self::start_with_payload(binary, dir, profile, port, controller_port, None)
+    }
+    pub fn start_with_payload(
+        binary: &Path,
+        dir: &Path,
+        profile: &StoredProfile,
+        port: u16,
+        controller_port: u16,
+        prepared: Option<String>,
     ) -> Result<Self> {
         if port == 0 || controller_port == 0 || port == controller_port {
             bail!("代理端口和控制器端口必须为不同的非零端口");
@@ -291,33 +426,62 @@ impl ManagedCore {
         }
         fs::create_dir_all(dir)?;
         let dir = fs::canonicalize(dir)?;
-        let secret_file = dir.join("controller.secret");
-        let secret = if secret_file.exists() {
-            fs::read_to_string(&secret_file)?.trim().to_string()
+        let secret = ensure_secret(&dir, None)?;
+        let default_controller = format!("127.0.0.1:{controller_port}");
+        let payload = if let Some(payload) = prepared {
+            payload
         } else {
-            let mut bytes = [0u8; 32];
-            getrandom::getrandom(&mut bytes).map_err(|_| anyhow!("生成控制器密钥失败"))?;
-            let value = bytes.iter().map(|b| format!("{b:02x}")).collect::<String>();
-            private_write(&secret_file, value.as_bytes())?;
-            value
+            normalized_config(
+                &fs::read_to_string(&profile.file)?,
+                &default_controller,
+                &secret,
+                port,
+            )?
         };
-        if secret.is_empty() {
-            bail!("控制器密钥文件为空");
-        }
-        let controller = format!("127.0.0.1:{controller_port}");
-        let payload = normalized_config(
-            &fs::read_to_string(&profile.file)?,
-            &controller,
-            &secret,
-            port,
-        )?;
+        let parsed: Value = serde_yaml_ng::from_str(&payload)?;
+        let external_controller = parsed["external-controller"]
+            .as_str()
+            .unwrap_or(&default_controller)
+            .to_string();
         let config = dir.join("config.yaml");
         private_write(&config, payload.as_bytes())?;
         let log = dir.join("core.log");
-        private_write(&log, b"")?;
+        if !log.exists() {
+            private_write(&log, b"")?;
+        }
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            fs::set_permissions(&log, fs::Permissions::from_mode(0o600))?;
+        }
         let output = fs::OpenOptions::new().append(true).open(log)?;
-        let child = Command::new(binary)
+        let owned = prepare_binary(binary, &dir)?;
+        if dir
+            .join("controller.sock")
+            .as_os_str()
+            .as_encoded_bytes()
+            .len()
+            > 100
+        {
+            bail!("数据目录过长，请使用较短路径以创建 Unix socket");
+        }
+        let mut command = Command::new(&owned);
+        #[cfg(target_os = "linux")]
+        {
+            use std::os::unix::process::CommandExt;
+            unsafe {
+                command.pre_exec(|| {
+                    if libc::prctl(libc::PR_SET_PDEATHSIG, libc::SIGTERM) != 0 {
+                        return Err(std::io::Error::last_os_error());
+                    }
+                    Ok(())
+                });
+            }
+        }
+        let child = command
             .args(["-d", dir.to_str().unwrap(), "-f", config.to_str().unwrap()])
+            .arg("-ext-ctl-unix")
+            .arg(dir.join("controller.sock"))
             .stdin(Stdio::null())
             .stdout(output.try_clone()?)
             .stderr(output)
@@ -325,9 +489,14 @@ impl ManagedCore {
             .context("无法启动指定的 mihomo 可执行文件")?;
         Ok(Self {
             child,
-            controller: format!("http://{controller}"),
+            controller: format!("unix://{}", dir.join("controller.sock").display()),
             secret,
+            binary: owned,
+            external_controller,
         })
+    }
+    pub fn is_running(&mut self) -> bool {
+        self.child.try_wait().ok().flatten().is_none()
     }
     pub async fn wait_ready(&mut self, client: &crate::core::CoreClient) -> Result<()> {
         let start = Instant::now();
@@ -347,6 +516,20 @@ impl ManagedCore {
 }
 impl Drop for ManagedCore {
     fn drop(&mut self) {
+        if self.child.try_wait().ok().flatten().is_some() {
+            return;
+        }
+        #[cfg(unix)]
+        unsafe {
+            libc::kill(self.child.id() as libc::pid_t, libc::SIGTERM);
+        }
+        let deadline = Instant::now() + Duration::from_secs(3);
+        while Instant::now() < deadline {
+            if self.child.try_wait().ok().flatten().is_some() {
+                return;
+            }
+            std::thread::sleep(Duration::from_millis(25));
+        }
         let _ = self.child.kill();
         let _ = self.child.wait();
     }

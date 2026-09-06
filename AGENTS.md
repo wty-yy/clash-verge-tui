@@ -6,13 +6,16 @@
 
 - 目标：使用 mihomo 内核，逐步提供与 Clash Verge Rev 功能对应的终端客户端。
 - 参考基线：Clash Verge Rev `v2.5.2` / `28f2efc`。参考仓库位于 `upstream/clash-verge-rev`，由 Git 忽略，不纳入本项目提交。
-- 当前为 `v0.2.x` 内核连接阶段：保留演示模式，已支持附加控制器与独立内核，继续补齐真实订阅管理和系统服务。具体范围见 `docs/FEATURES.md`。
+- 当前为 `v1.0.x` Linux 功能版本：保留演示模式，支持独立工作区、内核控制、配置生命周期、系统集成、服务、备份及维护。具体范围见 `docs/FEATURES.md`。
 - 演示数据必须明确标识；不能将模拟测速、订阅刷新、解锁检测或系统代理状态描述为真实网络结果。
 - 演示状态与实际 Clash Verge 配置分离。界面开发和测试使用独立目录，不启动或修改用户正在使用的代理配置来验证演示交互。
 
 ## 设计思路与代码边界
 
-- Rust + Ratatui + Crossterm 实现 TUI。mihomo 作为独立进程，终端界面和普通命令行操作复用业务逻辑。当前 `--core` 子进程随界面退出而停止，`--connect` 不停止已有内核；后台服务化仍待实现。
+- Rust + Ratatui + Crossterm 实现 TUI。mihomo 作为独立进程，终端界面和普通命令行操作复用业务逻辑。`--core` 在无服务时管理前台子进程，有服务时附加；`--connect` 不停止已有内核。后台使用 systemd 用户服务和无界面的 daemon。
+- `src/workspace.rs`：权威清单、事务、订阅更新、增强链和独立校验目录；避免运行内核与校验进程共享缓存锁。
+- `src/platform.rs`、`src/service.rs`：系统代理、状态恢复、独立用户服务和生命周期。
+- `src/backup.rs`、`src/extras.rs`：加密备份、WebDAV、网页检测和维护任务。
 - `src/core.rs`：认证 HTTP API、后台请求、日志流与重连。
 - `src/subscriptions.rs`：订阅下载、私有文件、独立配置和子进程。
 - `src/live.rs`：真实状态与动作映射，不用演示数据伪装请求结果。

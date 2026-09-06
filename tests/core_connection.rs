@@ -223,3 +223,45 @@ async fn partial_import_preserves_successes_and_returns_each_failure() {
     assert_eq!(profiles.len(), 1);
     assert_eq!(profiles[0].name, "one");
 }
+
+#[tokio::test]
+async fn maintenance_actions_use_expected_core_routes() {
+    let server = Server::new(|_| (204, String::new()));
+    let client = CoreClient::new(&server.url, "fixture".into()).unwrap();
+    client
+        .execute(&Command::Upgrade {
+            kind: "geo".into(),
+            channel: None,
+        })
+        .await
+        .unwrap();
+    client
+        .execute(&Command::Upgrade {
+            kind: "ui".into(),
+            channel: None,
+        })
+        .await
+        .unwrap();
+    client
+        .execute(&Command::Upgrade {
+            kind: "core".into(),
+            channel: Some("alpha".into()),
+        })
+        .await
+        .unwrap();
+    client
+        .execute(&Command::Unfix("auto / group".into()))
+        .await
+        .unwrap();
+    let req = server.requests.lock().unwrap();
+    assert!(req
+        .iter()
+        .any(|r| r.method == "POST" && r.path == "/upgrade/geo"));
+    assert!(req
+        .iter()
+        .any(|r| r.method == "POST" && r.path == "/upgrade/ui"));
+    assert!(req.iter().any(|r| r.path == "/upgrade?channel=alpha"));
+    assert!(req
+        .iter()
+        .any(|r| r.method == "DELETE" && r.path == "/proxies/auto%20%2F%20group"));
+}

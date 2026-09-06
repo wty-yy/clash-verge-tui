@@ -556,23 +556,33 @@ fn home(f: &mut Frame, app: &mut App, r: Rect, p: Palette) {
             if let Some(live) = &app.live {
                 live.profiles
                     .get(app.state.active_profile)
-                    .map(|p| format!("{} 节点 · {} 策略组", p.proxies, p.groups))
+                    .map(|p| p.usage_label())
                     .unwrap_or("外部内核管理".into())
             } else {
                 format!("{} / {} GB · 示例配额", profile.used, profile.total)
             },
             p.muted,
         );
-        if inner.height > 5 && app.live.is_none() {
-            f.render_widget(
-                Gauge::default()
-                    .ratio(
+        let quota = app
+            .live
+            .as_ref()
+            .and_then(|l| l.profiles.get(app.state.active_profile))
+            .and_then(|p| p.usage())
+            .map(|(used, total, _)| (used as f64 / total as f64).clamp(0.0, 1.0))
+            .or_else(|| {
+                if app.live.is_none() {
+                    Some(
                         (f64::from(profile.used) / f64::from(profile.total.max(1))).clamp(0.0, 1.0),
                     )
-                    .label(format!(
-                        "{}%",
-                        profile.used as u32 * 100 / profile.total.max(1) as u32
-                    ))
+                } else {
+                    None
+                }
+            });
+        if let Some(ratio) = quota.filter(|_| inner.height > 5) {
+            f.render_widget(
+                Gauge::default()
+                    .ratio(ratio)
+                    .label(format!("{:.0}%", ratio * 100.0))
                     .gauge_style(Style::default().fg(p.accent).bg(p.raised)),
                 line_area(inner, 4, 1),
             );
@@ -602,10 +612,17 @@ fn toolbar(app: &App) -> Vec<(&'static str, Action)> {
                 ("r 测速", Action::Key('r')),
                 ("s 排序", Action::Key('s')),
                 ("m 模式", Action::Key('m')),
+                ("c 解除固定", Action::Key('c')),
             ],
-            Page::Profiles if app.sub == 0 => vec![
-                ("Enter 应用", Action::Activate),
-                ("r 重读订阅", Action::Key('r')),
+            Page::Profiles => vec![
+                ("a 新建", Action::Key('a')),
+                ("e 编辑", Action::Key('e')),
+                ("d 删除", Action::Key('d')),
+                ("r 更新", Action::Key('r')),
+                ("v YAML", Action::Key('v')),
+                ("i 详情", Action::Key('i')),
+                ("[ 上移", Action::Key('[')),
+                ("] 下移", Action::Key(']')),
             ],
             Page::Connections => vec![
                 ("Enter 详情", Action::Activate),
@@ -615,6 +632,9 @@ fn toolbar(app: &App) -> Vec<(&'static str, Action)> {
             ],
             Page::Rules if app.sub == 0 => vec![
                 ("Enter 启停", Action::Activate),
+                ("a 新建", Action::Key('a')),
+                ("e 编辑", Action::Key('e')),
+                ("d 删除", Action::Key('d')),
                 ("r 刷新", Action::Key('r')),
             ],
             Page::Rules => vec![
@@ -631,7 +651,14 @@ fn toolbar(app: &App) -> Vec<(&'static str, Action)> {
             ],
             Page::Settings => vec![
                 ("Enter 打开", Action::Activate),
-                ("r 刷新", Action::Key('r')),
+                ("u 更新", Action::Key('u')),
+                ("g Geo", Action::Key('g')),
+                ("o 打开", Action::Key('o')),
+                ("x 导出", Action::Key('x')),
+            ],
+            Page::Unlock => vec![
+                ("r 检测全部", Action::Key('r')),
+                ("Enter 单项检测", Action::Activate),
             ],
             _ => vec![],
         };
@@ -796,8 +823,8 @@ fn page(f: &mut Frame, app: &mut App, r: Rect, p: Palette) {
                 }
             ),
             Page::Settings => "真实模式 · 仅已接入的网络参数可修改".into(),
-            Page::Unlock => "真实解锁检测尚未接入".into(),
-            Page::Profiles if app.sub == 1 => "真实配置增强尚未接入".into(),
+            Page::Unlock => "真实网页可达性检测 · 出口地区参考 · 不确定结果单独标记".into(),
+            Page::Profiles if app.sub == 1 => "按顺序应用 YAML / JavaScript；失败保留原配置".into(),
             _ => summary,
         }
     } else {
@@ -916,8 +943,13 @@ fn page(f: &mut Frame, app: &mut App, r: Rect, p: Palette) {
                 format!("{}\n{} · Enter 设为当前订阅", pr.name, redact_url(&pr.url))
             }
             Page::Profiles => format!(
-                "{}\n配置内容使用 e 编辑；YAML / JavaScript 仅保存，不执行。",
-                r.cells[1]
+                "{}\n{}",
+                r.cells[1],
+                if app.live.is_some() {
+                    "配置内容使用 e 编辑；按顺序执行并通过内核校验。"
+                } else {
+                    "演示模式只保存内容，不执行配置增强。"
+                }
             ),
             Page::Settings => format!("{}\n{}", r.cells[0], r.cells[1]),
             _ => r.cells.join("   ·   "),
@@ -1012,14 +1044,30 @@ fn modal(f: &mut Frame, app: &mut App, area: Rect, p: Palette) {
     match current {
         Modal::Backups { selected } => {
             f.render_widget(
-                block("备份与恢复 / 本地演示", p).border_style(Style::default().fg(p.accent)),
+                block(
+                    if let Some(live) = &app.live {
+                        if live.backups_remote {
+                            "备份与恢复 / WebDAV"
+                        } else {
+                            "备份与恢复 / 本地"
+                        }
+                    } else {
+                        "备份与恢复 / 本地演示"
+                    },
+                    p,
+                )
+                .border_style(Style::default().fg(p.accent)),
                 r,
             );
             let inner = inset(r, 3, 2);
             text(
                 f,
                 line_area(inner, 0, 1),
-                "本地快照    /    WebDAV 配置按 e 打开",
+                if app.live.is_some() {
+                    "←→ 本地 / WebDAV   u 上传选中备份   e 设置"
+                } else {
+                    "本地快照    /    WebDAV 配置按 e 打开"
+                },
                 p.accent,
             );
             text(
@@ -1028,26 +1076,54 @@ fn modal(f: &mut Frame, app: &mut App, area: Rect, p: Palette) {
                 "包含设置、订阅、增强链与规则 · 最多保留 10 份",
                 p.muted,
             );
-            let capacity = inner.height.saturating_sub(7) as usize;
+            let records: Vec<(String, String)> = if let Some(live) = &app.live {
+                live.backups
+                    .iter()
+                    .map(|b| {
+                        (
+                            b.file.clone(),
+                            if live.backups_remote {
+                                "远端文件".into()
+                            } else if !b.valid {
+                                "文件损坏，可删除".into()
+                            } else {
+                                format!(
+                                    "{} 份订阅 · {}",
+                                    b.profiles,
+                                    if b.encrypted {
+                                        "已加密"
+                                    } else {
+                                        "未加密"
+                                    }
+                                )
+                            },
+                        )
+                    })
+                    .collect()
+            } else {
+                app.state
+                    .backups
+                    .iter()
+                    .map(|b| {
+                        (
+                            b.name.clone(),
+                            format!("{} 份订阅 · {} 条规则", b.profiles.len(), b.rules.len()),
+                        )
+                    })
+                    .collect()
+            };
+            let capacity = inner.height.saturating_sub(9) as usize;
             let offset = selected.saturating_sub(capacity.saturating_sub(1));
-            for (i, backup) in app
-                .state
-                .backups
-                .iter()
-                .enumerate()
-                .skip(offset)
-                .take(capacity)
-            {
+            for (i, (name, info)) in records.iter().enumerate().skip(offset).take(capacity) {
                 let rect = line_area(inner, 3 + (i - offset) as u16, 1);
-                let label = format!(
-                    "{} {}   {} 份订阅 · {} 条规则",
-                    if i == selected { "›" } else { " " },
-                    backup.name,
-                    backup.profiles.len(),
-                    backup.rules.len()
-                );
                 f.render_widget(
-                    Paragraph::new(label).style(
+                    Paragraph::new(format!(
+                        "{} {}  {}",
+                        if i == selected { "›" } else { " " },
+                        name,
+                        info
+                    ))
+                    .style(
                         Style::default()
                             .fg(if i == selected { p.accent } else { p.text })
                             .bg(if i == selected { p.raised } else { p.panel }),
@@ -1056,12 +1132,20 @@ fn modal(f: &mut Frame, app: &mut App, area: Rect, p: Palette) {
                 );
                 app.hits.push((rect, Action::BackupSelect(i)));
             }
-            if app.state.backups.is_empty() {
+            if records.is_empty() {
                 text(
                     f,
                     line_area(inner, 5, 1),
-                    "尚无备份 · 按 b 创建第一个本地演示快照",
+                    "尚无备份 · b 创建，←→ 切换本地 / WebDAV",
                     p.muted,
+                );
+            }
+            if app.live.is_some() {
+                text(
+                    f,
+                    line_area(inner, inner.height - 5, 1),
+                    app.status.clone(),
+                    p.yellow,
                 );
             }
             text(
