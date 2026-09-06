@@ -736,6 +736,85 @@ fn modal(f: &mut Frame, app: &mut App, area: Rect, p: Palette) {
     f.render_widget(Block::default().style(Style::default().bg(p.panel)), r);
     let current = app.modal.clone().unwrap();
     match current {
+        Modal::Backups { selected } => {
+            f.render_widget(
+                block("备份与恢复 / 本地演示", p).border_style(Style::default().fg(p.accent)),
+                r,
+            );
+            let inner = inset(r, 3, 2);
+            text(
+                f,
+                line_area(inner, 0, 1),
+                "本地快照    /    WebDAV 配置按 e 打开",
+                p.accent,
+            );
+            text(
+                f,
+                line_area(inner, 2, 1),
+                "包含设置、订阅、增强链与规则 · 最多保留 10 份",
+                p.muted,
+            );
+            let capacity = inner.height.saturating_sub(8) as usize / 2;
+            let offset = selected.saturating_sub(capacity.saturating_sub(1));
+            for (i, backup) in app
+                .state
+                .backups
+                .iter()
+                .enumerate()
+                .skip(offset)
+                .take(capacity)
+            {
+                let rect = line_area(inner, 4 + (i - offset) as u16 * 2, 1);
+                let label = format!(
+                    "{} {}   {} 份订阅 · {} 条规则",
+                    if i == selected { "›" } else { " " },
+                    backup.name,
+                    backup.profiles.len(),
+                    backup.rules.len()
+                );
+                f.render_widget(
+                    Paragraph::new(label).style(
+                        Style::default()
+                            .fg(if i == selected { p.accent } else { p.text })
+                            .bg(if i == selected { p.raised } else { p.panel }),
+                    ),
+                    rect,
+                );
+                app.hits.push((rect, Action::BackupSelect(i)));
+            }
+            if app.state.backups.is_empty() {
+                text(
+                    f,
+                    line_area(inner, 5, 1),
+                    "尚无备份 · 按 b 创建第一个本地演示快照",
+                    p.muted,
+                );
+            }
+            text(
+                f,
+                line_area(inner, inner.height - 3, 1),
+                "↑↓ 选择   Enter 恢复   d 删除   Esc 关闭",
+                p.muted,
+            );
+            button(
+                f,
+                app,
+                Rect::new(inner.x, inner.bottom() - 1, 15, 1),
+                "b 创建快照",
+                Action::Key('b'),
+                p,
+                true,
+            );
+            button(
+                f,
+                app,
+                Rect::new(inner.x + 17, inner.bottom() - 1, 17, 1),
+                "e WebDAV 设置",
+                Action::Key('e'),
+                p,
+                false,
+            );
+        }
         Modal::Form {
             title,
             fields,

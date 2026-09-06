@@ -19,6 +19,7 @@ pub enum Action {
     Activate,
     Key(char),
     Field(usize),
+    BackupSelect(usize),
     Submit,
     Cancel,
 }
@@ -39,6 +40,7 @@ pub enum Confirm {
     Rule(usize),
     Logs,
     Restore(usize),
+    Backup(usize),
 }
 #[derive(Clone, Debug)]
 pub struct Field {
@@ -157,6 +159,9 @@ impl Field {
 }
 #[derive(Clone, Debug)]
 pub enum Modal {
+    Backups {
+        selected: usize,
+    },
     Form {
         title: String,
         fields: Vec<Field>,
@@ -596,6 +601,11 @@ impl App {
                     }
                 }
             }
+            Action::BackupSelect(i) => {
+                if let Some(Modal::Backups { selected }) = &mut self.modal {
+                    *selected = i;
+                }
+            }
             Action::Submit => {
                 self.modal_key(KeyEvent::new(KeyCode::Char('s'), KeyModifiers::CONTROL))
             }
@@ -616,6 +626,54 @@ impl App {
             self.modal = None;
             return;
         }
+        if let Some(Modal::Backups { selected }) = self.modal.clone() {
+            match key.code {
+                KeyCode::Up => {
+                    self.modal = Some(Modal::Backups {
+                        selected: selected.saturating_sub(1),
+                    })
+                }
+                KeyCode::Down => {
+                    self.modal = Some(Modal::Backups {
+                        selected: (selected + 1).min(self.state.backups.len().saturating_sub(1)),
+                    })
+                }
+                KeyCode::Char('b') => {
+                    self.backup();
+                    self.modal = Some(Modal::Backups {
+                        selected: self.state.backups.len() - 1,
+                    });
+                }
+                KeyCode::Char('e') => {
+                    let sections = settings::sections();
+                    let id = sections
+                        .iter()
+                        .position(|s| s.name == "备份与恢复")
+                        .unwrap();
+                    let fields = sections[id]
+                        .fields
+                        .iter()
+                        .map(|s| Field::from_spec(s, self.state.value(s.key)))
+                        .collect();
+                    self.form("WebDAV 与自动备份", fields, SaveTarget::Settings(id));
+                }
+                KeyCode::Enter if selected < self.state.backups.len() => self.confirm(
+                    "恢复备份",
+                    &format!(
+                        "恢复 {}？将覆盖当前演示设置、订阅、增强链与规则。",
+                        self.state.backups[selected].name
+                    ),
+                    Confirm::Restore(selected),
+                ),
+                KeyCode::Char('d') if selected < self.state.backups.len() => self.confirm(
+                    "删除备份",
+                    &format!("删除 {}？", self.state.backups[selected].name),
+                    Confirm::Backup(selected),
+                ),
+                _ => {}
+            }
+            return;
+        }
         let save = key.code == KeyCode::Char('s') && key.modifiers.contains(KeyModifiers::CONTROL);
         if save && matches!(self.modal, Some(Modal::Form { .. })) {
             self.save_form();
@@ -624,6 +682,7 @@ impl App {
         let mut confirm = None;
         let mut destination = None;
         match self.modal.as_mut().unwrap() {
+            Modal::Backups { .. } => unreachable!("backup input handled above"),
             Modal::Form { fields, active, .. } => match key.code {
                 KeyCode::Tab | KeyCode::Down => *active = (*active + 1) % fields.len(),
                 KeyCode::BackTab | KeyCode::Up => {
@@ -968,6 +1027,12 @@ impl App {
     }
     fn open_setting(&mut self, id: usize) {
         let section = settings::sections().remove(id);
+        if section.name == "备份与恢复" {
+            self.modal = Some(Modal::Backups {
+                selected: self.state.backups.len().saturating_sub(1),
+            });
+            return;
+        }
         if !section.fields.is_empty() {
             let fields = section
                 .fields
@@ -1006,7 +1071,16 @@ impl App {
     }
     fn backup(&mut self) {
         self.state.backups.push(Backup {
-            name: format!("演示快照 {:03}", self.state.backups.len() + 1),
+            name: format!(
+                "演示快照 {:03}",
+                self.state
+                    .backups
+                    .iter()
+                    .filter_map(|b| b.name.split_whitespace().last()?.parse::<u32>().ok())
+                    .max()
+                    .unwrap_or(0)
+                    + 1
+            ),
             settings: self.state.settings.clone(),
             profiles: self.state.profiles.clone(),
             active_profile: self.state.active_profile,
@@ -1020,6 +1094,9 @@ impl App {
     }
     fn execute_confirm(&mut self, target: Confirm) {
         match target {
+            Confirm::Backup(i) => {
+                self.state.backups.remove(i);
+            }
             Confirm::Profile(i) => {
                 self.state.profiles.remove(i);
                 if i < self.state.active_profile {
