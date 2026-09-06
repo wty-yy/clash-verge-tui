@@ -4,7 +4,7 @@
 
 ## 迭代流程
 
-1. 按功能、修复、文档组织提交：`feat:`、`fix:`、`test:`、`docs:`、`chore:`。
+1. 提交说明统一为 `v主版本.次版本.补丁版本: 更新内容摘要`，使用简短中文，例如 `v0.1.5: 压缩列表与设置表单间距`。同一版本内的多个提交使用相同版本号，不使用 `feat:`、`fix:` 等类型前缀。
 2. 新版本修改 `Cargo.toml` 的 `version`，运行 Cargo 更新 `Cargo.lock`。
 3. 将 CHANGELOG 的未发布内容归入新版本，同步 `CHANGELOG.md` 与 `CHANGELOG.zh-CN.md`。
 4. 使用方式或功能范围变化时同步 `README.md` 与 `README.zh-CN.md`。
@@ -23,8 +23,11 @@ cargo build --locked --release
 git status --short
 git log --oneline -5
 
-# 版本提交完成后建立带注释的标签；替换为本次版本
-VERSION=v0.1.1
+# 使用本次版本号与简短中文摘要提交
+VERSION=v0.1.6
+git commit -m "$VERSION: 更新内容摘要"
+
+# 版本提交完成后建立带注释的标签
 git tag -a "$VERSION" -m "Release $VERSION"
 ```
 

@@ -550,11 +550,11 @@ fn toolbar(app: &App) -> Vec<(&'static str, Action)> {
 fn page(f: &mut Frame, app: &mut App, r: Rect, p: Palette) {
     let has_tabs = !app.tabs().is_empty();
     let parts = Layout::vertical([
-        Constraint::Length(if has_tabs { 3 } else { 1 }),
+        Constraint::Length(if has_tabs { 2 } else { 1 }),
         Constraint::Length(3),
-        Constraint::Length(2),
+        Constraint::Length(1),
         Constraint::Min(3),
-        Constraint::Length(if r.height >= 23 { 4 } else { 2 }),
+        Constraint::Length(if r.height >= 23 { 3 } else { 2 }),
     ])
     .split(r);
     if has_tabs {
@@ -677,14 +677,14 @@ fn page(f: &mut Frame, app: &mut App, r: Rect, p: Palette) {
                 Cell::from(s.clone()).style(Style::default().fg(color))
             }))
             .height(1)
-            .bottom_margin(1)
+            .bottom_margin(0)
         })
         .collect();
     let table = Table::new(table_rows, widths)
         .header(
             Row::new(headers)
                 .height(1)
-                .bottom_margin(1)
+                .bottom_margin(0)
                 .style(Style::default().fg(p.muted)),
         )
         .block(block(title, p))
@@ -704,7 +704,7 @@ fn page(f: &mut Frame, app: &mut App, r: Rect, p: Palette) {
     if count == 0 {
         text(
             f,
-            Rect::new(inner.x + 2, inner.y + 3, inner.width.saturating_sub(4), 1),
+            Rect::new(inner.x + 2, inner.y + 1, inner.width.saturating_sub(4), 1),
             if app.query.is_empty() {
                 "暂无条目 · 使用上方操作添加或重新载入"
             } else {
@@ -713,12 +713,12 @@ fn page(f: &mut Frame, app: &mut App, r: Rect, p: Palette) {
             p.muted,
         );
     }
-    for i in 0..inner.height.saturating_sub(2).div_ceil(2) {
+    for i in 0..inner.height.saturating_sub(1) {
         let index = state.offset() + i as usize;
         if index >= count {
             break;
         }
-        let rect = Rect::new(inner.x, inner.y + 2 + i * 2, inner.width, 1);
+        let rect = Rect::new(inner.x, inner.y + 1 + i, inner.width, 1);
         if rect.y < inner.bottom() {
             app.hits.push((rect, Action::Select(index)));
         }
@@ -843,7 +843,7 @@ fn modal(f: &mut Frame, app: &mut App, area: Rect, p: Palette) {
                 "包含设置、订阅、增强链与规则 · 最多保留 10 份",
                 p.muted,
             );
-            let capacity = inner.height.saturating_sub(8) as usize / 2;
+            let capacity = inner.height.saturating_sub(7) as usize;
             let offset = selected.saturating_sub(capacity.saturating_sub(1));
             for (i, backup) in app
                 .state
@@ -853,7 +853,7 @@ fn modal(f: &mut Frame, app: &mut App, area: Rect, p: Palette) {
                 .skip(offset)
                 .take(capacity)
             {
-                let rect = line_area(inner, 4 + (i - offset) as u16 * 2, 1);
+                let rect = line_area(inner, 3 + (i - offset) as u16, 1);
                 let label = format!(
                     "{} {}   {} 份订阅 · {} 条规则",
                     if i == selected { "›" } else { " " },
@@ -926,9 +926,9 @@ fn modal(f: &mut Frame, app: &mut App, area: Rect, p: Palette) {
             );
             let h = |i: usize| {
                 if matches!(fields[i].kind, Kind::Multiline) {
-                    8u16.min(field_area.height)
+                    7u16.min(field_area.height)
                 } else {
-                    3
+                    2
                 }
             };
             if active < scroll {
@@ -968,7 +968,7 @@ fn modal(f: &mut Frame, app: &mut App, area: Rect, p: Palette) {
                     field_area.x + 2,
                     y + 1,
                     field_area.width - 2,
-                    height.saturating_sub(2).max(1),
+                    height.saturating_sub(1).max(1),
                 );
                 let value = match field.kind {
                     Kind::Toggle => format!(
@@ -1142,7 +1142,7 @@ fn modal(f: &mut Frame, app: &mut App, area: Rect, p: Palette) {
             );
             let entries = App::palette_entries(&query);
             for (i, page) in entries.iter().enumerate() {
-                let rect = line_area(inner, 3 + i as u16 * 2, 1);
+                let rect = line_area(inner, 2 + i as u16, 1);
                 if rect.height == 0 {
                     break;
                 }

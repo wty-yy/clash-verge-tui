@@ -758,3 +758,135 @@ fn sidebar_highlight_and_click_targets_include_padding_without_overlapping() {
         }
     }
 }
+
+#[test]
+fn page_tables_use_consecutive_rows_including_after_scrolling() {
+    for page in Page::ALL.into_iter().skip(1) {
+        let mut a = app();
+        a.navigate(page);
+        for sub in 0..a.tabs().len().max(1) {
+            a.sub = sub;
+            for (w, h) in [(76, 24), (120, 40)] {
+                a.selected = a.rows().len().saturating_sub(1);
+                render(&mut a, w, h);
+                let targets: Vec<_> = a
+                    .hits
+                    .iter()
+                    .filter_map(|(r, action)| {
+                        if let Action::Select(i) = action {
+                            Some((*r, *i))
+                        } else {
+                            None
+                        }
+                    })
+                    .collect();
+                assert!(!targets.is_empty(), "{page:?} {sub}");
+                for pair in targets.windows(2) {
+                    assert_eq!(pair[0].0.bottom(), pair[1].0.y, "blank row in {page:?}");
+                    assert_eq!(pair[0].1 + 1, pair[1].1);
+                }
+                assert!(targets.iter().any(|(_, i)| *i == a.selected));
+            }
+        }
+    }
+    let mut a = app();
+    a.navigate(Page::Logs);
+    a.state.logs = (0..40)
+        .map(|i| clash_verge_tui::model::Log {
+            time: format!("01:00:{i:02}"),
+            level: "INFO".into(),
+            message: format!("第 {i} 条日志"),
+        })
+        .collect();
+    a.selected = 39;
+    let screen = render(&mut a, 76, 24);
+    assert!(a.table_offset > 0);
+    let targets: Vec<_> = a
+        .hits
+        .iter()
+        .filter_map(|(r, action)| {
+            if let Action::Select(i) = action {
+                Some((*r, *i))
+            } else {
+                None
+            }
+        })
+        .collect();
+    for (r, i) in targets {
+        assert!(screen
+            .lines()
+            .nth(r.y as usize)
+            .unwrap()
+            .contains(&a.state.logs[i].time));
+        a.mouse(crossterm::event::MouseEvent {
+            kind: crossterm::event::MouseEventKind::Down(crossterm::event::MouseButton::Left),
+            column: r.x + 3,
+            row: r.y,
+            modifiers: KeyModifiers::NONE,
+        });
+        assert_eq!(a.selected, i);
+    }
+}
+
+#[test]
+fn secondary_lists_and_form_fields_do_not_have_spacer_rows() {
+    let mut a = app();
+    a.navigate(Page::Settings);
+    a.activate();
+    render(&mut a, 120, 40);
+    let fields: Vec<_> = a
+        .hits
+        .iter()
+        .filter_map(|(r, action)| {
+            if matches!(action, Action::Field(_)) {
+                Some(*r)
+            } else {
+                None
+            }
+        })
+        .collect();
+    assert_eq!(fields[0].height, 2);
+    for pair in fields.windows(2) {
+        assert_eq!(pair[0].bottom(), pair[1].y);
+    }
+    key(&mut a, KeyCode::Esc);
+    a.sub = 3;
+    for _ in 0..10 {
+        a.command('b');
+    }
+    a.activate();
+    render(&mut a, 120, 40);
+    let backups: Vec<_> = a
+        .hits
+        .iter()
+        .filter_map(|(r, action)| {
+            if matches!(action, Action::BackupSelect(_)) {
+                Some(*r)
+            } else {
+                None
+            }
+        })
+        .collect();
+    assert_eq!(backups.len(), 10);
+    for pair in backups.windows(2) {
+        assert_eq!(pair[0].bottom(), pair[1].y);
+    }
+    key(&mut a, KeyCode::Esc);
+    key(&mut a, KeyCode::Char(':'));
+    render(&mut a, 76, 24);
+    let pages: Vec<_> = a
+        .hits
+        .iter()
+        .filter_map(|(r, action)| {
+            if matches!(action, Action::Page(_)) {
+                Some(*r)
+            } else {
+                None
+            }
+        })
+        .collect();
+    assert_eq!(pages.len(), 8);
+    for pair in pages.windows(2) {
+        assert_eq!(pair[0].bottom(), pair[1].y);
+    }
+}

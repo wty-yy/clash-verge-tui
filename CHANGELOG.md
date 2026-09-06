@@ -6,6 +6,14 @@
 
 See the [feature mapping](docs/FEATURES.md) for planned work.
 
+## v0.1.5 · 2026-09-07
+
+### Improved
+
+- Remove blank rows between table entries and headers on pages 2–8; reduce excess tab, toolbar, and detail spacing.
+- Compact backup history, the page palette, and settings forms while preserving large sidebar click targets.
+- Align mouse hit regions and scrolling offsets with the compact layout for accurate selection and double-click activation.
+
 ## v0.1.4 · 2026-09-06
 
 ### Improved
