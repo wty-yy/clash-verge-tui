@@ -1193,7 +1193,7 @@ impl App {
             "运行配置"=>self.runtime(),
             "诊断与目录"=>self.detail("诊断与目录",format!("Clash Verge TUI v{}\n状态目录：{}\n状态文件：demo-state.json\n数据模式：本地演示\n后端连接：未接入\n备份数量：{}\n\n未读取 Clash Verge 的真实配置、密钥或订阅。\n网络设置仅保存为演示值；实际生效的是主题、导航、\n图表、鼠标、Vim 键位、启动页与刷新间隔。",env!("CARGO_PKG_VERSION"),self.data_dir.display(),self.state.backups.len())),
             "桌面功能映射"=>self.detail("桌面功能映射","终端适配\n\n桌面导航 → 数字键 1–8 / 鼠标侧栏\n托盘快捷操作 → 首页快捷控制\n全局热键 → 终端内快捷键\n配置编辑器 → 多行表单\n文件选择 → 路径与文本输入\n开发者工具 → 诊断页 / --snapshot\n\n不适用的视觉设置\n窗口标题栏、托盘图标、字体、CSS 注入由终端或桌面管理。\n终端语言：简体中文。v0.1.0 未提供多语言切换。\n\n后续系统集成\nTUN 权限、代理守卫、后台服务、系统自启与真实备份同步。"),
-            _=>self.detail("关于 Clash Verge TUI",format!("CLASH VERGE / TERMINAL\n\nv{}  ·  UI PREVIEW\n\n独立的终端客户端界面，以 Clash Verge Rev v2.5.2 为参照。\nRust + Ratatui + Crossterm\nGPL-3.0-only\n\n本版本覆盖八个主页面和常用二级设置表单。\n网络能力尚未接入；所有网络指标明确标记为演示。\n\n源码参考：https://github.com/clash-verge-rev/clash-verge-rev\n内核计划：https://github.com/MetaCubeX/mihomo",env!("CARGO_PKG_VERSION"))),
+            _=>self.detail("关于 Clash Verge TUI",format!("CLASH VERGE / TERMINAL\n\nv{}  ·  UI PREVIEW\n\n独立的终端客户端界面，以 Clash Verge Rev v2.5.2 为参照。\nRust + Ratatui + Crossterm\nMIT\n\n本版本覆盖八个主页面和常用二级设置表单。\n网络能力尚未接入；所有网络指标明确标记为演示。\n\n源码参考：https://github.com/clash-verge-rev/clash-verge-rev\n内核计划：https://github.com/MetaCubeX/mihomo",env!("CARGO_PKG_VERSION"))),
         }
     }
     fn runtime(&mut self) {

@@ -4,7 +4,8 @@ version = "0.1.5"
 edition = "2021"
 rust-version = "1.88"
 description = "A terminal interface for a future full-featured mihomo client"
-license = "GPL-3.0-only"
+license = "MIT"
+repository = "https://github.com/wty-yy/clash-verge-tui"
 
 [dependencies]
 anyhow = "1"

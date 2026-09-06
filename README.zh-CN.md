@@ -62,6 +62,7 @@ clash-verge-tui --snapshot home --width 100 --height 30
 - `src/settings.rs`：系统、内核、界面、高级设置表单。
 - `src/storage.rs`：独立状态加载与原子保存。
 - `tests/workflows.rs`：页面渲染与关键交互回归。
+- [协作约定](AGENTS.md)：交互要求、设计思路与版本维护规范。
 - [功能对照](docs/FEATURES.md)：已完成界面与后续内核能力。
 
 默认状态文件：`${XDG_STATE_HOME:-$HOME/.local/state}/clash-verge-tui/demo-state.json`。只接受绝对路径形式的 `XDG_STATE_HOME`。`--data-dir` 优先级更高。
@@ -91,4 +92,4 @@ done
 
 版本从 `v0.1.0` 开始，使用语义化版本与带注释的 Git 标签。迭代流程见 [版本维护](docs/RELEASING.md)。README 与 CHANGELOG 同步维护中英文版本。
 
-上游参考仓库位于 `upstream/clash-verge-rev`（Git 忽略），固定为 `v2.5.2` / `28f2efc`。本项目为独立终端实现，不属于官方 Clash Verge Rev 项目。许可：[GPL-3.0-only](LICENSE)。
+上游参考仓库位于 `upstream/clash-verge-rev`（Git 忽略），固定为 `v2.5.2` / `28f2efc`。本项目为独立终端实现，不属于官方 Clash Verge Rev 项目。许可：[MIT](LICENSE)。此前保留的 GPL 参考许可文本归档于 [docs/LICENSE-GPL-3.0](docs/LICENSE-GPL-3.0)。

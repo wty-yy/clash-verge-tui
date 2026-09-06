@@ -62,6 +62,7 @@ Mouse clicks support navigation, sections, toolbar buttons, and forms. Single-cl
 - `src/settings.rs`: system, core, appearance, and advanced forms.
 - `src/storage.rs`: isolated state loading and atomic writes.
 - `tests/workflows.rs`: rendering and workflow regression tests.
+- [Agent guidelines](AGENTS.md): interaction requirements, design, and release conventions.
 - [Feature mapping](docs/FEATURES.md): completed UI and pending core capabilities.
 
 Default state file: `${XDG_STATE_HOME:-$HOME/.local/state}/clash-verge-tui/demo-state.json`. Only absolute `XDG_STATE_HOME` paths are accepted. `--data-dir` takes precedence.
@@ -91,4 +92,4 @@ done
 
 Versions start at `v0.1.0`, using semantic versioning and annotated Git tags. See [release maintenance](docs/RELEASING.md). README and CHANGELOG files are maintained in English and Chinese.
 
-The reference checkout at `upstream/clash-verge-rev` is ignored by Git and pinned to `v2.5.2` / `28f2efc`. This is an independent terminal implementation, not an official Clash Verge Rev project. License: [GPL-3.0-only](LICENSE).
+The reference checkout at `upstream/clash-verge-rev` is ignored by Git and pinned to `v2.5.2` / `28f2efc`. This is an independent terminal implementation, not an official Clash Verge Rev project. License: [MIT](LICENSE). The previously retained GPL reference text is archived at [docs/LICENSE-GPL-3.0](docs/LICENSE-GPL-3.0).

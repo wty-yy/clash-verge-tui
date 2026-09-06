@@ -8,6 +8,12 @@ See the [feature mapping](docs/FEATURES.md) for planned work.
 
 ## v0.1.5 · 2026-09-07
 
+### Repository
+
+- Prepare the GitHub repository: retain its MIT LICENSE and archive the previous GPL text at `docs/LICENSE-GPL-3.0`.
+- Standardize commit subjects as `vVERSION: English summary` and align the branch with remote `master`.
+- Add root `AGENTS.md` covering interaction requirements, project design, and collaboration conventions.
+
 ### Improved
 
 - Remove blank rows between table entries and headers on pages 2–8; reduce excess tab, toolbar, and detail spacing.
