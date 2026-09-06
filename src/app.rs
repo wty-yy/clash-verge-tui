@@ -284,9 +284,9 @@ impl App {
                         i,
                         vec![
                             if self.state.groups[self.sub].selected == n.name {
-                                "●".into()
+                                "[✓]".into()
                             } else {
-                                "○".into()
+                                "[ ]".into()
                             },
                             n.name.clone(),
                             n.protocol.clone(),
@@ -306,9 +306,9 @@ impl App {
                         i,
                         vec![
                             if i == self.state.active_profile {
-                                "● 当前".into()
+                                "[✓] 当前".into()
                             } else {
-                                "○".into()
+                                "[ ]".into()
                             },
                             p.name.clone(),
                             format!("{} / {} GB", p.used, p.total),
@@ -363,7 +363,7 @@ impl App {
                     row(
                         i,
                         vec![
-                            if r.enabled { "●" } else { "○" }.into(),
+                            if r.enabled { "[✓]" } else { "[ ]" }.into(),
                             r.kind.clone(),
                             r.payload.clone(),
                             r.target.clone(),

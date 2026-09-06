@@ -6,6 +6,15 @@
 
 See the [feature mapping](docs/FEATURES.md) for planned work.
 
+## v0.1.1 · 2026-09-06
+
+### Fixed
+
+- Resample traffic history across the available width; scale chart height and align axis labels when resizing.
+- Use checkboxes consistently for settings toggles, proxy selection, active profiles, and rule states.
+- Show `j/k` navigation hints in the footer while Vim navigation is enabled; hide them when disabled.
+- Read the package version for the small-terminal notice.
+
 ## v0.1.0 · 2026-09-06
 
 ### Added

@@ -384,3 +384,87 @@ fn backup_history_supports_selection_restore_delete_and_webdav_form() {
     let names: std::collections::HashSet<_> = a.state.backups.iter().map(|b| &b.name).collect();
     assert_eq!(names.len(), 10);
 }
+
+#[test]
+fn traffic_chart_fills_width_and_scales_height_after_terminal_resizes() {
+    let mut a = app();
+    let mut terminal = Terminal::new(TestBackend::new(120, 40)).unwrap();
+    let mut heights = Vec::new();
+    for (width, height) in [(120, 40), (180, 52), (76, 24), (220, 70), (120, 40)] {
+        terminal.backend_mut().resize(width, height);
+        terminal
+            .resize(ratatui::layout::Rect::new(0, 0, width, height))
+            .unwrap();
+        terminal.draw(|f| ui::draw(f, &mut a)).unwrap();
+        let buffer = terminal.backend().buffer();
+        let left = if width < 100 { 21 } else { 27 };
+        let label_y = (0..height)
+            .find(|&y| buffer[(left, y)].symbol() == "-" && buffer[(left + 1, y)].symbol() == "6")
+            .unwrap();
+        let title_y = (0..label_y)
+            .find(|&y| buffer[(left, y)].symbol() == "流")
+            .unwrap();
+        heights.push(label_y - title_y);
+        for x in left..width - 4 {
+            let symbol = buffer[(x, label_y - 1)].symbol();
+            assert!(
+                symbol
+                    .chars()
+                    .any(|c| ('\u{2581}'..='\u{2588}').contains(&c)),
+                "unfilled chart at {x} in {width}x{height}: {symbol:?}"
+            );
+        }
+        assert_eq!(
+            buffer[(width - 6, label_y)].symbol(),
+            "载",
+            "axis end should align to chart edge"
+        );
+    }
+    assert!(heights[1] > heights[0]);
+    assert!(heights[3] > heights[1]);
+    assert_eq!(heights[0], heights[4]);
+    assert_eq!(a.tick, 0, "resizing must not advance history");
+}
+
+#[test]
+fn checkbox_markers_are_consistent_in_forms_and_selection_tables() {
+    let mut a = app();
+    a.state
+        .settings
+        .insert("system_proxy".into(), "开启".into());
+    a.navigate(Page::Settings);
+    a.activate();
+    let screen = render(&mut a, 120, 40);
+    assert!(screen.contains("[✓]  开启"));
+    assert!(!screen.contains("[●]"));
+    key(&mut a, KeyCode::Char(' '));
+    assert!(render(&mut a, 120, 40).contains("[ ]  关闭"));
+    key(&mut a, KeyCode::Esc);
+    for page in [Page::Proxies, Page::Profiles, Page::Rules] {
+        a.navigate(page);
+        let screen = render(&mut a, 120, 40);
+        assert!(screen.contains("[✓]"), "{page:?}");
+        assert!(!screen.contains("[●]"));
+    }
+    a.navigate(Page::Profiles);
+    assert!(render(&mut a, 120, 40).contains("[✓] 当前"));
+}
+
+#[test]
+fn vim_navigation_hint_tracks_enabled_setting_and_keyboard_behavior() {
+    let mut a = app();
+    for size in [(76, 24), (120, 40)] {
+        let screen = render(&mut a, size.0, size.1);
+        assert!(screen.lines().any(|line| line.contains("j/k 选择")));
+    }
+    key(&mut a, KeyCode::Char('j'));
+    assert_eq!(a.selected, 1);
+    key(&mut a, KeyCode::Char('k'));
+    assert_eq!(a.selected, 0);
+    a.state.settings.insert("vim".into(), "关闭".into());
+    assert!(!render(&mut a, 120, 40).contains("j/k"));
+    key(&mut a, KeyCode::Char('j'));
+    assert_eq!(a.selected, 0);
+    key(&mut a, KeyCode::Down);
+    assert_eq!(a.selected, 1);
+}

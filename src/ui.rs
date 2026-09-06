@@ -109,7 +109,7 @@ pub fn draw(f: &mut Frame, app: &mut App) {
         area,
     );
     if area.width < 76 || area.height < 24 {
-        f.render_widget(Paragraph::new("CLASH VERGE TUI · v0.1.0\n\n请将终端调整至至少 76 × 24\n建议尺寸 120 × 40\n\nq / Ctrl+C 退出").centered().style(Style::default().fg(p.accent)).block(block("终端尺寸",p)),area);
+        f.render_widget(Paragraph::new(format!("CLASH VERGE TUI · v{}\n\n请将终端调整至至少 76 × 24\n建议尺寸 120 × 40\n\nq / Ctrl+C 退出", env!("CARGO_PKG_VERSION"))).centered().style(Style::default().fg(p.accent)).block(block("终端尺寸",p)),area);
         return;
     }
     let compact = area.width < 100 || app.state.value("compact") == "开启";
@@ -162,7 +162,11 @@ pub fn draw(f: &mut Frame, app: &mut App) {
     text(
         f,
         line_area(parts[3], 1, 1),
-        "1–8 页面   Tab 分组   ↑↓ 选择   Enter 操作   / 搜索   : 跳转   ? 帮助   q 退出",
+        if app.state.value("vim") == "开启" {
+            "↑↓ / j/k 选择   1–8 页面   Tab 分组   Enter 操作   / 搜索   : 跳转   ? 帮助   q 退出"
+        } else {
+            "↑↓ 选择   1–8 页面   Tab 分组   Enter 操作   / 搜索   : 跳转   ? 帮助   q 退出"
+        },
         p.muted,
     );
     if app.modal.is_some() {
@@ -236,11 +240,30 @@ fn sidebar(f: &mut Frame, app: &mut App, r: Rect, p: Palette, compact: bool) {
         );
     }
 }
+fn resample(history: &[u64], width: usize) -> Vec<u64> {
+    if history.is_empty() || width == 0 {
+        return Vec::new();
+    }
+    if width == 1 {
+        return vec![*history.last().unwrap()];
+    }
+    (0..width)
+        .map(|column| {
+            let position = column as f64 * (history.len() - 1) as f64 / (width - 1) as f64;
+            let left = position.floor() as usize;
+            let right = (left + 1).min(history.len() - 1);
+            let fraction = position - left as f64;
+            (history[left] as f64 * (1.0 - fraction) + history[right] as f64 * fraction).round()
+                as u64
+        })
+        .collect()
+}
+
 fn home(f: &mut Frame, app: &mut App, r: Rect, p: Palette) {
     let parts = Layout::vertical([
         Constraint::Length(1),
         Constraint::Length(5),
-        Constraint::Length(if r.height > 24 { 8 } else { 5 }),
+        Constraint::Length((r.height / 3).max(5)),
         Constraint::Min(0),
     ])
     .split(r);
@@ -291,12 +314,14 @@ fn home(f: &mut Frame, app: &mut App, r: Rect, p: Palette) {
     if app.state.value("traffic_graph") == "开启" {
         let inner = inset(graph, 2, 1);
         let lines = Layout::vertical([Constraint::Min(1), Constraint::Length(1)]).split(inner);
-        let data: Vec<u64> = (0..60)
+        let history: Vec<u64> = (0..60)
             .map(|i| {
                 let n = (i + app.tick) % 60;
                 15 + (n * 17 % 31) + if (20..35).contains(&n) { 35 } else { 0 }
             })
             .collect();
+        // Preserve the same history interval at every terminal width.
+        let data = resample(&history, lines[0].width as usize);
         f.render_widget(
             Sparkline::default()
                 .data(&data)
@@ -304,11 +329,14 @@ fn home(f: &mut Frame, app: &mut App, r: Rect, p: Palette) {
                 .style(Style::default().fg(p.green)),
             lines[0],
         );
-        text(
-            f,
-            lines[1],
-            "-60                                                     现在   ↓ 下载",
-            p.muted,
+        let labels =
+            Layout::horizontal([Constraint::Min(0), Constraint::Length(14)]).split(lines[1]);
+        text(f, labels[0], "-60", p.muted);
+        f.render_widget(
+            Paragraph::new("现在   ↓ 下载")
+                .right_aligned()
+                .style(Style::default().fg(p.muted)),
+            labels[1],
         );
     } else {
         text(
@@ -578,7 +606,8 @@ fn page(f: &mut Frame, app: &mut App, r: Rect, p: Palette) {
             Row::new(r.cells.iter().enumerate().map(|(i, s)| {
                 let color = if s.contains("超时") || s.contains("不可用") || s == "ERROR" {
                     p.yellow
-                } else if s == "开启" || s.contains("可用") || s == "●" || s == "● 当前" {
+                } else if s == "开启" || s.contains("可用") || s == "[✓]" || s == "[✓] 当前"
+                {
                     p.green
                 } else if i == 0 {
                     p.text
@@ -670,7 +699,7 @@ fn columns(app: &App) -> (Vec<&'static str>, Vec<Constraint>) {
         ),
         Page::Profiles if app.sub == 0 => (
             vec!["状态", "订阅名称", "用量", "更新间隔", "最近更新"],
-            vec![Length(7), Min(12), Length(13), Length(9), Length(18)],
+            vec![Length(8), Min(12), Length(13), Length(9), Length(18)],
         ),
         Page::Profiles => (
             vec!["顺序", "名称", "类型", "状态"],
@@ -885,7 +914,7 @@ fn modal(f: &mut Frame, app: &mut App, area: Rect, p: Palette) {
                     Kind::Toggle => format!(
                         "{}  {}    ← →",
                         if field.value == "开启" {
-                            "[●]"
+                            "[✓]"
                         } else {
                             "[ ]"
                         },

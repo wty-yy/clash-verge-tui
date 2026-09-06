@@ -4,7 +4,7 @@
 
 A Clash Verge-style terminal interface built with Rust and Ratatui, referencing Clash Verge Rev v2.5.2.
 
-`v0.1.0` is a UI preview. All eight main pages, secondary forms, and local interactions are available. Mihomo, subscription downloads, system proxy, and TUN are not connected. All network data is simulated.
+`v0.1.1` is a UI preview. All eight main pages, secondary forms, and local interactions are available. Mihomo, subscription downloads, system proxy, and TUN are not connected. All network data is simulated.
 
 ![Home preview](docs/previews/home.png)
 
@@ -45,6 +45,8 @@ clash-verge-tui --snapshot home --width 100 --height 30
 | `Ctrl+S` | Save a form; `Ctrl+U` clears a field |
 | `:`, `?`, `t` | Page palette, help, theme switch |
 | `q` / `Ctrl+C` | Quit |
+
+The footer shows `j/k` navigation hints when Vim keys are enabled (the default). Selection and toggles use `[✓]` / `[ ]`. The traffic chart scales with the terminal while keeping the same history interval.
 
 Mouse clicks support navigation, sections, toolbar buttons, and forms. Click a table row to select it, then press `Enter`. In multiline fields, `Enter` inserts a newline and `Tab` changes fields. Use `Shift` + mouse for native terminal text selection.
 
