@@ -300,7 +300,7 @@ impl Dav {
                 });
             }
         }
-        items.sort_by(|a, b| b.created.cmp(&a.created));
+        items.sort_by_key(|item| std::cmp::Reverse(item.created));
         items.dedup_by(|a, b| a.file == b.file);
         Ok(items)
     }

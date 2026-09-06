@@ -6,6 +6,12 @@
 
 See the [feature mapping](docs/FEATURES.md) for planned work.
 
+## v1.0.1 · 2026-09-07
+
+### Fixed
+
+- Use a keyed reverse sort for remote backup history, satisfying the newer Clippy version used by CI.
+
 ## v1.0.0 · 2026-09-07
 
 ### Linux feature release

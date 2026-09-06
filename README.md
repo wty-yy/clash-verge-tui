@@ -4,7 +4,7 @@
 
 A mihomo terminal client built with Rust and Ratatui, with an interface referencing Clash Verge Rev v2.5.2.
 
-`v1.0.0` connects to an existing core or starts an isolated mihomo instance from subscriptions. Profiles and enhancements, network settings, system proxy, TUN, services, backups/WebDAV, page reachability checks, core maintenance, and diagnostics are connected. Demo mode retains the complete UI preview.
+`v1.0.1` connects to an existing core or starts an isolated mihomo instance from subscriptions. Profiles and enhancements, network settings, system proxy, TUN, services, backups/WebDAV, page reachability checks, core maintenance, and diagnostics are connected. Demo mode retains the complete UI preview.
 
 ![Demo interface](docs/previews/home.png)
 
