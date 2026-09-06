@@ -468,3 +468,196 @@ fn vim_navigation_hint_tracks_enabled_setting_and_keyboard_behavior() {
     key(&mut a, KeyCode::Down);
     assert_eq!(a.selected, 1);
 }
+
+fn click_row(a: &mut App, index: usize, backup: bool) {
+    render(a, 120, 40);
+    let (rect, _) = a
+        .hits
+        .iter()
+        .find(|(_, action)| match action {
+            Action::Select(i) => !backup && *i == index,
+            Action::BackupSelect(i) => backup && *i == index,
+            _ => false,
+        })
+        .unwrap();
+    let event = crossterm::event::MouseEvent {
+        kind: crossterm::event::MouseEventKind::Down(crossterm::event::MouseButton::Left),
+        column: rect.x + 3,
+        row: rect.y,
+        modifiers: KeyModifiers::NONE,
+    };
+    a.mouse(event);
+    a.mouse(crossterm::event::MouseEvent {
+        kind: crossterm::event::MouseEventKind::Up(crossterm::event::MouseButton::Left),
+        ..event
+    });
+}
+
+#[test]
+fn double_click_matches_enter_across_every_main_page_and_section() {
+    for page in Page::ALL {
+        let count = {
+            let mut a = app();
+            a.navigate(page);
+            a.tabs().len().max(1)
+        };
+        for sub in 0..count {
+            let mut mouse = app();
+            mouse.navigate(page);
+            mouse.sub = sub;
+            let before = serde_json::to_value(&mouse.state).unwrap();
+            click_row(&mut mouse, 0, false);
+            assert_eq!(
+                serde_json::to_value(&mouse.state).unwrap(),
+                before,
+                "single click mutated {page:?}"
+            );
+            assert!(mouse.modal.is_none());
+            click_row(&mut mouse, 0, false);
+            let mut keyboard = app();
+            keyboard.navigate(page);
+            keyboard.sub = sub;
+            key(&mut keyboard, KeyCode::Enter);
+            assert_eq!(
+                serde_json::to_value(&mouse.state).unwrap(),
+                serde_json::to_value(&keyboard.state).unwrap(),
+                "{page:?} section {sub}"
+            );
+            assert_eq!(
+                render(&mut mouse, 120, 40),
+                render(&mut keyboard, 120, 40),
+                "{page:?} section {sub}"
+            );
+        }
+    }
+}
+
+#[test]
+fn double_click_backup_opens_confirmation_without_restoring_immediately() {
+    let mut a = app();
+    a.navigate(Page::Settings);
+    a.sub = 3;
+    a.command('b');
+    a.state.profiles[0].name = "未恢复".into();
+    a.activate();
+    click_row(&mut a, 0, true);
+    assert!(matches!(a.modal, Some(Modal::Backups { .. })));
+    click_row(&mut a, 0, true);
+    assert!(matches!(a.modal, Some(Modal::Confirm { .. })));
+    assert_eq!(a.state.active_name(), "未恢复");
+    key(&mut a, KeyCode::Enter);
+    assert_eq!(a.state.active_name(), "日常订阅");
+}
+
+#[test]
+fn double_click_respects_filtered_and_sorted_row_identity() {
+    let mut a = app();
+    a.navigate(Page::Proxies);
+    a.query = "日本".into();
+    a.sort = true;
+    let expected = a.state.nodes[a.rows()[1].id].name.clone();
+    click_row(&mut a, 1, false);
+    click_row(&mut a, 1, false);
+    assert_eq!(a.state.groups[0].selected, expected);
+}
+
+#[test]
+fn home_horizontal_focus_preserves_selection_and_activates_profile_card() {
+    use clash_verge_tui::app::HomeFocus;
+    let mut a = app();
+    a.selected = 2;
+    key(&mut a, KeyCode::Right);
+    assert_eq!(a.home_focus, HomeFocus::Profile);
+    key(&mut a, KeyCode::Right);
+    key(&mut a, KeyCode::Down);
+    assert_eq!(a.selected, 2);
+    for (w, h) in [(76, 24), (120, 40)] {
+        assert!(render(&mut a, w, h).contains("› 进入订阅管理 ↵"));
+    }
+    key(&mut a, KeyCode::Left);
+    assert_eq!(a.home_focus, HomeFocus::Controls);
+    assert_eq!(a.selected, 2);
+    key(&mut a, KeyCode::Tab);
+    assert_eq!(a.home_focus, HomeFocus::Profile);
+    key(&mut a, KeyCode::BackTab);
+    assert_eq!(a.home_focus, HomeFocus::Controls);
+    key(&mut a, KeyCode::Char('l'));
+    key(&mut a, KeyCode::Char('h'));
+    assert_eq!(a.home_focus, HomeFocus::Controls);
+    key(&mut a, KeyCode::Right);
+    key(&mut a, KeyCode::Enter);
+    assert_eq!(a.page, Page::Profiles);
+    assert_eq!(a.state.mode, 0);
+}
+
+#[test]
+fn horizontal_keys_cycle_all_tab_groups_and_filter_logs() {
+    for page in Page::ALL {
+        let mut a = app();
+        a.navigate(page);
+        let count = a.tabs().len();
+        if count == 0 {
+            continue;
+        }
+        for expected in (1..count).chain(std::iter::once(0)) {
+            key(&mut a, KeyCode::Right);
+            assert_eq!(a.sub, expected, "{page:?}");
+        }
+        key(&mut a, KeyCode::Left);
+        assert_eq!(a.sub, count - 1);
+        key(&mut a, KeyCode::Char('l'));
+        assert_eq!(a.sub, 0);
+        a.state.settings.insert("vim".into(), "关闭".into());
+        key(&mut a, KeyCode::Char('l'));
+        assert_eq!(a.sub, 0);
+        key(&mut a, KeyCode::Right);
+        assert_eq!(a.sub, 1 % count);
+    }
+    let mut a = app();
+    a.navigate(Page::Logs);
+    key(&mut a, KeyCode::Right);
+    assert!(a.rows().iter().all(|r| r.cells[1] == "INFO"));
+    key(&mut a, KeyCode::Right);
+    assert!(a.rows().iter().all(|r| r.cells[1] == "DEBUG"));
+    key(&mut a, KeyCode::Left);
+    assert!(a.rows().iter().all(|r| r.cells[1] == "INFO"));
+    a.navigate(Page::Profiles);
+    a.command('a');
+    key(&mut a, KeyCode::Char('h'));
+    key(&mut a, KeyCode::Char('l'));
+    if let Some(Modal::Form { fields, .. }) = &a.modal {
+        assert_eq!(fields[0].value, "hl");
+    } else {
+        panic!("expected form");
+    }
+}
+
+#[test]
+fn home_mouse_selection_and_double_click_cooperate_with_keyboard_focus() {
+    use clash_verge_tui::app::HomeFocus;
+    let mut a = app();
+    key(&mut a, KeyCode::Right);
+    click_row(&mut a, 0, false);
+    assert_eq!(a.home_focus, HomeFocus::Controls);
+    assert_eq!(a.state.value("system_proxy"), "关闭");
+    key(&mut a, KeyCode::Enter);
+    assert_eq!(a.state.value("system_proxy"), "开启");
+    render(&mut a, 120, 40);
+    let (rect, _) = a
+        .hits
+        .iter()
+        .find(|(_, action)| matches!(action, Action::HomeFocus(HomeFocus::Profile)))
+        .unwrap();
+    let event = crossterm::event::MouseEvent {
+        kind: crossterm::event::MouseEventKind::Down(crossterm::event::MouseButton::Left),
+        column: rect.x + 3,
+        row: rect.y + 1,
+        modifiers: KeyModifiers::NONE,
+    };
+    a.mouse(event);
+    assert_eq!(a.home_focus, HomeFocus::Profile);
+    assert_eq!(a.page, Page::Home);
+    render(&mut a, 120, 40);
+    a.mouse(event);
+    assert_eq!(a.page, Page::Profiles);
+}

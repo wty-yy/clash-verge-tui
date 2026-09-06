@@ -4,7 +4,7 @@
 
 A Clash Verge-style terminal interface built with Rust and Ratatui, referencing Clash Verge Rev v2.5.2.
 
-`v0.1.1` is a UI preview. All eight main pages, secondary forms, and local interactions are available. Mihomo, subscription downloads, system proxy, and TUN are not connected. All network data is simulated.
+`v0.1.2` is a UI preview. All eight main pages, secondary forms, and local interactions are available. Mihomo, subscription downloads, system proxy, and TUN are not connected. All network data is simulated.
 
 ![Home preview](docs/previews/home.png)
 
@@ -35,7 +35,7 @@ clash-verge-tui --snapshot home --width 100 --height 30
 | Key | Action |
 | --- | --- |
 | `1`–`8` | Home, proxies, profiles, connections, rules, logs, unlock checks, settings |
-| `Tab` / `Shift+Tab` | Switch page sections |
+| `←` / `→`, `Tab` / `Shift+Tab` | Switch home panels or page sections |
 | `↑` / `↓`, `j` / `k` | Select a row; `Enter` activates it |
 | `/`, `Esc` | Search, clear filtering, or cancel a dialog |
 | `a` / `e` / `d` | Add, edit, delete; see the page toolbar |
@@ -46,9 +46,9 @@ clash-verge-tui --snapshot home --width 100 --height 30
 | `:`, `?`, `t` | Page palette, help, theme switch |
 | `q` / `Ctrl+C` | Quit |
 
-The footer shows `j/k` navigation hints when Vim keys are enabled (the default). Selection and toggles use `[✓]` / `[ ]`. The traffic chart scales with the terminal while keeping the same history interval.
+The footer shows `j/k` vertical and `h/l` horizontal navigation hints when Vim keys are enabled (the default). Focus the right-hand home card and press `Enter` to open profile management. Selection and toggles use `[✓]` / `[ ]`. The traffic chart scales with the terminal while keeping the same history interval.
 
-Mouse clicks support navigation, sections, toolbar buttons, and forms. Click a table row to select it, then press `Enter`. In multiline fields, `Enter` inserts a newline and `Tab` changes fields. Use `Shift` + mouse for native terminal text selection.
+Mouse clicks support navigation, sections, toolbar buttons, and forms. Single-click a row to select it; double-click near the same position within 400 ms to perform its `Enter` action. This covers home controls, lists, settings, and backup history. Restoring a backup still requires confirmation. In multiline fields, `Enter` inserts a newline and `Tab` changes fields. Use `Shift` + mouse for native terminal text selection.
 
 ## Implementation
 

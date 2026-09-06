@@ -86,6 +86,7 @@ fn main() -> Result<()> {
                 Event::Key(key) if key.kind != KeyEventKind::Release => app.key(key),
                 Event::Mouse(mouse) => app.mouse(mouse),
                 Event::Paste(text) => app.paste(&text),
+                Event::Resize(_, _) => app.cancel_pending_click(),
                 _ => {}
             }
         }

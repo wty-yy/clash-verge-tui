@@ -6,6 +6,16 @@
 
 See the [feature mapping](docs/FEATURES.md) for planned work.
 
+## v0.1.2 · 2026-09-06
+
+### Added
+
+- Focus and highlight either home panel with horizontal navigation; press Enter on the profile card to open profiles, including in small terminals.
+- Show horizontal navigation hints for proxy groups, log levels, and settings categories; add Vim `h/l` navigation without intercepting form text input.
+- Double-click rows, home controls, settings entries, and backup history to perform the same action as `Enter`; single clicks only select.
+- Match clicks near the same item within 400 ms; reset detection after keyboard input, dragging, scrolling, resizing, or navigation.
+- Preserve single-click buttons and backup restore confirmations.
+
 ## v0.1.1 · 2026-09-06
 
 ### Fixed

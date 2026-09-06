@@ -1,5 +1,5 @@
 use crate::{
-    app::{Action, App, Modal},
+    app::{Action, App, HomeFocus, Modal},
     model::Page,
     settings::Kind,
 };
@@ -159,14 +159,26 @@ pub fn draw(f: &mut Frame, app: &mut App) {
         page(f, app, parts[2], p);
     }
     text(f, line_area(parts[3], 0, 1), app.status.clone(), p.green);
+    let vim = app.state.value("vim") == "开启";
+    let vertical = if vim {
+        "↑↓ / j/k 选择"
+    } else {
+        "↑↓ 选择"
+    };
+    let scope = if app.page == Page::Home {
+        "焦点"
+    } else {
+        "分组"
+    };
+    let horizontal = if app.page == Page::Home || !app.tabs().is_empty() {
+        format!("  {} {scope}", if vim { "←→ / h/l" } else { "←→ / Tab" })
+    } else {
+        String::new()
+    };
     text(
         f,
         line_area(parts[3], 1, 1),
-        if app.state.value("vim") == "开启" {
-            "↑↓ / j/k 选择   1–8 页面   Tab 分组   Enter 操作   / 搜索   : 跳转   ? 帮助   q 退出"
-        } else {
-            "↑↓ 选择   1–8 页面   Tab 分组   Enter 操作   / 搜索   : 跳转   ? 帮助   q 退出"
-        },
+        format!("{vertical}{horizontal}  Enter/双击 操作  ? 帮助  q 退出"),
         p.muted,
     );
     if app.modal.is_some() {
@@ -349,7 +361,16 @@ fn home(f: &mut Frame, app: &mut App, r: Rect, p: Palette) {
     let bottom = Layout::horizontal([Constraint::Percentage(51), Constraint::Percentage(49)])
         .spacing(1)
         .split(parts[3]);
-    f.render_widget(block("快捷控制", p), bottom[0]);
+    let controls_focused = app.home_focus == HomeFocus::Controls;
+    let profile_focused = app.home_focus == HomeFocus::Profile;
+    f.render_widget(
+        block("快捷控制 · ←", p).border_style(Style::default().fg(if controls_focused {
+            p.accent
+        } else {
+            p.border
+        })),
+        bottom[0],
+    );
     let inner = inset(bottom[0], 2, 1);
     let rows = app.rows();
     let offset = app
@@ -363,7 +384,11 @@ fn home(f: &mut Frame, app: &mut App, r: Rect, p: Palette) {
     {
         let line = Line::from(vec![
             Span::styled(
-                if i == app.selected { "› " } else { "  " },
+                if controls_focused && i == app.selected {
+                    "› "
+                } else {
+                    "  "
+                },
                 Style::default().fg(p.accent),
             ),
             Span::raw(format!("{:<10}", row.cells[0])),
@@ -378,16 +403,27 @@ fn home(f: &mut Frame, app: &mut App, r: Rect, p: Palette) {
         ]);
         let rect = line_area(inner, (i - offset) as u16, 1);
         f.render_widget(
-            Paragraph::new(line).style(Style::default().bg(if i == app.selected {
-                p.raised
-            } else {
-                p.panel
-            })),
+            Paragraph::new(line).style(Style::default().bg(
+                if controls_focused && i == app.selected {
+                    p.raised
+                } else {
+                    p.panel
+                },
+            )),
             rect,
         );
         app.hits.push((rect, Action::Select(i)));
     }
-    f.render_widget(block("当前订阅", p), bottom[1]);
+    f.render_widget(
+        block("当前订阅 · →", p).border_style(Style::default().fg(if profile_focused {
+            p.accent
+        } else {
+            p.border
+        })),
+        bottom[1],
+    );
+    app.hits
+        .push((bottom[1], Action::HomeFocus(HomeFocus::Profile)));
     let inner = inset(bottom[1], 2, 1);
     text(
         f,
@@ -402,7 +438,7 @@ fn home(f: &mut Frame, app: &mut App, r: Rect, p: Palette) {
             format!("{} / {} GB · 示例配额", profile.used, profile.total),
             p.muted,
         );
-        if inner.height > 4 {
+        if inner.height > 5 {
             f.render_widget(
                 Gauge::default()
                     .ratio(
@@ -417,15 +453,19 @@ fn home(f: &mut Frame, app: &mut App, r: Rect, p: Palette) {
             );
         }
     }
-    if inner.height > 6 {
+    if inner.height > 0 {
         button(
             f,
             app,
-            line_area(inner, 6, 1),
-            "进入订阅管理 →",
+            line_area(inner, 6.min(inner.height - 1), 1),
+            if profile_focused {
+                "› 进入订阅管理 ↵"
+            } else {
+                "进入订阅管理 →"
+            },
             Action::Page(Page::Profiles),
             p,
-            true,
+            profile_focused,
         );
     }
 }
@@ -822,7 +862,7 @@ fn modal(f: &mut Frame, app: &mut App, area: Rect, p: Palette) {
             text(
                 f,
                 line_area(inner, inner.height - 3, 1),
-                "↑↓ 选择   Enter 恢复   d 删除   Esc 关闭",
+                "↑↓ 选择   Enter/双击 恢复   d 删除   Esc 关闭",
                 p.muted,
             );
             button(

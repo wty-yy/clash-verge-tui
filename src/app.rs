@@ -4,13 +4,22 @@ use crate::{
 };
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 use ratatui::layout::Rect;
-use std::path::PathBuf;
+use std::{
+    path::PathBuf,
+    time::{Duration, Instant},
+};
 
 #[derive(Clone, Debug)]
 pub struct DataRow {
     pub id: usize,
     pub cells: Vec<String>,
 }
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum HomeFocus {
+    Controls,
+    Profile,
+}
+
 #[derive(Clone, Debug)]
 pub enum Action {
     Page(Page),
@@ -20,6 +29,7 @@ pub enum Action {
     Key(char),
     Field(usize),
     BackupSelect(usize),
+    HomeFocus(HomeFocus),
     Submit,
     Cancel,
 }
@@ -185,9 +195,35 @@ pub enum Modal {
         selected: usize,
     },
 }
+const DOUBLE_CLICK_INTERVAL: Duration = Duration::from_millis(400);
+
+#[derive(Debug, PartialEq, Eq)]
+enum ClickTarget {
+    HomeProfile(String),
+    Row {
+        page: Page,
+        sub: usize,
+        id: usize,
+        cells: Vec<String>,
+    },
+    Backup {
+        index: usize,
+        name: String,
+    },
+}
+
+struct PendingClick {
+    target: ClickTarget,
+    area: Rect,
+    column: u16,
+    row: u16,
+    at: Instant,
+}
+
 pub struct App {
     pub state: DemoState,
     pub page: Page,
+    pub home_focus: HomeFocus,
     pub sub: usize,
     pub selected: usize,
     pub query: String,
@@ -202,6 +238,7 @@ pub struct App {
     pub data_dir: PathBuf,
     pub hits: Vec<(Rect, Action)>,
     pub table_offset: usize,
+    pending_click: Option<PendingClick>,
 }
 impl App {
     pub fn new(state: DemoState, data_dir: PathBuf) -> Self {
@@ -212,6 +249,7 @@ impl App {
         Self {
             state,
             page,
+            home_focus: HomeFocus::Controls,
             sub: 0,
             selected: 0,
             query: String::new(),
@@ -226,10 +264,13 @@ impl App {
             data_dir,
             hits: vec![],
             table_offset: 0,
+            pending_click: None,
         }
     }
     pub fn navigate(&mut self, page: Page) {
+        self.cancel_pending_click();
         self.page = page;
+        self.home_focus = HomeFocus::Controls;
         self.sub = 0;
         self.selected = 0;
         self.query.clear();
@@ -441,6 +482,9 @@ impl App {
         self.rows().get(self.selected).map(|r| r.id)
     }
     pub fn step(&mut self, delta: isize) {
+        if self.page == Page::Home && self.home_focus == HomeFocus::Profile {
+            return;
+        }
         let n = self.rows().len();
         self.selected = if n == 0 {
             0
@@ -449,6 +493,15 @@ impl App {
         };
     }
     pub fn change_sub(&mut self, delta: isize) {
+        self.cancel_pending_click();
+        if self.page == Page::Home {
+            self.home_focus = if self.home_focus == HomeFocus::Controls {
+                HomeFocus::Profile
+            } else {
+                HomeFocus::Controls
+            };
+            return;
+        }
         let n = self.tabs().len();
         if n > 0 {
             self.sub = (self.sub as isize + delta).rem_euclid(n as isize) as usize;
@@ -456,6 +509,18 @@ impl App {
             self.table_offset = 0;
         }
     }
+    fn move_horizontal(&mut self, delta: isize) {
+        if self.page == Page::Home {
+            self.home_focus = if delta < 0 {
+                HomeFocus::Controls
+            } else {
+                HomeFocus::Profile
+            };
+        } else {
+            self.change_sub(delta);
+        }
+    }
+
     pub fn note(&mut self, message: impl Into<String>) {
         self.status = message.into();
         self.dirty = true;
@@ -495,6 +560,7 @@ impl App {
             .collect()
     }
     pub fn key(&mut self, key: KeyEvent) {
+        self.cancel_pending_click();
         if key.code == KeyCode::Char('c') && key.modifiers.contains(KeyModifiers::CONTROL) {
             self.quit = true;
             return;
@@ -548,37 +614,99 @@ impl App {
             KeyCode::PageDown => self.step(10),
             KeyCode::Home => self.selected = 0,
             KeyCode::End => self.selected = self.rows().len().saturating_sub(1),
-            KeyCode::Tab | KeyCode::Right => self.change_sub(1),
-            KeyCode::BackTab | KeyCode::Left => self.change_sub(-1),
+            KeyCode::Tab => self.change_sub(1),
+            KeyCode::BackTab => self.change_sub(-1),
+            KeyCode::Right => self.move_horizontal(1),
+            KeyCode::Left => self.move_horizontal(-1),
+            KeyCode::Char('h') if self.state.value("vim") == "开启" => self.move_horizontal(-1),
+            KeyCode::Char('l') if self.state.value("vim") == "开启" => self.move_horizontal(1),
             KeyCode::Enter | KeyCode::Char(' ') => self.activate(),
             KeyCode::Char(c) => self.command(c),
             _ => {}
         }
     }
+    pub fn cancel_pending_click(&mut self) {
+        self.pending_click = None;
+    }
+
     pub fn mouse(&mut self, event: MouseEvent) {
+        self.mouse_at(event, Instant::now());
+    }
+
+    fn mouse_at(&mut self, event: MouseEvent, now: Instant) {
         if self.state.value("mouse") != "开启" {
+            self.cancel_pending_click();
             return;
         }
         match event.kind {
             MouseEventKind::Down(MouseButton::Left) => {
-                if let Some((_, action)) = self
+                let previous = self.pending_click.take();
+                let Some((area, action)) = self
                     .hits
                     .iter()
                     .rev()
                     .find(|(r, _)| r.contains((event.column, event.row).into()))
                     .cloned()
-                {
-                    self.action(action);
+                else {
+                    return;
+                };
+                // Only selectable rows need a double click; buttons already act on a single click.
+                let target = match (&action, &self.modal) {
+                    (Action::HomeFocus(HomeFocus::Profile), None) if self.page == Page::Home => {
+                        Some(ClickTarget::HomeProfile(self.state.active_name().into()))
+                    }
+                    (Action::Select(index), None) => {
+                        self.rows().get(*index).map(|row| ClickTarget::Row {
+                            page: self.page,
+                            sub: self.sub,
+                            id: row.id,
+                            cells: row.cells.clone(),
+                        })
+                    }
+                    (Action::BackupSelect(index), Some(Modal::Backups { .. })) => self
+                        .state
+                        .backups
+                        .get(*index)
+                        .map(|backup| ClickTarget::Backup {
+                            index: *index,
+                            name: backup.name.clone(),
+                        }),
+                    _ => None,
+                };
+                let double_click = match (&previous, &target) {
+                    (Some(previous), Some(target)) => {
+                        previous.target == *target
+                            && previous.area == area
+                            && previous.row == event.row
+                            && previous.column.abs_diff(event.column) <= 2
+                            && now.duration_since(previous.at) <= DOUBLE_CLICK_INTERVAL
+                    }
+                    _ => false,
+                };
+                self.action(action);
+                if double_click {
+                    // Use the same handler as Enter, including any confirmation dialog it opens.
+                    self.key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+                } else if let Some(target) = target {
+                    self.pending_click = Some(PendingClick {
+                        target,
+                        area,
+                        column: event.column,
+                        row: event.row,
+                        at: now,
+                    });
                 }
             }
             MouseEventKind::ScrollDown => {
                 self.key(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE))
             }
             MouseEventKind::ScrollUp => self.key(KeyEvent::new(KeyCode::Up, KeyModifiers::NONE)),
+            MouseEventKind::Down(_) | MouseEventKind::Drag(_) => self.cancel_pending_click(),
             _ => {}
         }
     }
     pub fn action(&mut self, action: Action) {
+        self.cancel_pending_click();
         match action {
             Action::Page(p) => {
                 self.modal = None;
@@ -590,7 +718,11 @@ impl App {
             }
             Action::Select(i) => {
                 self.selected = i;
+                if self.page == Page::Home {
+                    self.home_focus = HomeFocus::Controls;
+                }
             }
+            Action::HomeFocus(focus) => self.home_focus = focus,
             Action::Activate => self.activate(),
             Action::Key(c) => self.key(KeyEvent::new(KeyCode::Char(c), KeyModifiers::NONE)),
             Action::Field(i) => {
@@ -613,6 +745,7 @@ impl App {
         }
     }
     pub fn paste(&mut self, text: &str) {
+        self.cancel_pending_click();
         if let Some(Modal::Form { fields, active, .. }) = &mut self.modal {
             fields[*active].insert(text);
         } else if self.searching {
@@ -748,6 +881,10 @@ impl App {
         }
     }
     pub fn activate(&mut self) {
+        if self.page == Page::Home && self.home_focus == HomeFocus::Profile {
+            self.navigate(Page::Profiles);
+            return;
+        }
         let Some(id) = self.selected_id() else { return };
         match self.page {
             Page::Home=>match id {0=>{self.state.toggle("system_proxy");self.note("演示：系统代理状态已切换");},1=>{self.state.toggle("tun");self.note("演示：TUN 状态已切换");},2=>self.command('m'),3=>self.navigate(Page::Profiles),4=>self.runtime(),_=>self.environment()},
@@ -1271,6 +1408,108 @@ impl App {
         self.selected = self.selected.min(self.rows().len().saturating_sub(1));
     }
     pub fn help(&mut self) {
-        self.detail("键盘操作","导航\n  1–8               切换主页面\n  Tab / Shift+Tab   下一组 / 上一组\n  ↑ ↓ / j k         选择条目\n  PgUp / PgDn       快速翻页\n  Enter / Space     执行主操作\n  /                 搜索当前列表\n  :                 页面跳转面板\n  Esc               取消弹窗 / 清除搜索\n  t                 切换深色 / 浅色主题\n  q / Ctrl+C        退出\n\n页面操作\n  a / e / d         新建 / 编辑 / 删除\n  r                 演示刷新或检测\n  s                 排序（代理 / 连接）\n  m                 代理模式切换\n  v                 编辑订阅 YAML\n  [ / ]             上移 / 下移订阅或增强链\n  D                 关闭全部演示连接\n  p / c             暂停 / 清空日志\n  b / R             创建 / 恢复最近演示备份（设置页）\n\n表单\n  Tab / ↑ ↓         切换字段\n  ← → / Space       切换开关或选项\n  Home / End        文本首尾\n  Ctrl+U            清空当前字段\n  Enter             下一字段；多行字段换行\n  Ctrl+S            校验并保存\n\n鼠标\n  点击侧栏、标签、工具按钮；点击行选择，Enter 执行\n  滚轮移动选择；Shift+鼠标使用终端原生文本选择\n\n所有网络行为均为本地演示。表单只做基础校验，\nYAML、JavaScript 与完整 mihomo 配置校验留待内核接入。" );
+        self.detail("键盘操作","导航\n  1–8               切换主页面\n  Tab / Shift+Tab   切换区域或分组\n  ← → / h l         首页左右区域；其他页面切换分组\n  ↑ ↓ / j k         选择条目\n  PgUp / PgDn       快速翻页\n  Enter / Space     执行主操作\n  /                 搜索当前列表\n  :                 页面跳转面板\n  Esc               取消弹窗 / 清除搜索\n  t                 切换深色 / 浅色主题\n  q / Ctrl+C        退出\n\n页面操作\n  a / e / d         新建 / 编辑 / 删除\n  r                 演示刷新或检测\n  s                 排序（代理 / 连接）\n  m                 代理模式切换\n  v                 编辑订阅 YAML\n  [ / ]             上移 / 下移订阅或增强链\n  D                 关闭全部演示连接\n  p / c             暂停 / 清空日志\n  b / R             创建 / 恢复最近演示备份（设置页）\n\n表单\n  Tab / ↑ ↓         切换字段\n  ← → / Space       切换开关或选项\n  Home / End        文本首尾\n  Ctrl+U            清空当前字段\n  Enter             下一字段；多行字段换行\n  Ctrl+S            校验并保存\n\n鼠标\n  点击侧栏、标签、工具按钮；单击行选择，双击等同 Enter\n  同一行同一位置附近 400 毫秒内双击；备份恢复仍需确认\n  滚轮移动选择；Shift+鼠标使用终端原生文本选择\n\n所有网络行为均为本地演示。表单只做基础校验，\nYAML、JavaScript 与完整 mihomo 配置校验留待内核接入。" );
+    }
+}
+
+#[cfg(test)]
+mod mouse_tests {
+    use super::*;
+
+    fn fixture() -> (App, MouseEvent, Instant) {
+        let mut app = App::new(DemoState::default(), PathBuf::from("/tmp/demo"));
+        app.hits.push((Rect::new(20, 10, 30, 1), Action::Select(0)));
+        let event = MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Left),
+            column: 24,
+            row: 10,
+            modifiers: KeyModifiers::NONE,
+        };
+        (app, event, Instant::now())
+    }
+
+    #[test]
+    fn double_click_allows_small_motion_and_release_but_does_not_repeat_on_third_click() {
+        let (mut app, mut event, start) = fixture();
+        app.mouse_at(event, start);
+        assert_eq!(app.state.value("system_proxy"), "关闭");
+        event.kind = MouseEventKind::Up(MouseButton::Left);
+        app.mouse_at(event, start + Duration::from_millis(10));
+        event.kind = MouseEventKind::Down(MouseButton::Left);
+        event.column += 1;
+        app.mouse_at(event, start + Duration::from_millis(150));
+        assert_eq!(app.state.value("system_proxy"), "开启");
+        app.mouse_at(event, start + Duration::from_millis(200));
+        assert_eq!(app.state.value("system_proxy"), "开启");
+    }
+
+    #[test]
+    fn delayed_or_distant_clicks_are_only_selection() {
+        for (delay, shift) in [(401, 0), (100, 8)] {
+            let (mut app, mut event, start) = fixture();
+            app.mouse_at(event, start);
+            event.column += shift;
+            app.mouse_at(event, start + Duration::from_millis(delay));
+            assert_eq!(app.state.value("system_proxy"), "关闭");
+        }
+    }
+
+    #[test]
+    fn intervening_input_navigation_and_resize_cancel_detection() {
+        for interruption in 0..6 {
+            let (mut app, event, start) = fixture();
+            app.mouse_at(event, start);
+            match interruption {
+                0 => app.key(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE)),
+                1 => app.cancel_pending_click(),
+                2 => app.mouse_at(
+                    MouseEvent {
+                        kind: MouseEventKind::ScrollDown,
+                        ..event
+                    },
+                    start,
+                ),
+                3 => app.mouse_at(
+                    MouseEvent {
+                        kind: MouseEventKind::Drag(MouseButton::Left),
+                        ..event
+                    },
+                    start,
+                ),
+                4 => app.navigate(Page::Home),
+                _ => app.mouse_at(
+                    MouseEvent {
+                        column: 0,
+                        row: 0,
+                        ..event
+                    },
+                    start,
+                ),
+            }
+            app.mouse_at(event, start + Duration::from_millis(100));
+            assert_eq!(app.state.value("system_proxy"), "关闭");
+        }
+    }
+
+    #[test]
+    fn same_screen_location_with_a_different_row_never_activates() {
+        let (mut app, event, start) = fixture();
+        app.mouse_at(event, start);
+        app.hits[0].1 = Action::Select(1);
+        app.mouse_at(event, start + Duration::from_millis(100));
+        assert_eq!(app.selected, 1);
+        assert_eq!(app.state.value("tun"), "关闭");
+        assert_eq!(app.state.value("system_proxy"), "关闭");
+    }
+
+    #[test]
+    fn mouse_disabled_does_not_select_or_activate() {
+        let (mut app, event, start) = fixture();
+        app.state.settings.insert("mouse".into(), "关闭".into());
+        app.selected = 1;
+        app.mouse_at(event, start);
+        app.mouse_at(event, start + Duration::from_millis(100));
+        assert_eq!(app.selected, 1);
+        assert_eq!(app.state.value("system_proxy"), "关闭");
     }
 }
