@@ -1582,7 +1582,7 @@ fn modal(f: &mut Frame, app: &mut App, area: Rect, p: Palette) {
             text(
                 f,
                 line_area(inner, 0, 1),
-                locale::format("搜索页面  / {query}▏", &[query.to_string()]),
+                locale::format("搜索页面  / {query}▏", std::slice::from_ref(&query)),
                 p.accent,
             );
             let entries = app.localized_palette_entries(&query);
