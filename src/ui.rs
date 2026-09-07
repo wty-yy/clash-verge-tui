@@ -1321,10 +1321,11 @@ fn modal(f: &mut Frame, app: &mut App, area: Rect, p: Palette) {
                     Action::Field(i),
                 ));
                 if has_import {
+                    let button_area = Rect::new(input.x + input.width + 1, input.y, 10, 1);
                     button(
                         f,
                         app,
-                        Rect::new(input.x + input.width + 1, input.y, 10, 1),
+                        button_area,
                         if app.profile_import_pending.is_some() {
                             "[ 导入中 ]"
                         } else {
@@ -1334,6 +1335,12 @@ fn modal(f: &mut Frame, app: &mut App, area: Rect, p: Palette) {
                         p,
                         selected,
                     );
+                    // Make the whole right side of the two-line field clickable, including the
+                    // spacing around the visible label. The button remains the last hit target.
+                    if let Some((area, _)) = app.hits.last_mut() {
+                        let x = button_area.x.saturating_sub(1);
+                        *area = Rect::new(x, y, field_area.right().saturating_sub(x), height);
+                    }
                 }
                 y += height;
             }

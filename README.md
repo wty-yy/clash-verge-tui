@@ -4,7 +4,7 @@
 
 A Linux terminal proxy client built with Rust, Ratatui, and mihomo. Its interface and feature mapping follow Clash Verge Rev v2.5.2.
 
-`v1.3.1` starts a self-managed workspace and the application-pinned mihomo v1.19.29 by default. Release archives contain both the TUI and the core. Home quick controls show and edit the current mixed proxy port, which defaults to `127.0.0.1:7890`.
+`v1.3.2` starts a self-managed workspace and the application-pinned mihomo v1.19.29 by default. Release archives contain both the TUI and the core. Home quick controls show and edit the current mixed proxy port, which defaults to `127.0.0.1:7890`.
 
 ![Interface preview](docs/previews/home.png)
 
@@ -50,7 +50,7 @@ cargo build --locked --release
 
 ## Profiles and workspace
 
-Press `a Link import` on Profiles to open the form. Its first row is always **Profile file URL + [ Import ]**, immediately followed by the YAML editor, with the URL focused. Enter or click the button to download and validate the complete Clash YAML asynchronously; it is saved only after `Ctrl+S`. Local files, direct YAML editing, and private JSON manifests are also supported:
+Press `a Link import` on Profiles to open the form. Its first row is always **Profile file URL + [ Import ]**, immediately followed by the YAML editor, with the URL focused. Enter or click the button to download and validate the complete Clash YAML asynchronously. When the name is empty, a successful import fills it from the profile title, attachment filename, configuration name, or source domain without replacing a name entered by the user. The profile is saved only after `Ctrl+S`. Local files, direct YAML editing, and private JSON manifests are also supported:
 
 ![Profile link import](docs/previews/profile-import.svg)
 

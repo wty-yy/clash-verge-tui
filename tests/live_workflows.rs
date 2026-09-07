@@ -168,7 +168,7 @@ fn profile_link_import_keeps_the_form_open_and_fills_the_yaml_editor() {
     app.form(
         "订阅配置",
         vec![
-            Field::new("name", "名称", "测试", Kind::Text),
+            Field::new("name", "名称", "", Kind::Text),
             Field::new("proxy", "下载代理", "", Kind::Text),
             Field::new(
                 "url",
@@ -182,12 +182,17 @@ fn profile_link_import_keeps_the_form_open_and_fills_the_yaml_editor() {
     );
     let mut terminal = Terminal::new(TestBackend::new(120, 40)).unwrap();
     terminal.draw(|frame| ui::draw(frame, &mut app)).unwrap();
-    assert!(app
+    let import_area = app
         .hits
         .iter()
-        .any(|(_, action)| matches!(action, Action::ImportProfile)));
-
-    app.action(Action::ImportProfile);
+        .find_map(|(area, action)| matches!(action, Action::ImportProfile).then_some(*area))
+        .expect("import button hit area");
+    app.mouse(crossterm::event::MouseEvent {
+        kind: crossterm::event::MouseEventKind::Down(crossterm::event::MouseButton::Left),
+        column: import_area.x + import_area.width / 2,
+        row: import_area.y,
+        modifiers: crossterm::event::KeyModifiers::NONE,
+    });
     let request = match app.live.as_ref().unwrap().outbox.last().unwrap() {
         Command::ImportProfile {
             request,
@@ -200,7 +205,7 @@ fn profile_link_import_keeps_the_form_open_and_fills_the_yaml_editor() {
         }
         command => panic!("unexpected command: {command:?}"),
     };
-    assert!(app.live.as_ref().unwrap().pending);
+    assert!(!app.live.as_ref().unwrap().pending);
     app.handle_core(CoreEvent::ProfileImported {
         request,
         result: Ok(FetchedProfile {
@@ -208,6 +213,7 @@ fn profile_link_import_keeps_the_form_open_and_fills_the_yaml_editor() {
             proxies: 1,
             groups: 0,
             user_info: None,
+            suggested_name: "自动命名".into(),
         }),
     });
     assert!(!app.live.as_ref().unwrap().pending);
@@ -222,6 +228,59 @@ fn profile_link_import_keeps_the_form_open_and_fills_the_yaml_editor() {
         .unwrap()
         .value
         .contains("Imported"));
+    assert_eq!(
+        fields
+            .iter()
+            .find(|field| field.key == "name")
+            .unwrap()
+            .value,
+        "自动命名"
+    );
+}
+
+#[test]
+fn profile_link_import_preserves_a_name_already_entered_by_the_user() {
+    let mut app = app();
+    app.form(
+        "订阅配置",
+        vec![
+            Field::new(
+                "url",
+                "订阅文件链接",
+                "https://example.com/profile.yaml",
+                Kind::Text,
+            ),
+            Field::new("content", "订阅配置 YAML", "", Kind::Multiline),
+            Field::new("name", "名称", "我的订阅", Kind::Text),
+        ],
+        SaveTarget::Profile(None),
+    );
+    app.action(Action::ImportProfile);
+    let request = match app.live.as_ref().unwrap().outbox.last().unwrap() {
+        Command::ImportProfile { request, .. } => *request,
+        command => panic!("unexpected command: {command:?}"),
+    };
+    app.handle_core(CoreEvent::ProfileImported {
+        request,
+        result: Ok(FetchedProfile {
+            content: "proxies: [{name: Imported, type: direct}]\n".into(),
+            proxies: 1,
+            groups: 0,
+            user_info: None,
+            suggested_name: "服务商名称".into(),
+        }),
+    });
+    let Modal::Form { fields, .. } = app.modal.as_ref().unwrap() else {
+        panic!("import should keep the form open")
+    };
+    assert_eq!(
+        fields
+            .iter()
+            .find(|field| field.key == "name")
+            .unwrap()
+            .value,
+        "我的订阅"
+    );
 }
 
 #[test]
@@ -265,12 +324,58 @@ fn live_profile_form_opens_with_the_link_and_import_button_above_yaml() {
     assert_eq!(*active, 0);
     assert_eq!(fields[0].key, "url");
     assert_eq!(fields[1].key, "content");
+    if let Some(Modal::Form { fields, .. }) = &mut app.modal {
+        let url = fields.iter_mut().find(|field| field.key == "url").unwrap();
+        url.value = "https://example.com/minimum.yaml".into();
+        url.cursor = url.value.len();
+    }
+    app.live.as_mut().unwrap().pending = true;
     let mut terminal = Terminal::new(TestBackend::new(76, 24)).unwrap();
     terminal.draw(|frame| ui::draw(frame, &mut app)).unwrap();
-    assert!(app
+    let import_area = app
         .hits
         .iter()
-        .any(|(_, action)| matches!(action, Action::ImportProfile)));
+        .rev()
+        .find_map(|(area, action)| matches!(action, Action::ImportProfile).then_some(*area))
+        .expect("import button hit area");
+    assert_eq!(import_area.height, 2);
+    app.mouse(crossterm::event::MouseEvent {
+        kind: crossterm::event::MouseEventKind::Down(crossterm::event::MouseButton::Left),
+        column: import_area.right() - 1,
+        row: import_area.bottom() - 1,
+        modifiers: crossterm::event::KeyModifiers::NONE,
+    });
+    let request = match app.live.as_ref().unwrap().outbox.last() {
+        Some(Command::ImportProfile { request, url, .. }) => {
+            assert_eq!(url, "https://example.com/minimum.yaml");
+            *request
+        }
+        command => panic!("unexpected command: {command:?}"),
+    };
+    assert!(app.live.as_ref().unwrap().pending);
+    app.handle_core(CoreEvent::Completed(Ok(())));
+    app.handle_core(CoreEvent::ProfileImported {
+        request,
+        result: Ok(FetchedProfile {
+            content: "proxies: [{name: Imported, type: direct}]\n".into(),
+            proxies: 1,
+            groups: 0,
+            user_info: None,
+            suggested_name: "小窗口订阅".into(),
+        }),
+    });
+    let Modal::Form { fields, error, .. } = app.modal.as_ref().unwrap() else {
+        panic!("import should keep the form open")
+    };
+    assert!(error.is_empty());
+    assert_eq!(
+        fields
+            .iter()
+            .find(|field| field.key == "name")
+            .unwrap()
+            .value,
+        "小窗口订阅"
+    );
 }
 
 #[test]

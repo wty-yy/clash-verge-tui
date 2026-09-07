@@ -6,6 +6,15 @@
 
 See the [feature mapping](docs/FEATURES.md) for planned work.
 
+## v1.3.2 · 2026-09-07
+
+### Fix profile link import
+
+- Expand the `[ Import ]` mouse target across the two-line right side of the URL field, with real mouse-event coverage at 76×24 and 120×40.
+- Track profile downloads independently from mihomo operations so an earlier completion cannot reject or discard an import result.
+- Fill an empty name from the profile title, attachment filename, configuration name, or source domain; use a generic name for IP sources and preserve names entered by the user.
+- Decode inferred names, limit their length, and remove control and bidirectional text-control characters.
+
 ## v1.3.1 · 2026-09-07
 
 ### Make profile link import prominent

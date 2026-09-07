@@ -1,12 +1,16 @@
 use anyhow::{anyhow, bail, Context, Result};
+use base64::{engine::general_purpose, Engine as _};
 use futures_util::StreamExt;
+use reqwest::header::{HeaderMap, CONTENT_DISPOSITION};
 use serde::{Deserialize, Serialize};
 use serde_yaml_ng::{Mapping, Value};
 use sha2::{Digest, Sha256};
 use std::{
     fs,
+    net::IpAddr,
     path::{Path, PathBuf},
     process::{Child, Command, Stdio},
+    str::FromStr,
     time::{Duration, Instant},
 };
 use url::Url;
@@ -78,6 +82,7 @@ pub struct FetchedProfile {
     pub proxies: usize,
     pub groups: usize,
     pub user_info: Option<String>,
+    pub suggested_name: String,
 }
 impl std::fmt::Debug for FetchedProfile {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -87,8 +92,119 @@ impl std::fmt::Debug for FetchedProfile {
             .field("proxies", &self.proxies)
             .field("groups", &self.groups)
             .field("user_info", &self.user_info.as_ref().map(|_| "<private>"))
+            .field("suggested_name", &"<private>")
             .finish()
     }
+}
+
+fn percent_decode(value: &str) -> Option<String> {
+    let bytes = value.as_bytes();
+    let mut decoded = Vec::with_capacity(bytes.len());
+    let mut index = 0;
+    while index < bytes.len() {
+        if bytes[index] == b'%' && index + 2 < bytes.len() {
+            let high = (bytes[index + 1] as char).to_digit(16)?;
+            let low = (bytes[index + 2] as char).to_digit(16)?;
+            decoded.push(((high << 4) | low) as u8);
+            index += 3;
+        } else {
+            decoded.push(bytes[index]);
+            index += 1;
+        }
+    }
+    String::from_utf8(decoded).ok()
+}
+
+fn decoded_header(value: &str) -> Option<String> {
+    let value = value.trim();
+    if let Some(encoded) = value.strip_prefix("base64:") {
+        for engine in [
+            &general_purpose::STANDARD,
+            &general_purpose::STANDARD_NO_PAD,
+            &general_purpose::URL_SAFE,
+            &general_purpose::URL_SAFE_NO_PAD,
+        ] {
+            if let Ok(bytes) = engine.decode(encoded.trim()) {
+                if let Ok(decoded) = String::from_utf8(bytes) {
+                    return Some(decoded);
+                }
+            }
+        }
+        return None;
+    }
+    percent_decode(value).or_else(|| Some(value.to_owned()))
+}
+
+fn clean_profile_name(value: &str) -> Option<String> {
+    let value = value
+        .trim()
+        .trim_matches(|character| character == '\'' || character == '"')
+        .rsplit(['/', '\\'])
+        .next()?
+        .trim();
+    let value = value
+        .strip_suffix(".yaml")
+        .or_else(|| value.strip_suffix(".yml"))
+        .unwrap_or(value);
+    let name: String = value
+        .chars()
+        .filter(|character| {
+            !character.is_control()
+                && !matches!(character, '\u{202a}'..='\u{202e}' | '\u{2066}'..='\u{2069}')
+        })
+        .take(64)
+        .collect();
+    let name = name.trim();
+    (!name.is_empty()).then(|| name.to_owned())
+}
+
+fn disposition_name(headers: &HeaderMap) -> Option<String> {
+    let value = headers.get(CONTENT_DISPOSITION)?.to_str().ok()?;
+    for part in value.split(';').map(str::trim) {
+        let candidate = if let Some(value) = part.strip_prefix("filename*=") {
+            value.split_once("''").map_or(value, |(_, encoded)| encoded)
+        } else if let Some(value) = part.strip_prefix("filename=") {
+            value
+        } else {
+            continue;
+        };
+        if let Some(name) = decoded_header(candidate).and_then(|name| clean_profile_name(&name)) {
+            return Some(name);
+        }
+    }
+    None
+}
+
+fn suggested_profile_name(headers: &HeaderMap, config: &Value, url: &Url) -> String {
+    let header_name = ["profile-title", "x-profile-title"]
+        .into_iter()
+        .find_map(|key| headers.get(key))
+        .and_then(|value| value.to_str().ok())
+        .and_then(decoded_header)
+        .and_then(|name| clean_profile_name(&name));
+    let config_name = [
+        config.get("name").and_then(Value::as_str),
+        config.get("profile-name").and_then(Value::as_str),
+        config
+            .get("profile")
+            .and_then(|profile| profile.get("name"))
+            .and_then(Value::as_str),
+    ]
+    .into_iter()
+    .flatten()
+    .find_map(clean_profile_name);
+    let host_name = url.host_str().and_then(|host| {
+        if IpAddr::from_str(host).is_ok() {
+            None
+        } else {
+            clean_profile_name(host.strip_prefix("www.").unwrap_or(host))
+        }
+    });
+    header_name
+        .or_else(|| disposition_name(headers))
+        .or(config_name)
+        .or(host_name)
+        .unwrap_or_else(|| "导入订阅".into())
 }
 
 pub fn private_write(path: &Path, bytes: &[u8]) -> Result<()> {
@@ -164,6 +280,8 @@ pub async fn fetch(source: &Source) -> Result<FetchedProfile> {
         .get("subscription-userinfo")
         .and_then(|h| h.to_str().ok())
         .map(str::to_string);
+    let headers = response.headers().clone();
+    let final_url = response.url().clone();
     let mut stream = response.bytes_stream();
     let mut bytes = Vec::new();
     while let Some(chunk) = stream.next().await {
@@ -175,6 +293,7 @@ pub async fn fetch(source: &Source) -> Result<FetchedProfile> {
     }
     let text = std::str::from_utf8(&bytes).map_err(|_| anyhow!("订阅不是 UTF-8 文本"))?;
     let config = parse_config(text)?;
+    let suggested_name = suggested_profile_name(&headers, &config, &final_url);
     Ok(FetchedProfile {
         content: text.to_owned(),
         proxies: config["proxies"].as_sequence().map(Vec::len).unwrap_or(0),
@@ -183,6 +302,7 @@ pub async fn fetch(source: &Source) -> Result<FetchedProfile> {
             .map(Vec::len)
             .unwrap_or(0),
         user_info: info,
+        suggested_name,
     })
 }
 pub async fn download(source: &Source, dir: &Path, index: usize) -> Result<StoredProfile> {
@@ -570,5 +690,57 @@ impl Drop for ManagedCore {
         }
         let _ = self.child.kill();
         let _ = self.child.wait();
+    }
+}
+
+#[cfg(test)]
+mod profile_name_tests {
+    use super::*;
+    use reqwest::header::HeaderValue;
+
+    fn config(name: Option<&str>) -> Value {
+        let mut value = parse_config("proxies: [{name: Direct, type: direct}]\n").unwrap();
+        if let (Value::Mapping(mapping), Some(name)) = (&mut value, name) {
+            mapping.insert("name".into(), name.into());
+        }
+        value
+    }
+
+    #[test]
+    fn subscription_name_uses_metadata_then_safe_fallbacks() {
+        let url = Url::parse("https://subscriptions.example/profile").unwrap();
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            "profile-title",
+            HeaderValue::from_static("%E6%B5%8B%E8%AF%95%E8%AE%A2%E9%98%85"),
+        );
+        assert_eq!(
+            suggested_profile_name(&headers, &config(None), &url),
+            "测试订阅"
+        );
+
+        headers.clear();
+        headers.insert(
+            CONTENT_DISPOSITION,
+            HeaderValue::from_static("attachment; filename*=UTF-8''Travel%20Profile.yaml"),
+        );
+        assert_eq!(
+            suggested_profile_name(&headers, &config(None), &url),
+            "Travel Profile"
+        );
+
+        headers.clear();
+        assert_eq!(
+            suggested_profile_name(&headers, &config(Some("工作配置")), &url),
+            "工作配置"
+        );
+        assert_eq!(
+            suggested_profile_name(
+                &headers,
+                &config(None),
+                &Url::parse("https://127.0.0.1/profile").unwrap()
+            ),
+            "导入订阅"
+        );
     }
 }

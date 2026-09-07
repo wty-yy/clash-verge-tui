@@ -259,7 +259,6 @@ impl App {
                 }
             }
             CoreEvent::ProfileImported { request, result } => {
-                self.live.as_mut().unwrap().pending = false;
                 if self.profile_import_pending.take() != Some(request) {
                     return;
                 }
@@ -270,6 +269,7 @@ impl App {
                             content,
                             proxies,
                             groups,
+                            suggested_name,
                             ..
                         } = imported;
                         if let Some(crate::app::Modal::Form {
@@ -288,6 +288,12 @@ impl App {
                                     fields.iter_mut().find(|field| field.key == "content")
                                 {
                                     field.value = content;
+                                    field.cursor = field.value.len();
+                                }
+                                if let Some(field) = fields.iter_mut().find(|field| {
+                                    field.key == "name" && field.value.trim().is_empty()
+                                }) {
+                                    field.value = suggested_name;
                                     field.cursor = field.value.len();
                                 }
                                 error.clear();
@@ -334,8 +340,6 @@ impl App {
                 self.status = format!("连接断开，自动重试：{error}");
             }
             CoreEvent::Completed(result) => {
-                self.profile_import_pending = None;
-                self.profile_import_url = None;
                 let live = self.live.as_mut().unwrap();
                 live.pending = false;
                 let profile = live.pending_profile.take();
@@ -655,12 +659,14 @@ impl App {
             self.status = "内核尚未连接，等待重连后再操作".into();
             return false;
         }
-        if live.pending {
+        let importing = matches!(&command, Command::ImportProfile { .. });
+        if live.pending && !importing {
             self.status = "上一个内核操作尚未完成".into();
             return false;
         }
-        let importing = matches!(&command, Command::ImportProfile { .. });
-        live.pending = true;
+        if !importing {
+            live.pending = true;
+        }
         live.outbox.push(command);
         self.status = if importing {
             "正在下载并校验订阅配置…"
@@ -672,6 +678,12 @@ impl App {
     }
 
     pub fn import_profile_url(&mut self) {
+        if self.profile_import_pending.is_some() {
+            if let Some(crate::app::Modal::Form { error, .. }) = &mut self.modal {
+                *error = "订阅正在导入，请等待当前下载完成".into();
+            }
+            return;
+        }
         let Some(crate::app::Modal::Form { fields, target, .. }) = &self.modal else {
             return;
         };
