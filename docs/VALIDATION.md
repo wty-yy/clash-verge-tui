@@ -235,3 +235,11 @@
 - 重新完成格式、Clippy 严格警告、97 项 Rust 测试、release 构建、shell 语法与 8 项安装脚本回归；本地组合包、临时 HOME 安装、固定内核校验和修复已在上述记录验证
 - Git 推送认证恢复；本次将完整 v1.4.0 改动推送 master，并在远端 CI 通过后建立正式注释标签。远端发布与资产验收结果另行记录
 - 首次远端 CI（34143968293）在 Rust 1.98 Clippy 的 cloned_ref_to_slice_refs 检查失败；搜索页面的单元素参数切片改为借用，保持显示行为不变，随后重新执行本地检查与远端 CI
+
+### v1.4.0 正式发布验收 · 2026-09-08
+
+- [master CI 34144228211](https://github.com/wty-yy/clash-verge-tui/actions/runs/34144228211) 通过；注释标签 v1.4.0 指向 cbc6f3c，未移动既有发布标签
+- [Release 34144520111](https://github.com/wty-yy/clash-verge-tui/actions/runs/34144520111) 的 x86_64、aarch64 与发布任务全部成功；[v1.4.0 发行页](https://github.com/wty-yy/clash-verge-tui/releases/tag/v1.4.0) 包含两个组合包、两个 SHA-256 文件与 install.sh
+- 从公开发行地址下载全部 5 个资产；两个架构的归档 SHA-256、Mihomo 二进制哈希、架构 / 版本清单和 MIT / GPL 许可检查通过；发行版 install.sh 与仓库脚本完全一致
+- 使用下载的正式 install.sh，在临时 HOME 按默认 GitHub latest 路径完成公开一键安装。已安装 x86_64 程序通过 --check、Mihomo v1.19.29、0600 配置权限、退出后端口释放和损坏内核自动修复；aarch64 完成原生远端构建与本地归档检查，未在本机执行
+- 两份 GIF 与清理后的 README 已推送；本次只发布 GitHub，Gitee Release 附件仍需单独同步
