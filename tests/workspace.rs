@@ -5,6 +5,7 @@ use clash_verge_tui::{
     workspace::{self, WorkspaceCommand as W, WorkspaceContext},
 };
 use std::{
+    collections::BTreeMap,
     path::Path,
     sync::{
         atomic::{AtomicBool, Ordering},
@@ -232,4 +233,42 @@ async fn scheduled_updates_back_off_and_workspace_lock_excludes_writers() {
         .unwrap();
     assert_ne!(state.profiles[0].file, old);
     assert!(!old.exists());
+}
+
+#[tokio::test]
+async fn tun_changes_are_staged_for_restart_without_hot_reload_and_can_rollback() {
+    let server = support::Server::new(|req| (200, support::response(&req.path).to_string()));
+    let dir = tempfile::tempdir().unwrap();
+    let ctx = context(dir.path());
+    let client = CoreClient::new(&server.url, String::new()).unwrap();
+    workspace::initialize(dir.path()).unwrap();
+    let original = workspace::load(dir.path()).unwrap();
+    server.requests.lock().unwrap().clear();
+
+    let changed = workspace::execute(
+        &ctx,
+        &client,
+        W::Settings(BTreeMap::from([
+            ("tun".into(), "关闭".into()),
+            ("tun_device".into(), "cvtun0".into()),
+        ])),
+    )
+    .await
+    .unwrap();
+    assert_eq!(
+        changed.state.overrides["tun"]["enable"].as_bool(),
+        Some(false)
+    );
+    assert!(!server
+        .requests
+        .lock()
+        .unwrap()
+        .iter()
+        .any(|request| request.method == "PUT" && request.path.starts_with("/configs")));
+
+    workspace::restore_restart_snapshot(dir.path(), &original).unwrap();
+    assert_eq!(
+        workspace::load(dir.path()).unwrap().state.overrides,
+        original.state.overrides
+    );
 }

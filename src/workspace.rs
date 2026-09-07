@@ -151,6 +151,10 @@ fn save(dir: &Path, snapshot: &WorkspaceSnapshot) -> Result<()> {
     );
     Ok(())
 }
+pub fn restore_restart_snapshot(dir: &Path, snapshot: &WorkspaceSnapshot) -> Result<()> {
+    let _lock = Lock::acquire(dir)?;
+    save(dir, snapshot)
+}
 pub fn synchronize_import(dir: &Path, profiles: Vec<StoredProfile>) -> Result<()> {
     if !dir.join("workspace-state.json").exists() {
         return Ok(());
@@ -408,6 +412,7 @@ pub async fn execute(
     let mut network_fields = None;
     let mut system_changed = false;
     let mut service_changed = false;
+    let mut tun_restart = false;
     let mut snapshot = load(&context.dir)?;
     let old = snapshot.clone();
     let mut apply = false;
@@ -477,6 +482,8 @@ pub async fn execute(
                 bail!("TUN 权限未安装；请从首页启用 TUN 并按提示安装权限服务");
             }
             crate::network::apply(&mut snapshot.state.overrides, &values)?;
+            tun_restart = snapshot.state.overrides.get(Value::from("tun"))
+                != old.state.overrides.get(Value::from("tun"));
             network_fields = Some(values.clone());
             service_changed = values
                 .keys()
@@ -742,15 +749,17 @@ pub async fn execute(
             }
             crate::network::preflight(fields, &parsed, &previous).await?;
         }
-        client
-            .execute(&CoreCommand::Reload(candidate.clone()))
-            .await?;
-        if let Some(fields) = &network_fields {
-            if let Err(error) = crate::network::verify_tun(fields, &parsed).await {
-                if let Ok(previous) = compose(&old, context).await {
-                    let _ = client.execute(&CoreCommand::Reload(previous)).await;
+        if !tun_restart {
+            client
+                .execute(&CoreCommand::Reload(candidate.clone()))
+                .await?;
+            if let Some(fields) = &network_fields {
+                if let Err(error) = crate::network::verify_tun(fields, &parsed).await {
+                    if let Ok(previous) = compose(&old, context).await {
+                        let _ = client.execute(&CoreCommand::Reload(previous)).await;
+                    }
+                    return Err(error);
                 }
-                return Err(error);
             }
         }
     }
@@ -764,7 +773,7 @@ pub async fn execute(
         if let Err(error) =
             crate::platform::apply_proxy(&context.dir, &snapshot.state.preferences, port).await
         {
-            if apply {
+            if apply && !tun_restart {
                 if let Ok(previous) = compose(&old, context).await {
                     let _ = client.execute(&CoreCommand::Reload(previous)).await;
                 }
@@ -778,7 +787,7 @@ pub async fn execute(
                 crate::platform::apply_proxy(&context.dir, &old.state.preferences, context.port)
                     .await;
         }
-        if apply {
+        if apply && !tun_restart {
             if let Ok(previous) = compose(&old, context).await {
                 let _ = client.execute(&CoreCommand::Reload(previous)).await;
             }

@@ -444,10 +444,59 @@ fn live_home_port_form_applies_with_plain_s_and_tun_requests_privilege_setup() {
     assert!(!format!("{:?}", app.live.as_ref().unwrap().outbox.last()).contains("fixture-password"));
     app.handle_core(CoreEvent::TunServiceInstalled(Ok(())));
     assert!(app.restart_core);
+    app.live.as_mut().unwrap().tun_capable = true;
     app.resume_tun_after_restart();
     assert!(matches!(
         app.live.as_ref().unwrap().outbox.last(),
         Some(Command::Workspace(clash_verge_tui::workspace::WorkspaceCommand::Settings(values)))
             if values.get("tun").is_some_and(|value| value == "开启")
     ));
+}
+
+#[test]
+fn completed_tun_settings_request_a_managed_core_restart() {
+    let mut app = app();
+    app.live.as_mut().unwrap().managed = Some(ManagedSettings {
+        controller: "127.0.0.1:9090".into(),
+        secret: String::new(),
+        port: 7890,
+        binary: "/bin/true".into(),
+    });
+    app.live.as_mut().unwrap().tun_capable = true;
+    app.state.settings.insert("tun".into(), "开启".into());
+    app.live
+        .as_mut()
+        .unwrap()
+        .workspace
+        .preferences
+        .insert("tun".into(), "开启".into());
+
+    let fields = vec![
+        Field::new("tun", "虚拟网卡模式", "关闭", Kind::Toggle),
+        Field::new("tun_device", "网卡名称", "cvtun0", Kind::Text),
+    ];
+    app.save_live_form(&fields, &SaveTarget::Settings(0));
+    assert!(matches!(
+        app.live.as_ref().unwrap().outbox.last(),
+        Some(Command::Workspace(clash_verge_tui::workspace::WorkspaceCommand::Settings(values)))
+            if values.get("tun").is_some_and(|value| value == "关闭")
+    ));
+
+    let live = app.live.as_ref().unwrap();
+    let mut state = live.workspace.clone();
+    state.preferences.insert("tun".into(), "关闭".into());
+    state.overrides.insert(
+        "tun".into(),
+        serde_yaml_ng::from_str("enable: false\ndevice: cvtun0\n").unwrap(),
+    );
+    app.handle_core(CoreEvent::WorkspaceRestart(Box::new(
+        clash_verge_tui::workspace::WorkspaceSnapshot {
+            profiles: live.profiles.clone(),
+            active: app.state.active_profile,
+            state,
+        },
+    )));
+    app.handle_core(CoreEvent::Completed(Ok(())));
+    assert!(app.restart_core);
+    assert!(app.status.contains("正在重启"));
 }

@@ -2,9 +2,11 @@ mod support;
 use clash_verge_tui::{
     core::{Command, CoreClient, CoreEvent, LogEvent, Worker},
     subscriptions::{self, Source},
+    workspace::{self, WorkspaceCommand, WorkspaceContext},
 };
 use serde_json::json;
 use std::{
+    collections::BTreeMap,
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc,
@@ -253,6 +255,47 @@ fn worker_imports_profile_links_without_blocking_the_ui_thread() {
             break;
         }
     }
+}
+
+#[test]
+fn worker_marks_tun_workspace_changes_for_a_core_restart() {
+    let server = Server::new(|request| (200, response(&request.path).to_string()));
+    let dir = tempfile::tempdir().unwrap();
+    workspace::initialize(dir.path()).unwrap();
+    let context = WorkspaceContext {
+        dir: dir.path().into(),
+        binary: "/bin/true".into(),
+        controller: "127.0.0.1:19097".into(),
+        secret: "fixture-secret".into(),
+        port: 17897,
+    };
+    let worker = Worker::spawn_with_workspace(
+        CoreClient::new(&server.url, String::new()).unwrap(),
+        Some(context),
+    )
+    .unwrap();
+    worker
+        .send(Command::Workspace(WorkspaceCommand::Settings(
+            BTreeMap::from([
+                ("tun".into(), "关闭".into()),
+                ("tun_device".into(), "cvtun0".into()),
+            ]),
+        )))
+        .unwrap();
+    let deadline = Instant::now() + Duration::from_secs(3);
+    let mut restart = false;
+    while Instant::now() < deadline {
+        match worker
+            .events
+            .recv_timeout(deadline.saturating_duration_since(Instant::now()))
+            .unwrap()
+        {
+            CoreEvent::WorkspaceRestart(_) => restart = true,
+            CoreEvent::Completed(Ok(())) => break,
+            _ => {}
+        }
+    }
+    assert!(restart);
 }
 
 #[tokio::test]

@@ -4,6 +4,18 @@ use std::collections::BTreeMap;
 
 pub const DEFAULT_MIXED_PORT: u16 = 7890;
 pub const DEFAULT_MIXED_PORT_TEXT: &str = "7890";
+pub const TUN_SETTING_KEYS: &[&str] = &[
+    "tun",
+    "tun_stack",
+    "tun_device",
+    "auto_route",
+    "strict_route",
+    "auto_redirect",
+    "detect_interface",
+    "dns_hijack",
+    "mtu",
+    "exclude_route",
+];
 
 fn set(map: &mut Mapping, path: &[&str], value: Value) {
     if path.len() == 1 {
@@ -258,12 +270,7 @@ async fn interface_exists(name: &str) -> Result<bool> {
         .map_err(|_| anyhow!("TUN 验证需要 Linux iproute2"))?;
     Ok(status.success())
 }
-pub async fn verify_tun(fields: &BTreeMap<String, String>, candidate: &Value) -> Result<()> {
-    let Some(value) = fields.get("tun") else {
-        return Ok(());
-    };
-    let name = candidate["tun"]["device"].as_str().unwrap_or("Meta");
-    let expected = value == "开启";
+pub async fn verify_tun_state(name: &str, expected: bool) -> Result<()> {
     for _ in 0..50 {
         if interface_exists(name).await? == expected {
             return Ok(());
@@ -280,7 +287,17 @@ pub async fn verify_tun(fields: &BTreeMap<String, String>, candidate: &Value) ->
         .filter(|output| !output.is_empty())
         .unwrap_or_else(|| "不存在".into());
     bail!(
-        "TUN 网卡未在 5 秒内{}（当前：{state}）；请检查权限服务和 core.log，原配置已恢复",
+        "TUN 网卡未在 5 秒内{}（当前：{state}）；请检查权限服务和 core.log",
         if expected { "创建" } else { "移除" }
     )
+}
+
+pub async fn verify_tun(fields: &BTreeMap<String, String>, candidate: &Value) -> Result<()> {
+    let Some(value) = fields.get("tun") else {
+        return Ok(());
+    };
+    let name = candidate["tun"]["device"].as_str().unwrap_or("Meta");
+    verify_tun_state(name, value == "开启")
+        .await
+        .map_err(|error| anyhow!("{error}，原配置已恢复"))
 }

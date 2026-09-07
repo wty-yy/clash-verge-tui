@@ -86,6 +86,7 @@ pub enum Command {
 pub enum CoreEvent {
     Snapshot(Box<Snapshot>),
     Workspace(Box<crate::workspace::WorkspaceSnapshot>),
+    WorkspaceRestart(Box<crate::workspace::WorkspaceSnapshot>),
     Offline(String),
     SystemProxyStatus(String),
     ServiceStatus(String),
@@ -464,8 +465,9 @@ if ticks.is_multiple_of(3){let host=prefs.get("proxy_host").map(String::as_str).
                         continue;
                     }
                     if let Command::Workspace(task)=command {
+                        let previous_tun=if matches!(&task,crate::workspace::WorkspaceCommand::Settings(values) if values.keys().any(|key|crate::network::TUN_SETTING_KEYS.contains(&key.as_str()))){Some(workspace.as_ref().and_then(|context|crate::workspace::load(&context.dir).ok()).and_then(|snapshot|snapshot.state.overrides.get(serde_yaml_ng::Value::from("tun")).cloned()))}else{None};
                         let result=if let Some(context)=&workspace{tokio::select!{_=stopped.changed()=>break,result=crate::workspace::execute(context,&client,task)=>result}}else{Err(anyhow!("此操作需要受管理的工作区"))};
-                        match result {Ok(snapshot)=>{let proxy_state=if let Some(context)=&workspace{let host=snapshot.state.preferences.get("proxy_host").map(String::as_str).unwrap_or("127.0.0.1");let port=snapshot.state.overrides.get(serde_yaml_ng::Value::from("mixed-port")).and_then(serde_yaml_ng::Value::as_u64).unwrap_or(context.port as u64)as u16;Some(crate::platform::SystemProxy::new(context.dir.clone()).status(host,port).await.unwrap_or("不可用".into()))}else{None};let _=events_tx.send(CoreEvent::Workspace(Box::new(snapshot)));if let Some(status)=proxy_state{let _=events_tx.send(CoreEvent::SystemProxyStatus(status));}let _=events_tx.send(if automatic{CoreEvent::BackgroundNotice("定时更新完成".into())}else{CoreEvent::Completed(Ok(()))});},Err(error)=>{let _=events_tx.send(if automatic{CoreEvent::BackgroundNotice(format!("定时更新失败：{error}"))}else{CoreEvent::Completed(Err(error.to_string()))});}}
+                        match result {Ok(snapshot)=>{let restart=previous_tun.is_some_and(|previous|previous!=snapshot.state.overrides.get(serde_yaml_ng::Value::from("tun")).cloned());let proxy_state=if let Some(context)=&workspace{let host=snapshot.state.preferences.get("proxy_host").map(String::as_str).unwrap_or("127.0.0.1");let port=snapshot.state.overrides.get(serde_yaml_ng::Value::from("mixed-port")).and_then(serde_yaml_ng::Value::as_u64).unwrap_or(context.port as u64)as u16;Some(crate::platform::SystemProxy::new(context.dir.clone()).status(host,port).await.unwrap_or("不可用".into()))}else{None};let _=events_tx.send(if restart{CoreEvent::WorkspaceRestart(Box::new(snapshot))}else{CoreEvent::Workspace(Box::new(snapshot))});if let Some(status)=proxy_state{let _=events_tx.send(CoreEvent::SystemProxyStatus(status));}let _=events_tx.send(if automatic{CoreEvent::BackgroundNotice("定时更新完成".into())}else{CoreEvent::Completed(Ok(()))});},Err(error)=>{let _=events_tx.send(if automatic{CoreEvent::BackgroundNotice(format!("定时更新失败：{error}"))}else{CoreEvent::Completed(Err(error.to_string()))});}}
                         continue;
                     }
                     let result=tokio::select! {_=stopped.changed()=>break,result=client.execute(&command)=>result};

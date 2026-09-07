@@ -350,7 +350,8 @@ fn main() -> Result<()> {
             {
                 app.restart_core = false;
                 app.tun_after_restart = None;
-                app.status = format!("TUN 权限已安装，但内核重启失败：{error}");
+                app.tun_restart_rollback = None;
+                app.status = format!("TUN 配置重启失败：{error}");
             }
             redraw = true;
         }
@@ -437,7 +438,48 @@ fn restart_after_tun(
     managed_core: &mut Option<subscriptions::ManagedCore>,
 ) -> Result<()> {
     let dir = app.data_dir.clone();
-    if managed_core.is_some() {
+    let owned = managed_core.is_some();
+    let rollback = app.tun_restart_rollback.take();
+    let result = restart_core_once(runtime, args, app, worker, managed_core, owned)
+        .and_then(|()| verify_workspace_tun(runtime, &dir));
+    if let Err(error) = result {
+        let Some(snapshot) = rollback else {
+            return Err(error);
+        };
+        clash_verge_tui::workspace::restore_restart_snapshot(&dir, &snapshot)
+            .context("恢复 TUN 原配置失败")?;
+        app.apply_workspace(snapshot);
+        match restart_core_once(runtime, args, app, worker, managed_core, owned)
+            .and_then(|()| verify_workspace_tun(runtime, &dir))
+        {
+            Ok(()) => {
+                app.restart_core = false;
+                app.tun_after_restart = None;
+                bail!("新 TUN 配置启动失败，已恢复原配置：{error}");
+            }
+            Err(restore_error) => {
+                bail!("新 TUN 配置启动失败，恢复原配置后仍无法启动：{restore_error}");
+            }
+        }
+    }
+    app.live
+        .as_mut()
+        .context("TUN 重启缺少真实内核状态")?
+        .tun_capable = true;
+    app.resume_tun_after_restart();
+    Ok(())
+}
+
+fn restart_core_once(
+    runtime: &tokio::runtime::Runtime,
+    args: &Args,
+    app: &mut App,
+    worker: &mut Option<Worker>,
+    managed_core: &mut Option<subscriptions::ManagedCore>,
+    owned: bool,
+) -> Result<()> {
+    let dir = app.data_dir.clone();
+    if owned {
         drop(worker.take());
         drop(managed_core.take());
         let source = runtime.block_on(core_manager::ensure(&dir, args.core.as_deref()))?;
@@ -466,18 +508,28 @@ fn restart_after_tun(
             port: context.port,
             binary: context.binary,
         });
-    } else if runtime.block_on(clash_verge_tui::service::status(&dir)) == "active" {
+    } else {
         runtime.block_on(clash_verge_tui::service::action(&dir, "restart"))?;
         runtime.block_on(clash_verge_tui::service::wait_ready(&dir))?;
-    } else {
-        bail!("找不到需要重启的自管内核或用户服务");
     }
-    app.live
-        .as_mut()
-        .context("TUN 重启缺少真实内核状态")?
-        .tun_capable = true;
-    app.resume_tun_after_restart();
     Ok(())
+}
+
+fn verify_workspace_tun(runtime: &tokio::runtime::Runtime, dir: &std::path::Path) -> Result<()> {
+    let snapshot = clash_verge_tui::workspace::load(dir)?;
+    let tun = snapshot
+        .state
+        .overrides
+        .get(serde_yaml_ng::Value::from("tun"));
+    let enabled = tun
+        .and_then(|tun| tun.get("enable"))
+        .and_then(serde_yaml_ng::Value::as_bool)
+        .unwrap_or(false);
+    let device = tun
+        .and_then(|tun| tun.get("device"))
+        .and_then(serde_yaml_ng::Value::as_str)
+        .unwrap_or("Meta");
+    runtime.block_on(clash_verge_tui::network::verify_tun_state(device, enabled))
 }
 
 fn snapshot(args: &Args, page: &str) -> Result<()> {

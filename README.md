@@ -4,7 +4,7 @@
 
 A Linux terminal proxy client built with Rust, Ratatui, and mihomo. Its interface and feature mapping follow Clash Verge Rev v2.5.2.
 
-`v1.3.3` starts a self-managed workspace and the application-pinned mihomo v1.19.29 by default. Release archives contain both the TUI and the core. Home quick controls show and edit the current mixed proxy port, which defaults to `127.0.0.1:7890`.
+`v1.3.4` starts a self-managed workspace and the application-pinned mihomo v1.19.29 by default. Release archives contain both the TUI and the core. Home quick controls show and edit the current mixed proxy port, which defaults to `127.0.0.1:7890`.
 
 ![Interface preview](docs/previews/home.png)
 
@@ -133,7 +133,7 @@ clash-verge-tui --tun-service uninstall
 
 A single click selects an ordinary row. A second click on the same row within 400 ms acts as `Enter`. The Home profile-management button takes focus on the first click and opens on a later click. `Enter` inserts a newline in multiline forms, where Vim letters remain normal text.
 
-System proxy integration supports GNOME manual/PAC modes, restoration, and a guard. The first TUN enable opens a masked password form inside the TUI. The password is sent only to `sudo -S` over standard input and never enters arguments, configuration, or logs. Authorization first grants the current core its capabilities, then installs a systemd path service scoped to the user and workspace. The service verifies the official core and maintains only `CAP_NET_ADMIN` / `CAP_NET_BIND_SERVICE` after replacement; sudo or systemd failures are shown with their specific cause in the TUI. Debian/Ubuntu needs `sudo`, systemd, and `libcap2-bin`. Backups support retention, optional encryption, and WebDAV.
+System proxy integration supports GNOME manual/PAC modes, restoration, and a guard. The first TUN enable opens a masked password form inside the TUI. The password is sent only to `sudo -S` over standard input and never enters arguments, configuration, or logs. Authorization first grants the current core its capabilities, then installs a systemd path service scoped to the user and workspace. The service verifies the official core and maintains only `CAP_NET_ADMIN` / `CAP_NET_BIND_SERVICE` after replacement; sudo or systemd failures are shown with their specific cause in the TUI. TUN toggles and parameter changes use a controlled core restart, restoring the previous workspace if startup or interface verification fails. Debian/Ubuntu needs `sudo`, systemd, and `libcap2-bin`. Backups support retention, optional encryption, and WebDAV.
 
 ![TUN system password form](docs/previews/tun-password.svg)
 

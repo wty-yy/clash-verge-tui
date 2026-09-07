@@ -6,6 +6,15 @@
 
 See the [feature mapping](docs/FEATURES.md) for planned work.
 
+## v1.3.4 · 2026-09-07
+
+### Fix TUN shutdown
+
+- Fix mihomo hot reload leaving the old TUN interface behind and a rollback then failing with `device or resource busy`.
+- Validate and stage TUN toggles or parameter changes, then restart the managed core and verify that shutdown removes the target interface.
+- Have the workspace worker explicitly tell the main process which changes require a restart while retaining hot reload for ordinary settings.
+- Restore the complete previous workspace and restart its configuration when new-core startup or interface verification fails.
+
 ## v1.3.3 · 2026-09-07
 
 ### Fix TUN permission service installation

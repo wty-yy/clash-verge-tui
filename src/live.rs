@@ -329,6 +329,10 @@ impl App {
                 }
             }
             CoreEvent::Workspace(snapshot) => self.apply_workspace(*snapshot),
+            CoreEvent::WorkspaceRestart(snapshot) => {
+                self.apply_workspace(*snapshot);
+                self.restart_after_workspace = true;
+            }
             CoreEvent::Snapshot(snapshot) => self.apply_snapshot(*snapshot),
             CoreEvent::Offline(error) => {
                 let live = self.live.as_mut().unwrap();
@@ -355,14 +359,25 @@ impl App {
                                 return;
                             }
                         }
-                        self.status = if live.connected {
-                            "mihomo 操作已完成"
+                        if self.restart_after_workspace {
+                            self.restart_after_workspace = false;
+                            self.restart_core = true;
+                            self.status = "TUN 配置已保存，正在重启自管内核…".into();
                         } else {
-                            "操作已提交；状态刷新失败，正在重连"
+                            self.tun_restart_rollback = None;
+                            self.status = if live.connected {
+                                "mihomo 操作已完成"
+                            } else {
+                                "操作已提交；状态刷新失败，正在重连"
+                            }
+                            .into();
                         }
-                        .into();
                     }
-                    Err(error) => self.status = format!("操作失败：{error}"),
+                    Err(error) => {
+                        self.restart_after_workspace = false;
+                        self.tun_restart_rollback = None;
+                        self.status = format!("操作失败：{error}");
+                    }
                 }
             }
         }
@@ -421,12 +436,29 @@ impl App {
             );
             return;
         }
-        self.queue_core(Command::Workspace(command));
+        let tun_settings = match &command {
+            crate::workspace::WorkspaceCommand::Settings(values) => values
+                .keys()
+                .any(|key| crate::network::TUN_SETTING_KEYS.contains(&key.as_str())),
+            _ => false,
+        };
+        let rollback = tun_settings.then(|| {
+            let live = self.live.as_ref().unwrap();
+            crate::workspace::WorkspaceSnapshot {
+                profiles: live.profiles.clone(),
+                active: self.state.active_profile,
+                state: live.workspace.clone(),
+            }
+        });
+        if self.try_queue_core(Command::Workspace(command)) {
+            self.restart_after_workspace = false;
+            self.tun_restart_rollback = rollback;
+        }
     }
     pub fn resume_tun_after_restart(&mut self) {
         self.restart_core = false;
         if let Some(command) = self.tun_after_restart.take() {
-            self.queue_core(Command::Workspace(command));
+            self.workspace_command(command);
         }
     }
     pub fn handle_log(&mut self, event: LogEvent) {

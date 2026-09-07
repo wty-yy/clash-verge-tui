@@ -317,6 +317,8 @@ pub struct App {
     pub(crate) profile_import_url: Option<String>,
     pub restart_core: bool,
     pub tun_after_restart: Option<crate::workspace::WorkspaceCommand>,
+    pub tun_restart_rollback: Option<crate::workspace::WorkspaceSnapshot>,
+    pub(crate) restart_after_workspace: bool,
     pending_click: Option<PendingClick>,
 }
 impl App {
@@ -349,6 +351,8 @@ impl App {
             profile_import_url: None,
             restart_core: false,
             tun_after_restart: None,
+            tun_restart_rollback: None,
+            restart_after_workspace: false,
             pending_click: None,
         }
     }
