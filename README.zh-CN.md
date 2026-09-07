@@ -4,7 +4,7 @@
 
 基于 Rust、Ratatui 和 mihomo 的 Linux 终端代理客户端，界面与功能映射参考 Clash Verge Rev v2.5.2。
 
-`v1.1.0` 默认启动自管工作区和随应用固定的 mihomo v1.19.29。发行包同时包含 TUI 与内核；仅复制程序二进制时，首次启动也会从 Mihomo 官方 Release 下载并校验对应内核。程序不再要求连接另一个 Clash/mihomo 实例。
+`v1.2.0` 默认启动自管工作区和随应用固定的 mihomo v1.19.29。发行包同时包含 TUI 与内核；仅复制程序二进制时，首次启动也会从 Mihomo 官方 Release 下载并校验对应内核。程序不再要求连接另一个 Clash/mihomo 实例。
 
 ![界面预览](docs/previews/home.png)
 
@@ -50,7 +50,9 @@ cargo build --locked --release
 
 ## 订阅与工作区
 
-在订阅页按 `a` 可直接添加远程 URL、本地 Clash YAML 或 YAML 内容。也可创建一个私有 JSON 清单：
+在订阅页按 `a` 打开订阅配置。填写“订阅文件链接”后按 `Enter` 或点击右侧“导入”，程序会异步下载并校验完整 Clash YAML，然后填入下方配置编辑区；检查内容后按 `Ctrl+S` 才会保存。也可输入本地文件、直接编辑 YAML，或创建一个私有 JSON 清单：
+
+![订阅链接导入](docs/previews/profile-import.svg)
 
 ```json
 [

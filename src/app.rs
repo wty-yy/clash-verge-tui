@@ -31,6 +31,7 @@ pub enum Action {
     BackupSelect(usize),
     HomeFocus(HomeFocus),
     ProfileButton,
+    ImportProfile,
     Submit,
     Cancel,
 }
@@ -309,6 +310,9 @@ pub struct App {
     pub data_dir: PathBuf,
     pub hits: Vec<(Rect, Action)>,
     pub table_offset: usize,
+    pub(crate) profile_import_nonce: u64,
+    pub(crate) profile_import_pending: Option<u64>,
+    pub(crate) profile_import_url: Option<String>,
     pending_click: Option<PendingClick>,
 }
 impl App {
@@ -336,6 +340,9 @@ impl App {
             data_dir,
             hits: vec![],
             table_offset: 0,
+            profile_import_nonce: 0,
+            profile_import_pending: None,
+            profile_import_url: None,
             pending_click: None,
         }
     }
@@ -852,6 +859,13 @@ impl App {
                     }
                 }
             }
+            Action::ImportProfile => {
+                if self.live.is_some() {
+                    self.import_profile_url();
+                } else if let Some(Modal::Form { error, .. }) = &mut self.modal {
+                    *error = "演示模式不发起订阅下载".into();
+                }
+            }
             Action::Activate => self.activate(),
             Action::Key(c) => self.key(KeyEvent::new(KeyCode::Char(c), KeyModifiers::NONE)),
             Action::Field(i) => {
@@ -947,6 +961,7 @@ impl App {
         }
         let mut confirm = None;
         let mut destination = None;
+        let mut import_profile = false;
         match self.modal.as_mut().unwrap() {
             Modal::Backups { .. } => unreachable!("backup input handled above"),
             Modal::Form { fields, active, .. } => match key.code {
@@ -957,6 +972,7 @@ impl App {
                 KeyCode::BackTab | KeyCode::Up => {
                     *active = (*active + fields.len() - 1) % fields.len()
                 }
+                KeyCode::Enter if fields[*active].key == "url" => import_profile = true,
                 KeyCode::Enter if !matches!(fields[*active].kind, Kind::Multiline) => {
                     if matches!(fields[*active].kind, Kind::Choice(_) | Kind::Toggle) {
                         fields[*active].cycle(false);
@@ -1010,6 +1026,9 @@ impl App {
         if let Some(target) = confirm {
             self.execute_confirm(target);
             self.modal = None;
+        }
+        if import_profile {
+            self.action(Action::ImportProfile);
         }
         if let Some(page) = destination {
             self.modal = None;
@@ -1221,16 +1240,22 @@ impl App {
                         Kind::Text,
                     ),
                     Field::new(
-                        "url",
-                        "订阅 URL（仅保存）",
-                        p.map(|p| p.url.as_str()).unwrap_or("https://"),
-                        Kind::Text,
-                    ),
-                    Field::new(
                         "interval",
                         "更新间隔 / 分钟",
                         p.map(|p| p.interval.as_str()).unwrap_or("720"),
                         Kind::Number,
+                    ),
+                    Field::new(
+                        "url",
+                        "订阅文件链接",
+                        p.map(|p| p.url.as_str()).unwrap_or("https://"),
+                        Kind::Text,
+                    ),
+                    Field::new(
+                        "content",
+                        "订阅配置 YAML",
+                        p.map(|p| p.content.as_str()).unwrap_or(""),
+                        Kind::Multiline,
                     ),
                 ],
                 SaveTarget::Profile(id),
@@ -1500,6 +1525,9 @@ impl App {
                     p.name = get("name");
                     p.url = get("url");
                     p.interval = get("interval");
+                    if !get("content").trim().is_empty() {
+                        p.content = get("content");
+                    }
                 } else {
                     self.state.profiles.push(Profile {
                         name: get("name"),
@@ -1508,7 +1536,11 @@ impl App {
                         used: 0,
                         total: 100,
                         updated: "未更新 · 演示".into(),
-                        content: "# 新建演示订阅\nmode: rule\n".into(),
+                        content: if get("content").trim().is_empty() {
+                            "# 新建演示订阅\nmode: rule\n".into()
+                        } else {
+                            get("content")
+                        },
                     });
                 }
             }

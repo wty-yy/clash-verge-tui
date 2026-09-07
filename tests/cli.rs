@@ -57,3 +57,23 @@ fn svg_export_and_invalid_arguments() {
         assert!(!binary().args(args).output().unwrap().status.success());
     }
 }
+
+#[test]
+fn profile_import_snapshot_contains_the_link_field_and_import_button() {
+    let output = binary()
+        .args([
+            "--snapshot",
+            "profile-import",
+            "--width",
+            "120",
+            "--height",
+            "40",
+        ])
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+    let text = String::from_utf8_lossy(&output.stdout);
+    assert!(text.contains("订阅文件链接"));
+    assert!(text.contains("导入"));
+    assert!(text.contains("订阅配置 YAML"));
+}

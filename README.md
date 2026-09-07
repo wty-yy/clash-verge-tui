@@ -4,7 +4,7 @@
 
 A Linux terminal proxy client built with Rust, Ratatui, and mihomo. Its interface and feature mapping follow Clash Verge Rev v2.5.2.
 
-`v1.1.0` starts a self-managed workspace and the application-pinned mihomo v1.19.29 by default. Release archives contain both the TUI and the core. If only the TUI binary is copied, its first launch downloads and verifies the matching core from the official Mihomo release. The program no longer requires a separate Clash/mihomo instance.
+`v1.2.0` starts a self-managed workspace and the application-pinned mihomo v1.19.29 by default. Release archives contain both the TUI and the core. If only the TUI binary is copied, its first launch downloads and verifies the matching core from the official Mihomo release. The program no longer requires a separate Clash/mihomo instance.
 
 ![Interface preview](docs/previews/home.png)
 
@@ -50,7 +50,9 @@ cargo build --locked --release
 
 ## Profiles and workspace
 
-Press `a` on the Profiles page to add a remote URL, local Clash YAML file, or YAML text. A private JSON manifest can also be used:
+Press `a` on the Profiles page to open the profile form. Enter a profile file URL and press `Enter` or click **Import** on its right. The TUI downloads and validates the complete Clash YAML asynchronously, then fills the editor below; it is saved only after `Ctrl+S`. Local files, direct YAML editing, and private JSON manifests are also supported:
+
+![Profile link import](docs/previews/profile-import.svg)
 
 ```json
 [

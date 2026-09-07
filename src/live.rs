@@ -253,6 +253,57 @@ impl App {
                     self.status = status;
                 }
             }
+            CoreEvent::ProfileImported { request, result } => {
+                self.live.as_mut().unwrap().pending = false;
+                if self.profile_import_pending.take() != Some(request) {
+                    return;
+                }
+                let requested_url = self.profile_import_url.take();
+                match result {
+                    Ok(imported) => {
+                        let crate::subscriptions::FetchedProfile {
+                            content,
+                            proxies,
+                            groups,
+                            ..
+                        } = imported;
+                        if let Some(crate::app::Modal::Form {
+                            fields,
+                            error,
+                            target: SaveTarget::Profile(_),
+                            ..
+                        }) = &mut self.modal
+                        {
+                            let unchanged =
+                                fields.iter().find(|field| field.key == "url").is_some_and(
+                                    |field| Some(field.value.trim()) == requested_url.as_deref(),
+                                );
+                            if unchanged {
+                                if let Some(field) =
+                                    fields.iter_mut().find(|field| field.key == "content")
+                                {
+                                    field.value = content;
+                                    field.cursor = field.value.len();
+                                }
+                                error.clear();
+                                self.status = format!(
+                                    "已导入 {proxies} 个节点、{groups} 个策略组；按 Ctrl+S 保存"
+                                );
+                            } else {
+                                self.status = "订阅链接已更改，本次导入结果未写入表单".into();
+                            }
+                        } else {
+                            self.status = "订阅已下载，但表单已关闭，未保存".into();
+                        }
+                    }
+                    Err(message) => {
+                        if let Some(crate::app::Modal::Form { error, .. }) = &mut self.modal {
+                            *error = format!("导入失败：{message}");
+                        }
+                        self.status = "订阅配置导入失败".into();
+                    }
+                }
+            }
             CoreEvent::Workspace(snapshot) => self.apply_workspace(*snapshot),
             CoreEvent::Snapshot(snapshot) => self.apply_snapshot(*snapshot),
             CoreEvent::Offline(error) => {
@@ -265,6 +316,8 @@ impl App {
                 self.status = format!("连接断开，自动重试：{error}");
             }
             CoreEvent::Completed(result) => {
+                self.profile_import_pending = None;
+                self.profile_import_url = None;
                 let live = self.live.as_mut().unwrap();
                 live.pending = false;
                 let profile = live.pending_profile.take();
@@ -543,6 +596,10 @@ impl App {
         }
     }
     pub fn queue_core(&mut self, command: Command) {
+        self.try_queue_core(command);
+    }
+
+    fn try_queue_core(&mut self, command: Command) -> bool {
         let live = self.live.as_mut().unwrap();
         let local_settings = matches!(&command,Command::Workspace(crate::workspace::WorkspaceCommand::Settings(values)) if values.keys().all(|k|["service","auto_launch","start_script","silent"].contains(&k.as_str())));
         if !live.connected
@@ -551,19 +608,77 @@ impl App {
                 &command,
                 Command::Backup(_)
                     | Command::Extra(_)
+                    | Command::ImportProfile { .. }
                     | Command::Workspace(crate::workspace::WorkspaceCommand::Read)
             )
         {
             self.status = "内核尚未连接，等待重连后再操作".into();
-            return;
+            return false;
         }
         if live.pending {
             self.status = "上一个内核操作尚未完成".into();
-            return;
+            return false;
         }
+        let importing = matches!(&command, Command::ImportProfile { .. });
         live.pending = true;
         live.outbox.push(command);
-        self.status = "正在执行 mihomo 操作…".into();
+        self.status = if importing {
+            "正在下载并校验订阅配置…"
+        } else {
+            "正在执行 mihomo 操作…"
+        }
+        .into();
+        true
+    }
+
+    pub fn import_profile_url(&mut self) {
+        let Some(crate::app::Modal::Form { fields, target, .. }) = &self.modal else {
+            return;
+        };
+        if !matches!(target, SaveTarget::Profile(_)) {
+            return;
+        }
+        let get = |key: &str| {
+            fields
+                .iter()
+                .find(|field| field.key == key)
+                .map(|field| field.value.trim().to_owned())
+                .unwrap_or_default()
+        };
+        let url = get("url");
+        if !url::Url::parse(&url).is_ok_and(|parsed| {
+            matches!(parsed.scheme(), "http" | "https") && parsed.host_str().is_some()
+        }) {
+            if let Some(crate::app::Modal::Form { error, .. }) = &mut self.modal {
+                *error = "请先填写完整的 HTTP(S) 订阅文件链接".into();
+            }
+            return;
+        }
+        let proxy = get("proxy");
+        if let Some(crate::app::Modal::Form { fields, .. }) = &mut self.modal {
+            for field in fields {
+                if field.key == "url" {
+                    field.value = url.clone();
+                    field.cursor = field.value.len();
+                } else if field.key == "proxy" {
+                    field.value = proxy.clone();
+                    field.cursor = field.value.len();
+                }
+            }
+        }
+        self.profile_import_nonce = self.profile_import_nonce.wrapping_add(1);
+        let request = self.profile_import_nonce;
+        if self.try_queue_core(Command::ImportProfile {
+            request,
+            url: url.clone(),
+            proxy: (!proxy.is_empty()).then_some(proxy),
+        }) {
+            self.profile_import_pending = Some(request);
+            self.profile_import_url = Some(url);
+            if let Some(crate::app::Modal::Form { error, .. }) = &mut self.modal {
+                *error = "正在下载并校验订阅配置…".into();
+            }
+        }
     }
     pub fn activate_live(&mut self) {
         let Some(id) = self.selected_id() else { return };
@@ -1022,12 +1137,6 @@ impl App {
                         Kind::Text,
                     ),
                     Field::new(
-                        "url",
-                        "远程 URL（本地配置留空）",
-                        p.map(|p| p.url.as_str()).unwrap_or(""),
-                        Kind::Text,
-                    ),
-                    Field::new(
                         "proxy",
                         "下载代理（可留空）",
                         p.and_then(|p| p.proxy.as_deref()).unwrap_or(""),
@@ -1041,8 +1150,14 @@ impl App {
                     ),
                     Field::new("local_file", "导入本地文件（可留空）", "", Kind::Text),
                     Field::new(
+                        "url",
+                        "订阅文件链接（可直接导入）",
+                        p.map(|p| p.url.as_str()).unwrap_or(""),
+                        Kind::Text,
+                    ),
+                    Field::new(
                         "content",
-                        "本地 YAML（远程订阅可留空）",
+                        "订阅配置 YAML",
                         &p.filter(|p| p.url.is_empty())
                             .and_then(|p| fs::read_to_string(&p.file).ok())
                             .unwrap_or_default(),

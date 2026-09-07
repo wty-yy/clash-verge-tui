@@ -6,6 +6,16 @@
 
 See the [feature mapping](docs/FEATURES.md) for planned work.
 
+## v1.2.0 · 2026-09-07
+
+### Profile file link import
+
+- Add a profile file URL field and a right-side **Import** button above the YAML editor in profile create/edit forms.
+- Download asynchronously by mouse click or Enter on the URL field while keeping the TUI responsive and showing progress.
+- Fill the editor only after URL, size, UTF-8, and Clash YAML validation; never save or replace the active profile automatically.
+- Keep errors in the current dialog and discard results after the link changes, the form closes, or a request becomes stale.
+- Verify complete import with the supplied private test link: 35 nodes and 3 groups, without adding the link or source configuration to the repository.
+
 ## v1.1.0 · 2026-09-07
 
 ### Managed core and Linux distribution

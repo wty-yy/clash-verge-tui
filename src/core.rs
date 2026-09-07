@@ -27,6 +27,11 @@ pub enum Command {
     Workspace(crate::workspace::WorkspaceCommand),
     Backup(crate::backup::BackupCommand),
     Extra(crate::extras::ExtraCommand),
+    ImportProfile {
+        request: u64,
+        url: String,
+        proxy: Option<String>,
+    },
     Upgrade {
         kind: String,
         channel: Option<String>,
@@ -61,6 +66,10 @@ pub enum CoreEvent {
     ServiceStatus(String),
     Backups(crate::backup::BackupResult),
     Extra(crate::extras::ExtraResult),
+    ProfileImported {
+        request: u64,
+        result: Result<crate::subscriptions::FetchedProfile, String>,
+    },
     BackgroundNotice(String),
     Completed(Result<(), String>),
 }
@@ -198,6 +207,7 @@ impl CoreClient {
             Command::Workspace(_)
             | Command::Backup(_)
             | Command::Extra(_)
+            | Command::ImportProfile { .. }
             | Command::PollEvery(_) => bail!("工作区命令必须由后台工作线程处理"),
             Command::Upgrade { kind, channel } => {
                 let path = match kind.as_str() {
@@ -409,6 +419,12 @@ if ticks.is_multiple_of(3){let host=prefs.get("proxy_host").map(String::as_str).
                 if automatic {if let Some(context)=&workspace{if let Ok(state)=crate::workspace::load(&context.dir){let prefs=state.state.preferences;let delay=prefs.get("delay_interval").and_then(|s|s.parse::<u64>().ok()).unwrap_or(300).max(30);if prefs.get("auto_delay").is_some_and(|v|v=="开启")&&delay_at.elapsed()>=Duration::from_secs(delay)&&auto_delay.as_ref().is_none_or(|t|t.is_finished()){delay_at=std::time::Instant::now();let api=client.clone();let tx=events_tx.clone();auto_delay=Some(tokio::spawn(async move{if let Ok(value)=api.get(&["proxies"]).await{if let Some(proxies)=value["proxies"].as_object(){for(name,group)in proxies{if group["type"].as_str()==Some("Selector"){let _=api.execute(&Command::Delay{group:name.clone(),url:prefs.get("test_url").cloned().unwrap_or("https://www.gstatic.com/generate_204".into()),timeout:5000}).await;}}}}let _=tx.send(CoreEvent::BackgroundNotice("自动测速已完成".into()));}));}}}}
                 if let Some(command)=command {
                     if let Command::PollEvery(value)=command{poll_every=value.clamp(1,60);continue;}
+                    if let Command::ImportProfile { request, url, proxy }=&command {
+                        let source=crate::subscriptions::Source{name:String::new(),url:url.clone(),proxy:proxy.clone()};
+                        let result=tokio::select!{_=stopped.changed()=>break,result=crate::subscriptions::fetch(&source)=>result}.map_err(|error|error.to_string());
+                        let _=events_tx.send(CoreEvent::ProfileImported{request:*request,result});
+                        continue;
+                    }
                     if let Command::Extra(task)=command {let result=tokio::select!{_=stopped.changed()=>break,result=crate::extras::execute(task)=>result};match result{Ok(result)=>{let _=events_tx.send(CoreEvent::Extra(result));let _=events_tx.send(CoreEvent::Completed(Ok(())));},Err(error)=>{let _=events_tx.send(CoreEvent::Completed(Err(error.to_string())));}}continue;}
                     if let Command::Backup(task)=command {
                         let result=if let Some(context)=&workspace {tokio::select!{_=stopped.changed()=>break,result=crate::backup::execute(context,&client,task)=>result}}else{Err(anyhow!("备份操作需要独立工作区"))};

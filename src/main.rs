@@ -70,7 +70,7 @@ struct Args {
     #[arg(long)]
     data_dir: Option<PathBuf>,
     /// 导出某个页面的确定性快照，不读取或保存用户状态
-    #[arg(long,conflicts_with_all=["core","subscriptions_file","check","import_only"],value_parser=["home","proxies","profiles","connections","rules","logs","unlock","settings"])]
+    #[arg(long,conflicts_with_all=["core","subscriptions_file","check","import_only"],value_parser=["home","proxies","profiles","profile-import","connections","rules","logs","unlock","settings"])]
     snapshot: Option<String>,
     /// 快照输出路径；.svg 输出彩色 SVG，其他后缀输出文本
     #[arg(long, requires = "snapshot")]
@@ -383,7 +383,12 @@ fn main() -> Result<()> {
 }
 fn snapshot(args: &Args, page: &str) -> Result<()> {
     let mut app = App::new(DemoState::default(), PathBuf::from("<demo-state>"));
-    app.navigate(Page::ALL.into_iter().find(|p| p.slug() == page).unwrap());
+    if page == "profile-import" {
+        app.navigate(Page::Profiles);
+        app.command('a');
+    } else {
+        app.navigate(Page::ALL.into_iter().find(|p| p.slug() == page).unwrap());
+    }
     let mut terminal = Terminal::new(TestBackend::new(args.width, args.height))?;
     terminal.draw(|f| ui::draw(f, &mut app))?;
     let buffer = terminal.backend().buffer();

@@ -72,6 +72,25 @@ pub struct ImportResult {
     pub result: Result<StoredProfile, String>,
 }
 
+#[derive(Clone)]
+pub struct FetchedProfile {
+    pub content: String,
+    pub proxies: usize,
+    pub groups: usize,
+    pub user_info: Option<String>,
+}
+impl std::fmt::Debug for FetchedProfile {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("FetchedProfile")
+            .field("content", &"<private>")
+            .field("proxies", &self.proxies)
+            .field("groups", &self.groups)
+            .field("user_info", &self.user_info.as_ref().map(|_| "<private>"))
+            .finish()
+    }
+}
+
 pub fn private_write(path: &Path, bytes: &[u8]) -> Result<()> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)?;
@@ -113,7 +132,7 @@ pub fn parse_config(text: &str) -> Result<Value> {
     }
     Ok(config)
 }
-pub async fn download(source: &Source, dir: &Path, index: usize) -> Result<StoredProfile> {
+pub async fn fetch(source: &Source) -> Result<FetchedProfile> {
     let url = Url::parse(&source.url).map_err(|_| anyhow!("订阅地址无效"))?;
     if !matches!(url.scheme(), "http" | "https") {
         bail!("订阅仅支持 HTTP(S)");
@@ -156,18 +175,27 @@ pub async fn download(source: &Source, dir: &Path, index: usize) -> Result<Store
     }
     let text = std::str::from_utf8(&bytes).map_err(|_| anyhow!("订阅不是 UTF-8 文本"))?;
     let config = parse_config(text)?;
-    let file = dir.join(format!("profile-{index}.yaml"));
-    private_write(&file, &bytes)?;
-    Ok(StoredProfile {
-        name: source.name.clone(),
-        url: source.url.clone(),
-        file,
+    Ok(FetchedProfile {
+        content: text.to_owned(),
         proxies: config["proxies"].as_sequence().map(Vec::len).unwrap_or(0),
         groups: config["proxy-groups"]
             .as_sequence()
             .map(Vec::len)
             .unwrap_or(0),
         user_info: info,
+    })
+}
+pub async fn download(source: &Source, dir: &Path, index: usize) -> Result<StoredProfile> {
+    let fetched = fetch(source).await?;
+    let file = dir.join(format!("profile-{index}.yaml"));
+    private_write(&file, fetched.content.as_bytes())?;
+    Ok(StoredProfile {
+        name: source.name.clone(),
+        url: source.url.clone(),
+        file,
+        proxies: fetched.proxies,
+        groups: fetched.groups,
+        user_info: fetched.user_info,
         proxy: source.proxy.clone(),
     })
 }

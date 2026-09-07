@@ -1,10 +1,12 @@
 #[path = "support/fixtures.rs"]
 mod fixtures;
 use clash_verge_tui::{
-    app::App,
+    app::{Action, App, Field, Modal, SaveTarget},
     core::{Command, CoreEvent, Snapshot},
     live::LiveState,
     model::*,
+    settings::Kind,
+    subscriptions::FetchedProfile,
     ui,
 };
 use ratatui::{backend::TestBackend, Terminal};
@@ -158,4 +160,83 @@ fn busy_workspace_preserves_unsaved_form_input() {
     assert!(
         matches!(&a.modal,Some(clash_verge_tui::app::Modal::Form{error,..}) if error.contains("Ctrl+S"))
     );
+}
+
+#[test]
+fn profile_link_import_keeps_the_form_open_and_fills_the_yaml_editor() {
+    let mut app = app();
+    app.form(
+        "订阅配置",
+        vec![
+            Field::new("name", "名称", "测试", Kind::Text),
+            Field::new("proxy", "下载代理", "", Kind::Text),
+            Field::new(
+                "url",
+                "订阅文件链接（可直接导入）",
+                "  https://example.com/profile.yaml  ",
+                Kind::Text,
+            ),
+            Field::new("content", "订阅配置 YAML", "", Kind::Multiline),
+        ],
+        SaveTarget::Profile(None),
+    );
+    let mut terminal = Terminal::new(TestBackend::new(120, 40)).unwrap();
+    terminal.draw(|frame| ui::draw(frame, &mut app)).unwrap();
+    assert!(app
+        .hits
+        .iter()
+        .any(|(_, action)| matches!(action, Action::ImportProfile)));
+
+    app.action(Action::ImportProfile);
+    let request = match app.live.as_ref().unwrap().outbox.last().unwrap() {
+        Command::ImportProfile {
+            request,
+            url,
+            proxy,
+        } => {
+            assert_eq!(url, "https://example.com/profile.yaml");
+            assert!(proxy.is_none());
+            *request
+        }
+        command => panic!("unexpected command: {command:?}"),
+    };
+    assert!(app.live.as_ref().unwrap().pending);
+    app.handle_core(CoreEvent::ProfileImported {
+        request,
+        result: Ok(FetchedProfile {
+            content: "proxies: [{name: Imported, type: direct}]\nrules: [MATCH,DIRECT]\n".into(),
+            proxies: 1,
+            groups: 0,
+            user_info: None,
+        }),
+    });
+    assert!(!app.live.as_ref().unwrap().pending);
+    assert!(app.status.contains("1 个节点"));
+    let Modal::Form { fields, error, .. } = app.modal.as_ref().unwrap() else {
+        panic!("import should keep the form open")
+    };
+    assert!(error.is_empty());
+    assert!(fields
+        .iter()
+        .find(|field| field.key == "content")
+        .unwrap()
+        .value
+        .contains("Imported"));
+}
+
+#[test]
+fn invalid_profile_link_stays_in_the_form_without_queuing_a_request() {
+    let mut app = app();
+    app.form(
+        "订阅配置",
+        vec![
+            Field::new("url", "订阅文件链接", "not-a-url", Kind::Text),
+            Field::new("content", "订阅配置 YAML", "", Kind::Multiline),
+        ],
+        SaveTarget::Profile(None),
+    );
+    let before = app.live.as_ref().unwrap().outbox.len();
+    app.action(Action::ImportProfile);
+    assert_eq!(app.live.as_ref().unwrap().outbox.len(), before);
+    assert!(matches!(&app.modal, Some(Modal::Form { error, .. }) if error.contains("HTTP(S)")));
 }

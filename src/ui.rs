@@ -1,5 +1,5 @@
 use crate::{
-    app::{Action, App, HomeFocus, Modal},
+    app::{Action, App, HomeFocus, Modal, SaveTarget},
     model::Page,
     settings::Kind,
 };
@@ -1179,7 +1179,7 @@ fn modal(f: &mut Frame, app: &mut App, area: Rect, p: Palette) {
             active,
             mut scroll,
             error,
-            ..
+            target,
         } => {
             f.render_widget(
                 block(
@@ -1243,10 +1243,16 @@ fn modal(f: &mut Frame, app: &mut App, area: Rect, p: Palette) {
                     format!("{} {}", if selected { "›" } else { " " }, field.label),
                     color,
                 );
+                let has_import = field.key == "url" && matches!(&target, SaveTarget::Profile(_));
+                let available_width = field_area.width.saturating_sub(2);
                 let input = Rect::new(
                     field_area.x + 2,
                     y + 1,
-                    field_area.width - 2,
+                    if has_import {
+                        available_width.saturating_sub(11)
+                    } else {
+                        available_width
+                    },
                     height.saturating_sub(1).max(1),
                 );
                 let value = match field.kind {
@@ -1302,13 +1308,30 @@ fn modal(f: &mut Frame, app: &mut App, area: Rect, p: Palette) {
                     input,
                 );
                 app.hits.push((
-                    Rect::new(field_area.x, y, field_area.width, height),
+                    Rect::new(field_area.x, y, input.width + 2, height),
                     Action::Field(i),
                 ));
+                if has_import {
+                    button(
+                        f,
+                        app,
+                        Rect::new(input.x + input.width + 1, input.y, 10, 1),
+                        if app.profile_import_pending.is_some() {
+                            "导入中"
+                        } else {
+                            "导入"
+                        },
+                        Action::ImportProfile,
+                        p,
+                        selected,
+                    );
+                }
                 y += height;
             }
             let hint = if error.is_empty() {
-                if app.live.is_some() {
+                if matches!(&target, SaveTarget::Profile(_)) {
+                    "订阅链接按 Enter 或点击导入；确认配置后 Ctrl+S 保存".into()
+                } else if app.live.is_some() {
                     "网络参数发送至内核；Esc 取消未保存修改".into()
                 } else {
                     "网络设置仅保存演示值；Esc 取消未保存修改".to_string()

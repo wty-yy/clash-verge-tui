@@ -203,6 +203,59 @@ async fn explicit_subscription_proxy_routes_download_without_direct_dns() {
 }
 
 #[tokio::test]
+async fn profile_link_fetch_returns_the_complete_validated_yaml_without_writing_a_file() {
+    let server = Server::new(|request| {
+        if request.path == "/profile.yaml" {
+            (200, YAML.into())
+        } else {
+            (404, String::new())
+        }
+    });
+    let source = Source {
+        name: String::new(),
+        url: format!("{}/profile.yaml", server.url),
+        proxy: None,
+    };
+    let fetched = subscriptions::fetch(&source).await.unwrap();
+    assert_eq!(fetched.content, YAML);
+    assert_eq!(fetched.proxies, 1);
+    assert_eq!(fetched.groups, 1);
+}
+
+#[test]
+fn worker_imports_profile_links_without_blocking_the_ui_thread() {
+    let server = Server::new(|request| {
+        if request.path == "/profile.yaml" {
+            (200, YAML.into())
+        } else {
+            (200, response(&request.path).to_string())
+        }
+    });
+    let client = CoreClient::new(&server.url, String::new()).unwrap();
+    let worker = Worker::spawn(client).unwrap();
+    worker
+        .send(Command::ImportProfile {
+            request: 42,
+            url: format!("{}/profile.yaml", server.url),
+            proxy: None,
+        })
+        .unwrap();
+    let deadline = Instant::now() + Duration::from_secs(3);
+    loop {
+        let event = worker
+            .events
+            .recv_timeout(deadline.saturating_duration_since(Instant::now()))
+            .unwrap();
+        if let CoreEvent::ProfileImported { request, result } = event {
+            let fetched = result.unwrap();
+            assert_eq!(request, 42);
+            assert_eq!(fetched.content, YAML);
+            break;
+        }
+    }
+}
+
+#[tokio::test]
 async fn partial_import_preserves_successes_and_returns_each_failure() {
     let server = Server::new(|req| {
         if req.path == "/valid" {

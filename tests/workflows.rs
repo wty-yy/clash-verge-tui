@@ -125,6 +125,21 @@ fn profile_crud_validation_cancel_reorder_and_empty_state() {
     let mut a = app();
     a.navigate(Page::Profiles);
     a.command('a');
+    let form = render(&mut a, 120, 40);
+    assert!(form.contains("订阅文件链接"));
+    assert!(form.contains("导入"));
+    assert!(a
+        .hits
+        .iter()
+        .any(|(_, action)| matches!(action, Action::ImportProfile)));
+    if let Some(Modal::Form { active, .. }) = &mut a.modal {
+        *active = 2;
+    }
+    let compact = render(&mut a, 76, 24);
+    assert!(compact.contains("订阅文件链接"));
+    assert!(compact.contains("导入"));
+    a.action(Action::ImportProfile);
+    assert!(matches!(&a.modal, Some(Modal::Form { error, .. }) if error.contains("演示模式")));
     save(&mut a);
     assert!(matches!(a.modal, Some(Modal::Form { .. })));
     set(&mut a, "name", "测试订阅");
