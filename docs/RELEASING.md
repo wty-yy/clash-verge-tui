@@ -37,13 +37,15 @@ git tag -a "$VERSION" -m "Release $VERSION"
 git push origin master "$VERSION"
 ```
 
-GitHub Actions 在推送和 Pull Request 时执行格式、Clippy、测试与构建。正式标签额外触发 Release 工作流：分别在 Linux x86_64/aarch64 runner 构建，下载并校验代码固定的官方 Mihomo 资产，生成组合包与 SHA-256 文件，并随 `install.sh` 创建 GitHub Release。
+GitHub Actions 在推送和 Pull Request 时执行格式、Clippy、测试与构建。正式标签额外触发 Release 工作流：分别在 Linux x86_64/aarch64 runner 使用 musl-tools 静态构建，下载并校验代码固定的官方 Mihomo 资产，通过 readelf 检查 TUI 与内核无动态加载器、共享库依赖或 GLIBC 符号，附带 musl 许可，生成组合包与 SHA-256 文件，在 Ubuntu 20.04 容器完成真实安装、配置权限、内核修复与退出清理检查，并随 `install.sh` 创建 GitHub Release。
 
 ```bash
 # 本地检查 x86_64 发行包；VERSION 不带 v
-VERSION=1.1.0
-cargo build --locked --release --target x86_64-unknown-linux-gnu
-TARGET=x86_64-unknown-linux-gnu ARCHITECTURE=x86_64 APP_VERSION="$VERSION" \
+VERSION=1.4.1
+# 安装 musl-tools 后构建静态发行包
+rustup target add x86_64-unknown-linux-musl
+RUSTFLAGS="-C target-feature=+crt-static -C linker=musl-gcc" cargo build --locked --release --target x86_64-unknown-linux-musl
+TARGET=x86_64-unknown-linux-musl ARCHITECTURE=x86_64 APP_VERSION="$VERSION" \
   ./scripts/package-linux.sh
 
 # Release 发布后验证公开一键安装
@@ -54,6 +56,8 @@ clash-verge-tui --check
 远端为 `https://github.com/wty-yy/clash-verge-tui.git`，默认分支为 `master`。Release 必须同时包含两个架构的 `.tar.gz`、对应 `.sha256` 和 `install.sh`。Mihomo 版本变化时，同步修改应用常量、两种架构的压缩包/二进制哈希、打包脚本、README、CHANGELOG 与验证记录。
 
 补丁版本用于兼容修复；次版本用于新增能力或预发布阶段接口调整。`v1.0.0` 前需完成明确的真实功能验收，不能以演示状态作为网络功能验收结果。
+
+可先手动触发 Release 工作流（workflow_dispatch）验证 master 的双架构构建与安装；手动运行只上传 Actions 构建产物，正式标签才创建 GitHub Release。
 
 ## Gitee 镜像发行
 
@@ -68,7 +72,7 @@ clash-verge-tui --check
 curl -fsSL https://gitee.com/wty-yy/clash-verge-tui/raw/master/scripts/install.sh | sh -s -- --source gitee
 
 # 指定已经发布到 Gitee 的版本；环境变量放在 sh 前
-curl -fsSL https://gitee.com/wty-yy/clash-verge-tui/raw/master/scripts/install.sh | CLASH_VERGE_TUI_VERSION=v1.4.0 sh -s -- --source gitee
+curl -fsSL https://gitee.com/wty-yy/clash-verge-tui/raw/master/scripts/install.sh | CLASH_VERGE_TUI_VERSION=v1.4.1 sh -s -- --source gitee
 clash-verge-tui --check
 ```
 

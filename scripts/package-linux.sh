@@ -29,13 +29,17 @@ app="target/$target/release/clash-verge-tui"
     exit 1
 }
 
+# A successful build alone does not guarantee a portable static executable.
+sh scripts/check-static.sh "$app"
+
 asset="clash-verge-tui-v${version}-linux-${architecture}.tar.gz"
 mkdir -p dist
 staging="$(mktemp -d "dist/package-${architecture}.XXXXXX")"
 mkdir -p "$staging/bin" "$staging/lib/clash-verge-tui" \
-    "$staging/share/licenses/clash-verge-tui" "$staging/share/licenses/mihomo"
+    "$staging/share/licenses/clash-verge-tui" "$staging/share/licenses/mihomo" "$staging/share/licenses/musl"
 install -m 0755 "$app" "$staging/bin/clash-verge-tui"
 install -m 0644 LICENSE "$staging/share/licenses/clash-verge-tui/LICENSE"
+install -m 0644 docs/LICENSE-MUSL "$staging/share/licenses/musl/LICENSE"
 install -m 0644 docs/LICENSE-GPL-3.0 "$staging/share/licenses/mihomo/LICENSE"
 
 core_archive="dist/$core_asset"
@@ -46,11 +50,15 @@ gzip -dc "$core_archive" > "$staging/lib/clash-verge-tui/mihomo"
 chmod 0755 "$staging/lib/clash-verge-tui/mihomo"
 printf '%s  %s\n' "$core_binary_sha256" "$staging/lib/clash-verge-tui/mihomo" | sha256sum -c -
 
+sh scripts/check-static.sh "$staging/lib/clash-verge-tui/mihomo"
+
 cat > "$staging/lib/clash-verge-tui/release.json" <<EOF
 {
   "app_version": "$version",
   "mihomo_version": "$core_version",
   "architecture": "$architecture",
+  "target": "$target",
+  "linkage": "static",
   "mihomo_asset": "$core_asset",
   "mihomo_archive_sha256": "$core_sha256",
   "mihomo_binary_sha256": "$core_binary_sha256",

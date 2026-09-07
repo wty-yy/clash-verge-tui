@@ -35,6 +35,12 @@ repository="${repository%/}"
 repository="${repository%.git}"
 
 command -v curl >/dev/null 2>&1 || fail "curl is required"
+# Older distributions ship curl without --retry-all-errors (added in 7.71.0).
+retry_all_errors=
+if curl --retry-all-errors --version >/dev/null 2>&1; then
+    retry_all_errors=--retry-all-errors
+fi
+
 command -v tar >/dev/null 2>&1 || fail "tar is required"
 command -v sha256sum >/dev/null 2>&1 || fail "sha256sum is required"
 [ "$(uname -s)" = "Linux" ] || fail "only Linux is supported"
@@ -49,7 +55,7 @@ if [ -z "$version" ]; then
     case "$repository" in
         https://gitee.com/*)
             repository_path="${repository#https://gitee.com/}"
-            release="$(curl -fsSL --connect-timeout 15 --retry 5 --retry-delay 2 --retry-all-errors \
+            release="$(curl -fsSL --connect-timeout 15 --retry 5 --retry-delay 2 ${retry_all_errors} \
                 "https://gitee.com/api/v5/repos/$repository_path/releases/latest")" || \
                 fail "cannot find a Gitee release; publish the release bundles and checksums at $repository/releases first"
             # Extract only a stable version tag; do not evaluate API response content.
@@ -57,7 +63,7 @@ if [ -z "$version" ]; then
             [ -n "$version" ] || fail "Gitee release has no stable version tag; check $repository/releases"
             ;;
         *)
-            latest_url="$(curl -fsSL --connect-timeout 15 --retry 5 --retry-delay 2 --retry-all-errors -o /dev/null -w '%{url_effective}' "$repository/releases/latest")"
+            latest_url="$(curl -fsSL --connect-timeout 15 --retry 5 --retry-delay 2 ${retry_all_errors} -o /dev/null -w '%{url_effective}' "$repository/releases/latest")"
             version="${latest_url##*/}"
             ;;
     esac
@@ -77,9 +83,9 @@ trap cleanup EXIT HUP INT TERM
 
 printf 'Downloading clash-verge-tui %s for Linux %s...\n' "$version" "$architecture"
 printf 'Source: %s\n' "$base_url"
-curl -fL --connect-timeout 15 --retry 5 --retry-delay 2 --retry-all-errors \
+curl -fL --connect-timeout 15 --retry 5 --retry-delay 2 ${retry_all_errors} \
     -o "$temporary_dir/$asset" "$base_url/$asset" || fail "release bundle unavailable at $base_url; repository sync alone does not copy release attachments"
-curl -fL --connect-timeout 15 --retry 5 --retry-delay 2 --retry-all-errors \
+curl -fL --connect-timeout 15 --retry 5 --retry-delay 2 ${retry_all_errors} \
     -o "$temporary_dir/$asset.sha256" "$base_url/$asset.sha256" || fail "release checksum unavailable at $base_url; refusing to install"
 (cd "$temporary_dir" && sha256sum -c "$asset.sha256")
 
@@ -100,6 +106,11 @@ mv -f "$install_dir/clash-verge-tui.new" "$install_dir/clash-verge-tui"
 install -m 0644 "$temporary_dir/package/lib/clash-verge-tui/release.json" "$library_dir/release.json"
 install -m 0644 "$temporary_dir/package/share/licenses/clash-verge-tui/LICENSE" "$library_dir/LICENSE"
 install -m 0644 "$temporary_dir/package/share/licenses/mihomo/LICENSE" "$library_dir/MIHOMO-LICENSE"
+
+# Older releases predate the musl bundle.
+if [ -f "$temporary_dir/package/share/licenses/musl/LICENSE" ]; then
+    install -m 0644 "$temporary_dir/package/share/licenses/musl/LICENSE" "$library_dir/MUSL-LICENSE"
+fi
 
 printf '\nInstalled clash-verge-tui %s with mihomo v1.19.29.\n' "$version"
 printf 'Binary: %s\n' "$install_dir/clash-verge-tui"

@@ -1,6 +1,7 @@
 name: Release
 
 on:
+  workflow_dispatch:
   push:
     tags:
       - "v*.*.*"
@@ -14,10 +15,10 @@ jobs:
       matrix:
         include:
           - runner: ubuntu-24.04
-            target: x86_64-unknown-linux-gnu
+            target: x86_64-unknown-linux-musl
             architecture: x86_64
           - runner: ubuntu-24.04-arm
-            target: aarch64-unknown-linux-gnu
+            target: aarch64-unknown-linux-musl
             architecture: aarch64
     runs-on: ${{ matrix.runner }}
     steps:
@@ -25,17 +26,33 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
-      - name: Check tag and package version
-        run: test "${GITHUB_REF_NAME#v}" = "$(sed -n 's/^version = "\([^"]*\)"/\1/p' Cargo.toml | head -1)"
+      - name: Resolve and check package version
+        id: version
+        run: |
+          version="$(sed -n 's/^version = "\([^"]*\)"/\1/p' Cargo.toml | head -1)"
+          if [ "$GITHUB_REF_TYPE" = tag ]; then
+            test "$GITHUB_REF_NAME" = "v$version"
+          fi
+          echo "tag=v$version" >> "$GITHUB_OUTPUT"
+      - name: Install musl build tools
+        run: sudo apt-get update && sudo apt-get install -y musl-tools
       - name: Build release binary
+        env:
+          RUSTFLAGS: -C target-feature=+crt-static -C linker=musl-gcc
         run: cargo build --locked --release --target "${{ matrix.target }}"
       - name: Package TUI and pinned mihomo
         env:
-          APP_VERSION: ${{ github.ref_name }}
+          APP_VERSION: ${{ steps.version.outputs.tag }}
           TARGET: ${{ matrix.target }}
           ARCHITECTURE: ${{ matrix.architecture }}
         run: |
           APP_VERSION="${APP_VERSION#v}" ./scripts/package-linux.sh
+      - name: Test installation on Ubuntu 20.04
+        run: |
+          docker run --rm -v "$PWD:/work:ro" -w /work ubuntu:20.04 sh -c '
+            apt-get update -qq && apt-get install -y -qq curl ca-certificates python3 &&
+            python3 scripts/test-release.py dist/clash-verge-tui-${{ steps.version.outputs.tag }}-linux-${{ matrix.architecture }}.tar.gz
+          '
       - uses: actions/upload-artifact@v4
         with:
           name: linux-${{ matrix.architecture }}
@@ -45,6 +62,7 @@ jobs:
           if-no-files-found: error
 
   publish:
+    if: startsWith(github.ref, 'refs/tags/v')
     needs: package
     runs-on: ubuntu-24.04
     steps:

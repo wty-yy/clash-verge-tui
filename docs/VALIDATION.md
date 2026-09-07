@@ -243,3 +243,11 @@
 - 从公开发行地址下载全部 5 个资产；两个架构的归档 SHA-256、Mihomo 二进制哈希、架构 / 版本清单和 MIT / GPL 许可检查通过；发行版 install.sh 与仓库脚本完全一致
 - 使用下载的正式 install.sh，在临时 HOME 按默认 GitHub latest 路径完成公开一键安装。已安装 x86_64 程序通过 --check、Mihomo v1.19.29、0600 配置权限、退出后端口释放和损坏内核自动修复；aarch64 完成原生远端构建与本地归档检查，未在本机执行
 - 两份 GIF 与清理后的 README 已推送；本次只发布 GitHub，Gitee Release 附件仍需单独同步
+
+### v1.4.1 musl 兼容修复 · 2026-09-08
+
+- 服务器 4090_133_proxy 实测为 Ubuntu 20.04.4、x86_64、glibc 2.31、curl 7.68.0；v1.4.0 GNU 二进制依赖 GLIBC_2.39，旧 curl 不支持 --retry-all-errors
+- 本地 Rust 1.93.1：格式、Clippy 严格警告、97 项 Rust 测试、release 构建与 10 项安装脚本回归通过；新旧 curl 参数选择均覆盖
+- x86_64 musl 静态构建与打包通过；readelf 检查无 INTERP、NEEDED 或 GLIBC 符号，旧 GNU 二进制被正确拒绝；发行包保留固定 Mihomo、MIT/GPL 并加入 musl 原文许可
+- 本地及 Ubuntu 20.04 容器的临时 HOME 安装通过；服务器独立临时 HOME 使用原有 curl 7.68 安装本地传输的归档，通过 --check、0600 配置权限、退出后内核清理与端口释放、损坏内核修复、76×24 / 120×40 快照
+- 未操作服务器已有代理、TUN、服务或正式安装目录；上述安装使用 file:// 资产来源，公开 GitHub latest 安装与 aarch64 原生运行将在正式发布流程另行记录

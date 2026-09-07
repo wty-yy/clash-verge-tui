@@ -8,7 +8,7 @@
 
 Created for personal use with development assistance from ChatGPT. The interface and feature mapping follow Clash Verge Rev v2.5.2. This is an unofficial project, independently developed and unaffiliated with the Clash Verge / Clash Verge Rev teams.
 
-`v1.4.0` starts a self-managed workspace and the application-pinned mihomo v1.19.29 by default. Release archives contain both the TUI and the core. Home quick controls show and edit the current mixed proxy port, which defaults to `127.0.0.1:7890`.
+`v1.4.1` starts a self-managed workspace and the application-pinned mihomo v1.19.29 by default. Release archives contain the statically linked musl TUI and pinned core for Linux x86_64/aarch64, without a system glibc dependency. The installer supports older curl versions, including Ubuntu 20.04’s curl 7.68. Home quick controls show and edit the current mixed proxy port, which defaults to `127.0.0.1:7890`.
 
 ## Install and run
 
@@ -43,7 +43,7 @@ The installer defaults to GitHub; `--source gitee` queries the Gitee release API
 | `~/.local/lib/clash-verge-tui/release.json` | Application, core, architecture, and upstream checksum metadata |
 | `~/.local/lib/clash-verge-tui/MIHOMO-LICENSE` | GPL-3.0 license text for the bundled Mihomo core |
 
-Gitee repository synchronization does not copy release attachments. The mirror needs a release with the same version tag, both Linux bundles, their `.sha256` files, and `install.sh`; see [release maintenance](docs/RELEASING.md). A missing Gitee release or asset stops installation without switching to GitHub. Set `CLASH_VERGE_TUI_VERSION=v1.4.0` on the `sh` command to select a published version; `CLASH_VERGE_TUI_REPOSITORY` selects a custom repository, while an explicit `--source` takes precedence.
+Gitee repository synchronization does not copy release attachments. The mirror needs a release with the same version tag, both Linux bundles, their `.sha256` files, and `install.sh`; see [release maintenance](docs/RELEASING.md). A missing Gitee release or asset stops installation without switching to GitHub. Set `CLASH_VERGE_TUI_VERSION=v1.4.1` on the `sh` command to select a published version; `CLASH_VERGE_TUI_REPOSITORY` selects a custom repository, while an explicit `--source` takes precedence.
 
 Source builds work as well. If no bundled core is found, the program downloads official Mihomo v1.19.29 into `${XDG_DATA_HOME:-$HOME/.local/share}/clash-verge-tui/core/`, verifies both the archive and extracted binary, and copies it into the active workspace. A damaged, replaced, or independently upgraded workspace core is restored to the application-pinned version on the next launch.
 
@@ -226,3 +226,5 @@ The table lists direct Rust dependencies pinned in `Cargo.lock` and the bundled 
 | [zeroize](https://github.com/RustCrypto/utils) | `1.9.0` | `Apache-2.0 OR MIT` |
 
 Clash Verge Rev is the interface and feature reference; its upstream license is GPL-3.0. The optional JavaScript enhancement runtime [Node.js](https://github.com/nodejs/node/blob/main/LICENSE) uses MIT and includes components distributed under their respective licenses.
+
+Static release bundles include the [musl license and copyright notices](docs/LICENSE-MUSL), sourced from [musl v1.2.5](https://git.musl-libc.org/cgit/musl/tree/COPYRIGHT?h=v1.2.5).

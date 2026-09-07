@@ -13,6 +13,14 @@ INSTALLER = Path(__file__).resolve().with_name('install.sh')
 MOCK_CURL = r'''#!/usr/bin/env python3
 import json, os, pathlib, sys
 args = sys.argv[1:]
+if '--retry-all-errors' in args and os.environ.get('OLD_CURL') == '1':
+    print('curl: option --retry-all-errors: is unknown', file=sys.stderr)
+    sys.exit(2)
+if '--version' in args:
+    print('curl test fixture')
+    sys.exit(0)
+with open(os.environ['REQUEST_LOG'] + '.args', 'a') as log:
+    log.write(json.dumps(args) + '\n')
 url = args[-1]
 with open(os.environ['REQUEST_LOG'], 'a') as log:
     log.write(url + '\n')
@@ -87,6 +95,19 @@ class InstallerTests(unittest.TestCase):
         self.bundle(repo + '/releases/download/v1.4.0')
         self.assert_installed(self.run_installer())
         self.assertNotIn('gitee.com', self.log.read_text())
+
+    def test_old_curl_omits_unsupported_retry_option(self):
+        self.env['OLD_CURL'] = '1'
+        repo = 'https://github.com/wty-yy/clash-verge-tui'
+        self.responses[repo + '/releases/latest'] = repo + '/releases/tag/v1.4.0'
+        self.bundle(repo + '/releases/download/v1.4.0')
+        self.assert_installed(self.run_installer())
+        self.assertNotIn('--retry-all-errors', Path(str(self.log) + '.args').read_text())
+
+    def test_new_curl_keeps_full_retry_support(self):
+        self.test_github_default()
+        requests = [json.loads(line) for line in Path(str(self.log) + '.args').read_text().splitlines()]
+        self.assertTrue(all('--retry-all-errors' in args for args in requests))
 
     def test_gitee_latest_for_both_architectures(self):
         for architecture in ['x86_64', 'aarch64']:

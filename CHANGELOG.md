@@ -4,6 +4,12 @@
 
 See the [feature mapping](docs/FEATURES.md) for planned work.
 
+## v1.4.1 · 2026-09-08
+
+1. Build static musl release bundles for Linux x86_64/aarch64 without system glibc dependencies
+2. Support older curl versions in the one-command installer
+3. Reject dynamically linked release binaries and verify installation on Ubuntu 20.04
+
 ## v1.4.0 · 2026-09-08
 
 1. Add English and Traditional Chinese interfaces with system locale detection and persistent language selection
