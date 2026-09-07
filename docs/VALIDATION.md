@@ -251,3 +251,12 @@
 - x86_64 musl 静态构建与打包通过；readelf 检查无 INTERP、NEEDED 或 GLIBC 符号，旧 GNU 二进制被正确拒绝；发行包保留固定 Mihomo、MIT/GPL 并加入 musl 原文许可
 - 本地及 Ubuntu 20.04 容器的临时 HOME 安装通过；服务器独立临时 HOME 使用原有 curl 7.68 安装本地传输的归档，通过 --check、0600 配置权限、退出后内核清理与端口释放、损坏内核修复、76×24 / 120×40 快照
 - 未操作服务器已有代理、TUN、服务或正式安装目录；上述安装使用 file:// 资产来源，公开 GitHub latest 安装与 aarch64 原生运行将在正式发布流程另行记录
+
+### v1.4.1 正式发布验收 · 2026-09-08
+
+- [master CI 34145526729](https://github.com/wty-yy/clash-verge-tui/actions/runs/34145526729) 与[手动双架构预检 34145556985](https://github.com/wty-yy/clash-verge-tui/actions/runs/34145556985) 全部通过；aarch64 在原生 ARM runner 构建并在 ARM Ubuntu 20.04 容器执行安装、--check、权限、清理与修复检查
+- 注释标签 v1.4.1 指向 a3b529c；[标签 CI 34145734636](https://github.com/wty-yy/clash-verge-tui/actions/runs/34145734636) 与[Release 34145734620](https://github.com/wty-yy/clash-verge-tui/actions/runs/34145734620) 全部通过，未移动 v1.4.0
+- [v1.4.1 发行页](https://github.com/wty-yy/clash-verge-tui/releases/tag/v1.4.1) 的两个归档、两个 SHA-256 文件与 install.sh 均已公开下载；归档校验、两个架构的静态链接、Mihomo 固定哈希、musl target 清单及三份许可通过，公开安装脚本与源码一致
+- 本地使用正式归档完成完整安装回归；4090_133_proxy 在临时 HOME 使用公开 GitHub latest 安装脚本与归档完成安装、--check 和真实演示 PTY 启动/退出，终端属性恢复通过；移除临时安装的内核后，程序通过 HTTPS 重新下载并验证固定内核
+- 非交互 SSH 会话未设置代理，直连 GitHub 超时；公开下载验收使用仅在测试 SSH 会话内监听回环地址的临时 SOCKS 转发，不修改服务器代理配置或现有服务。TUN 未开启，服务器正式安装目录未改动
+- 补充本地 DNS 解析检查在启动阶段遇到控制器端口 19097 已占用，未进入 DNS 验证；未结束占用端口的进程。用户确认新版可用并要求停止验证，因此停止后续测试
