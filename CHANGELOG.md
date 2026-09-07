@@ -6,6 +6,18 @@
 
 See the [feature mapping](docs/FEATURES.md) for planned work.
 
+## v1.3.0 · 2026-09-07
+
+### Home mixed proxy port
+
+- Show the current mixed proxy port in Home quick controls and open a compact editor with Enter or double-click.
+- Validate `1–65535` and port availability before saving, apply through mihomo validation, and update an enabled system proxy to the new port.
+- Use `7890` consistently for new workspaces, demo configuration, Settings, and CLI help while retaining ports saved by existing workspaces.
+- Use plain `s` to save and apply the Home port form; retain `Ctrl+S` in free-text forms so the letter `s` remains typeable.
+- Replace the generic TUN timeout with confirmation, a masked in-TUI system-password form, a per-user/workspace systemd capability watcher, managed-core restart, and automatic continuation of the TUN setting.
+- Remove graphical PolicyKit prompts and pass the transient password only to `sudo -S` over standard input, using the same terminal flow on desktops and servers.
+- Accept only the pinned official Mihomo hash in the privileged helper, require a regular user-owned core without group/world write access, and grant only `CAP_NET_ADMIN` / `CAP_NET_BIND_SERVICE`.
+
 ## v1.2.0 · 2026-09-07
 
 ### Profile file link import

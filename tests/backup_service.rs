@@ -207,6 +207,21 @@ fn service_unit_uses_quoted_paths_and_stable_workspace_identity() {
     assert!(service::unit(std::path::Path::new("relative"), dir, &BTreeMap::new()).is_err());
 }
 #[test]
+fn tun_capability_units_are_scoped_to_the_workspace_and_user() {
+    let dir = std::path::Path::new("/home/user/work space");
+    let helper = std::path::Path::new("/usr/libexec/clash-verge-tui/tun-helper");
+    let (service_unit, path_unit) = service::tun_units(helper, dir, 1000).unwrap();
+    let base = service::tun_base_name(dir, 1000);
+    assert!(service_unit.contains("--tun-helper apply --tun-uid 1000"));
+    assert!(service_unit.contains("CapabilityBoundingSet=CAP_SETFCAP"));
+    assert!(service_unit.contains("NoNewPrivileges=true"));
+    assert!(service_unit.contains("\"/home/user/work space\""));
+    assert!(path_unit.contains("/home/user/work space/core/mihomo"));
+    assert!(path_unit.contains(&format!("Unit={base}.service")));
+    assert_ne!(base, service::tun_base_name(dir, 1001));
+    assert!(!service::tun_capable(std::path::Path::new("/bin/true")));
+}
+#[test]
 fn access_checks_distinguish_verification_login_and_region_blocks() {
     use clash_verge_tui::extras::classify;
     assert!(classify(403, "cf-chl-challenge", false).contains("未知"));

@@ -319,10 +319,26 @@ fn invalid_ports_are_rejected_and_escape_never_saves() {
     set(&mut a, "mixed_port", "70000");
     save(&mut a);
     assert!(a.modal.is_some());
-    assert_eq!(a.state.value("mixed_port"), "7897");
-    set(&mut a, "mixed_port", "7890");
+    assert_eq!(a.state.value("mixed_port"), "7890");
+    set(&mut a, "mixed_port", "7891");
     key(&mut a, KeyCode::Esc);
-    assert_eq!(a.state.value("mixed_port"), "7897");
+    assert_eq!(a.state.value("mixed_port"), "7890");
+}
+#[test]
+fn home_mixed_port_uses_7890_and_plain_s_applies_the_quick_form() {
+    let mut app = app();
+    let row = &app.rows()[3];
+    assert_eq!(row.cells, ["混合代理端口", "7890"]);
+    app.selected = 3;
+    assert!(render(&mut app, 76, 24).contains("混合代理端口"));
+    app.activate();
+    assert!(matches!(app.modal, Some(Modal::Form { .. })));
+    set(&mut app, "mixed_port", "7891");
+    let form = render(&mut app, 76, 24);
+    assert!(form.contains("s 保存并应用"));
+    key(&mut app, KeyCode::Char('s'));
+    assert!(app.modal.is_none());
+    assert_eq!(app.state.value("mixed_port"), "7891");
 }
 #[test]
 fn palette_mouse_navigation_closes_overlay_and_search_does_not_quit() {
@@ -342,7 +358,7 @@ fn palette_mouse_navigation_closes_overlay_and_search_does_not_quit() {
 #[test]
 fn home_selection_and_active_tab_remain_visible_in_small_terminal() {
     let mut a = app();
-    a.selected = 5;
+    a.selected = 6;
     assert!(render(&mut a, 76, 24).contains("环境变量"));
     a.navigate(Page::Proxies);
     a.sub = 3;

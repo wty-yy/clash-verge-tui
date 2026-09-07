@@ -40,7 +40,7 @@ pub fn asset() -> Result<Asset> {
     }
 }
 
-fn version_matches(binary: &Path) -> bool {
+pub fn matches_release_hash(binary: &Path) -> bool {
     if !binary.is_file()
         || fs::symlink_metadata(binary)
             .ok()
@@ -55,6 +55,10 @@ fn version_matches(binary: &Path) -> bool {
             format!("{:x}", Sha256::digest(bytes)) == asset.binary_sha256
         });
     exact_release
+}
+
+fn version_matches(binary: &Path) -> bool {
+    matches_release_hash(binary)
         && Command::new(binary)
             .arg("-v")
             .stdin(Stdio::null())

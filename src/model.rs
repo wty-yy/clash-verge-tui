@@ -171,7 +171,7 @@ impl Default for DemoState {
             delay,
         })
         .collect();
-        let content = "# 演示配置 · 不会写入 mihomo\nmode: rule\nmixed-port: 7897\nallow-lan: false\nlog-level: info\n".to_string();
+        let content = format!("# 演示配置 · 不会写入 mihomo\nmode: rule\nmixed-port: {}\nallow-lan: false\nlog-level: info\n",crate::network::DEFAULT_MIXED_PORT);
         Self {
             schema: 1,
             mode: 0,

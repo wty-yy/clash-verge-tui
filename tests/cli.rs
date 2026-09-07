@@ -77,3 +77,42 @@ fn profile_import_snapshot_contains_the_link_field_and_import_button() {
     assert!(text.contains("导入"));
     assert!(text.contains("订阅配置 YAML"));
 }
+
+#[test]
+fn tun_password_snapshot_is_masked_and_terminal_native() {
+    let output = binary()
+        .args([
+            "--snapshot",
+            "tun-password",
+            "--width",
+            "120",
+            "--height",
+            "40",
+        ])
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+    let text = String::from_utf8_lossy(&output.stdout);
+    assert!(text.contains("系统密码（仅用于本次 sudo 验证）"));
+    assert!(text.contains("Enter 安装服务"));
+    assert!(!text.contains("PolicyKit"));
+}
+
+#[test]
+fn tun_service_status_is_available_without_starting_the_tui() {
+    let dir = tempfile::tempdir().unwrap();
+    let output = binary()
+        .args([
+            "--tun-service",
+            "status",
+            "--data-dir",
+            dir.path().to_str().unwrap(),
+        ])
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+    assert_eq!(
+        String::from_utf8_lossy(&output.stdout).trim(),
+        "not-installed"
+    );
+}

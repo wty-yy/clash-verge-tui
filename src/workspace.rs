@@ -470,6 +470,12 @@ pub async fn execute(
             system_changed = true;
         }
         WorkspaceCommand::Settings(values) => {
+            if values.get("tun").is_some_and(|value| value == "开启")
+                && unsafe { libc::geteuid() } != 0
+                && !crate::service::tun_capable(&context.binary)
+            {
+                bail!("TUN 权限未安装；请从首页启用 TUN 并按提示安装权限服务");
+            }
             crate::network::apply(&mut snapshot.state.overrides, &values)?;
             network_fields = Some(values.clone());
             service_changed = values

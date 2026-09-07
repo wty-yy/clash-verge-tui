@@ -5,6 +5,28 @@ use serde_json::{json, Value};
 use std::{sync::mpsc, thread, time::Duration};
 use tokio::sync::{mpsc as async_mpsc, watch};
 use url::Url;
+use zeroize::Zeroize;
+
+#[derive(Clone)]
+pub struct SecretInput(String);
+impl SecretInput {
+    pub fn new(value: String) -> Self {
+        Self(value)
+    }
+    pub fn expose(&self) -> &str {
+        &self.0
+    }
+}
+impl std::fmt::Debug for SecretInput {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str("<redacted>")
+    }
+}
+impl Drop for SecretInput {
+    fn drop(&mut self) {
+        self.0.zeroize();
+    }
+}
 
 #[derive(Clone)]
 pub struct CoreClient {
@@ -31,6 +53,9 @@ pub enum Command {
         request: u64,
         url: String,
         proxy: Option<String>,
+    },
+    InstallTunService {
+        password: SecretInput,
     },
     Upgrade {
         kind: String,
@@ -70,6 +95,7 @@ pub enum CoreEvent {
         request: u64,
         result: Result<crate::subscriptions::FetchedProfile, String>,
     },
+    TunServiceInstalled(Result<(), String>),
     BackgroundNotice(String),
     Completed(Result<(), String>),
 }
@@ -208,6 +234,7 @@ impl CoreClient {
             | Command::Backup(_)
             | Command::Extra(_)
             | Command::ImportProfile { .. }
+            | Command::InstallTunService { .. }
             | Command::PollEvery(_) => bail!("工作区命令必须由后台工作线程处理"),
             Command::Upgrade { kind, channel } => {
                 let path = match kind.as_str() {
@@ -423,6 +450,11 @@ if ticks.is_multiple_of(3){let host=prefs.get("proxy_host").map(String::as_str).
                         let source=crate::subscriptions::Source{name:String::new(),url:url.clone(),proxy:proxy.clone()};
                         let result=tokio::select!{_=stopped.changed()=>break,result=crate::subscriptions::fetch(&source)=>result}.map_err(|error|error.to_string());
                         let _=events_tx.send(CoreEvent::ProfileImported{request:*request,result});
+                        continue;
+                    }
+                    if let Command::InstallTunService { password }=&command {
+                        let result=if let Some(context)=&workspace{tokio::select!{_=stopped.changed()=>break,result=crate::service::install_tun_service(&context.dir,password)=>result}}else{Err(anyhow!("TUN 权限服务需要自管工作区"))};
+                        let _=events_tx.send(CoreEvent::TunServiceInstalled(result.map_err(|error|error.to_string())));
                         continue;
                     }
                     if let Command::Extra(task)=command {let result=tokio::select!{_=stopped.changed()=>break,result=crate::extras::execute(task)=>result};match result{Ok(result)=>{let _=events_tx.send(CoreEvent::Extra(result));let _=events_tx.send(CoreEvent::Completed(Ok(())));},Err(error)=>{let _=events_tx.send(CoreEvent::Completed(Err(error.to_string())));}}continue;}

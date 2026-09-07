@@ -4,7 +4,7 @@ use clash_verge_tui::{
     app::App,
     core::{CoreClient, CoreEvent, Worker},
     core_manager,
-    live::ManagedSettings,
+    live::{LiveState, ManagedSettings},
     model::{DemoState, Page},
     storage,
     subscriptions::{self},
@@ -42,7 +42,7 @@ struct Args {
     /// 订阅清单 JSON 文件：[{"name":"...","url":"..."}]
     #[arg(long)]
     subscriptions_file: Option<PathBuf>,
-    /// 为订阅下载指定代理，例如 http://127.0.0.1:17897
+    /// 为订阅下载指定代理，例如 http://127.0.0.1:7890
     #[arg(long, requires = "subscriptions_file")]
     subscription_proxy: Option<String>,
     /// 只下载订阅，不启动内核；部分失败时返回非零状态
@@ -57,6 +57,13 @@ struct Args {
     /// 管理当前数据目录的 systemd 用户服务
     #[arg(long,value_parser=["install","start","stop","restart","status","uninstall"],conflicts_with_all=["demo","check","snapshot","import_only","daemon"])]
     service: Option<String>,
+    /// 安装、检查或卸载需要系统密码的 TUN 权限服务
+    #[arg(long,value_parser=["install","status","uninstall"],conflicts_with_all=["demo","check","snapshot","import_only","daemon","service"])]
+    tun_service: Option<String>,
+    #[arg(long, hide = true, value_parser=["install","apply","uninstall"])]
+    tun_helper: Option<String>,
+    #[arg(long, hide = true, requires = "tun_helper")]
+    tun_uid: Option<u32>,
     /// 自管内核的代理端口
     #[arg(long)]
     mixed_port: Option<u16>,
@@ -70,7 +77,7 @@ struct Args {
     #[arg(long)]
     data_dir: Option<PathBuf>,
     /// 导出某个页面的确定性快照，不读取或保存用户状态
-    #[arg(long,conflicts_with_all=["core","subscriptions_file","check","import_only"],value_parser=["home","proxies","profiles","profile-import","connections","rules","logs","unlock","settings"])]
+    #[arg(long,conflicts_with_all=["core","subscriptions_file","check","import_only"],value_parser=["home","proxies","profiles","profile-import","tun-password","connections","rules","logs","unlock","settings"])]
     snapshot: Option<String>,
     /// 快照输出路径；.svg 输出彩色 SVG，其他后缀输出文本
     #[arg(long, requires = "snapshot")]
@@ -103,6 +110,8 @@ fn main() -> Result<()> {
         && !args.import_only
         && !args.daemon
         && args.service.is_none()
+        && args.tun_service.is_none()
+        && args.tun_helper.is_none()
         && (!io::stdin().is_terminal() || !io::stdout().is_terminal())
     {
         bail!("交互界面需要终端；静态预览使用 --snapshot home，内核诊断使用 --check");
@@ -116,6 +125,34 @@ fn main() -> Result<()> {
     let runtime = tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()?;
+    if let Some(action) = &args.tun_helper {
+        clash_verge_tui::service::tun_helper(
+            action,
+            &dir,
+            args.tun_uid.context("TUN 权限助手缺少用户 ID")?,
+        )?;
+        return Ok(());
+    }
+    if let Some(action) = &args.tun_service {
+        match action.as_str() {
+            "install" => {
+                let source = runtime.block_on(core_manager::ensure(&dir, args.core.as_deref()))?;
+                subscriptions::prepare_binary(&source, &dir.join("core"))?;
+                runtime.block_on(clash_verge_tui::service::install_tun_service_cli(&dir))?;
+                println!("TUN permission service installed; restart the managed core before use");
+            }
+            "status" => {
+                let ready = clash_verge_tui::service::tun_capable(&dir.join("core/mihomo"));
+                println!("{}", if ready { "ready" } else { "not-installed" });
+            }
+            "uninstall" => {
+                runtime.block_on(clash_verge_tui::service::uninstall_tun_service(&dir))?;
+                println!("TUN permission service uninstalled");
+            }
+            _ => unreachable!(),
+        }
+        return Ok(());
+    }
     if let Some(action) = &args.service {
         if action == "install" {
             runtime.block_on(core_manager::ensure(&dir, args.core.as_deref()))?;
@@ -199,7 +236,7 @@ fn main() -> Result<()> {
             println!(
                 "{}",
                 serde_json::to_string_pretty(
-                    &serde_json::json!({"app_version":env!("CARGO_PKG_VERSION"),"expected_core":format!("v{}",core_manager::MIHOMO_VERSION),"version":snapshot.version,"proxy_entries":proxies.len(),"groups":proxies.values().filter(|p|p["all"].is_array()).count(),"rules":snapshot.rules["rules"].as_array().unwrap().len(),"connections":snapshot.connections["connections"].as_array().map(Vec::len).unwrap_or(0),"managed":true})
+                    &serde_json::json!({"app_version":env!("CARGO_PKG_VERSION"),"expected_core":format!("v{}",core_manager::MIHOMO_VERSION),"version":snapshot.version,"mixed_port":snapshot.config["mixed-port"],"proxy_entries":proxies.len(),"groups":proxies.values().filter(|p|p["all"].is_array()).count(),"rules":snapshot.rules["rules"].as_array().unwrap().len(),"connections":snapshot.connections["connections"].as_array().map(Vec::len).unwrap_or(0),"managed":true})
                 )?
             );
             return Ok(());
@@ -307,6 +344,16 @@ fn main() -> Result<()> {
                 }
             }
         }
+        if app.restart_core {
+            if let Err(error) =
+                restart_after_tun(&runtime, &args, &mut app, &mut worker, &mut managed_core)
+            {
+                app.restart_core = false;
+                app.tun_after_restart = None;
+                app.status = format!("TUN 权限已安装，但内核重启失败：{error}");
+            }
+            redraw = true;
+        }
         if let Some(worker) = &worker {
             let delay = app
                 .state
@@ -381,11 +428,66 @@ fn main() -> Result<()> {
     drop(managed_core);
     Ok(())
 }
+
+fn restart_after_tun(
+    runtime: &tokio::runtime::Runtime,
+    args: &Args,
+    app: &mut App,
+    worker: &mut Option<Worker>,
+    managed_core: &mut Option<subscriptions::ManagedCore>,
+) -> Result<()> {
+    let dir = app.data_dir.clone();
+    if managed_core.is_some() {
+        drop(worker.take());
+        drop(managed_core.take());
+        let source = runtime.block_on(core_manager::ensure(&dir, args.core.as_deref()))?;
+        let running = runtime.block_on(clash_verge_tui::service::open(
+            &dir,
+            &source,
+            args.mixed_port,
+            args.controller_port,
+            None,
+        ))?;
+        let context = running.context;
+        let endpoint = running.endpoint;
+        *worker = Some(Worker::spawn_with_workspace(
+            CoreClient::new(&endpoint, context.secret.clone())?,
+            Some(context.clone()),
+        )?);
+        *managed_core = running.child;
+        let live = app.live.as_mut().context("TUN 重启缺少真实内核状态")?;
+        live.endpoint = endpoint;
+        live.connected = false;
+        live.pending = false;
+        live.outbox.clear();
+        live.managed = Some(ManagedSettings {
+            controller: context.controller,
+            secret: context.secret,
+            port: context.port,
+            binary: context.binary,
+        });
+    } else if runtime.block_on(clash_verge_tui::service::status(&dir)) == "active" {
+        runtime.block_on(clash_verge_tui::service::action(&dir, "restart"))?;
+        runtime.block_on(clash_verge_tui::service::wait_ready(&dir))?;
+    } else {
+        bail!("找不到需要重启的自管内核或用户服务");
+    }
+    app.live
+        .as_mut()
+        .context("TUN 重启缺少真实内核状态")?
+        .tun_capable = true;
+    app.resume_tun_after_restart();
+    Ok(())
+}
+
 fn snapshot(args: &Args, page: &str) -> Result<()> {
     let mut app = App::new(DemoState::default(), PathBuf::from("<demo-state>"));
     if page == "profile-import" {
         app.navigate(Page::Profiles);
         app.command('a');
+    } else if page == "tun-password" {
+        app.live = Some(LiveState::new("unix://<managed>".into(), Vec::new(), None));
+        app.tun_password_form();
     } else {
         app.navigate(Page::ALL.into_iter().find(|p| p.slug() == page).unwrap());
     }

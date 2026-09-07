@@ -42,6 +42,7 @@ pub enum SaveTarget {
     Enhancement(Option<usize>),
     Rule(Option<usize>),
     ProfileContent(usize),
+    TunServicePassword,
 }
 #[derive(Clone, Debug)]
 pub enum Confirm {
@@ -51,6 +52,7 @@ pub enum Confirm {
     AllConnections,
     CoreConnection(String),
     CoreUpgrade,
+    TunService,
     LiveBackup(crate::backup::BackupCommand),
     Rule(usize),
     Logs,
@@ -313,6 +315,8 @@ pub struct App {
     pub(crate) profile_import_nonce: u64,
     pub(crate) profile_import_pending: Option<u64>,
     pub(crate) profile_import_url: Option<String>,
+    pub restart_core: bool,
+    pub tun_after_restart: Option<crate::workspace::WorkspaceCommand>,
     pending_click: Option<PendingClick>,
 }
 impl App {
@@ -343,6 +347,8 @@ impl App {
             profile_import_nonce: 0,
             profile_import_pending: None,
             profile_import_url: None,
+            restart_core: false,
+            tun_after_restart: None,
             pending_click: None,
         }
     }
@@ -387,7 +393,14 @@ impl App {
                 ),
                 row(
                     1,
-                    vec!["虚拟网卡 TUN".into(), self.state.value("tun").into()],
+                    vec![
+                        "虚拟网卡 TUN".into(),
+                        if self.live.as_ref().is_some_and(|live| !live.tun_capable) {
+                            format!("{} · 需权限服务", self.state.value("tun"))
+                        } else {
+                            self.state.value("tun").into()
+                        },
+                    ],
                 ),
                 row(
                     2,
@@ -396,9 +409,13 @@ impl App {
                         ["规则", "全局", "直连"][self.state.mode].into(),
                     ],
                 ),
-                row(3, vec!["当前订阅".into(), self.state.active_name().into()]),
-                row(4, vec!["运行配置".into(), "查看".into()]),
-                row(5, vec!["环境变量".into(), "查看".into()]),
+                row(
+                    3,
+                    vec!["混合代理端口".into(), self.state.value("mixed_port").into()],
+                ),
+                row(4, vec!["当前订阅".into(), self.state.active_name().into()]),
+                row(5, vec!["运行配置".into(), "查看".into()]),
+                row(6, vec!["环境变量".into(), "查看".into()]),
             ],
             Page::Proxies => self
                 .state
@@ -666,6 +683,34 @@ impl App {
             target,
         });
     }
+    pub fn mixed_port_form(&mut self) {
+        let section = settings::sections()
+            .iter()
+            .position(|section| section.name == "端口设置")
+            .expect("port settings section");
+        self.form(
+            "混合代理端口",
+            vec![Field::new(
+                "mixed_port",
+                "监听端口（1–65535）",
+                self.state.value("mixed_port"),
+                Kind::Number,
+            )],
+            SaveTarget::Settings(section),
+        );
+    }
+    pub fn tun_password_form(&mut self) {
+        self.form(
+            "安装 TUN 权限服务",
+            vec![Field::new(
+                "system_password",
+                "系统密码（仅用于本次 sudo 验证）",
+                "",
+                Kind::Secret,
+            )],
+            SaveTarget::TunServicePassword,
+        );
+    }
     pub fn confirm(&mut self, title: &str, body: &str, target: Confirm) {
         self.modal = Some(Modal::Confirm {
             title: title.into(),
@@ -884,7 +929,18 @@ impl App {
             Action::Submit => {
                 self.modal_key(KeyEvent::new(KeyCode::Char('s'), KeyModifiers::CONTROL))
             }
-            Action::Cancel => self.modal = None,
+            Action::Cancel => {
+                if matches!(
+                    &self.modal,
+                    Some(Modal::Confirm {
+                        target: Confirm::TunService,
+                        ..
+                    })
+                ) {
+                    self.tun_after_restart = None;
+                }
+                self.modal = None;
+            }
         }
     }
     pub fn paste(&mut self, text: &str) {
@@ -899,6 +955,15 @@ impl App {
     }
     fn modal_key(&mut self, key: KeyEvent) {
         if key.code == KeyCode::Esc {
+            if matches!(
+                &self.modal,
+                Some(Modal::Confirm {
+                    target: Confirm::TunService,
+                    ..
+                })
+            ) {
+                self.tun_after_restart = None;
+            }
             self.modal = None;
             return;
         }
@@ -954,7 +1019,22 @@ impl App {
             }
             return;
         }
-        let save = key.code == KeyCode::Char('s') && key.modifiers.contains(KeyModifiers::CONTROL);
+        let quick_apply = matches!(
+            &self.modal,
+            Some(Modal::Form { fields, .. })
+                if fields.len() == 1 && fields[0].key == "mixed_port"
+        );
+        let tun_password = matches!(
+            &self.modal,
+            Some(Modal::Form {
+                target: SaveTarget::TunServicePassword,
+                ..
+            })
+        );
+        let save = key.code == KeyCode::Char('s')
+            && (key.modifiers.contains(KeyModifiers::CONTROL)
+                || quick_apply && key.modifiers.is_empty())
+            || tun_password && key.code == KeyCode::Enter;
         if save && matches!(self.modal, Some(Modal::Form { .. })) {
             self.save_form();
             return;
@@ -1024,8 +1104,11 @@ impl App {
             },
         }
         if let Some(target) = confirm {
+            let opens_form = matches!(&target, Confirm::TunService);
             self.execute_confirm(target);
-            self.modal = None;
+            if !opens_form {
+                self.modal = None;
+            }
         }
         if import_profile {
             self.action(Action::ImportProfile);
@@ -1046,7 +1129,7 @@ impl App {
         }
         let Some(id) = self.selected_id() else { return };
         match self.page {
-            Page::Home=>match id {0=>{self.state.toggle("system_proxy");self.note("演示：系统代理状态已切换");},1=>{self.state.toggle("tun");self.note("演示：TUN 状态已切换");},2=>self.command('m'),3=>self.navigate(Page::Profiles),4=>self.runtime(),_=>self.environment()},
+            Page::Home=>match id {0=>{self.state.toggle("system_proxy");self.note("演示：系统代理状态已切换");},1=>{self.state.toggle("tun");self.note("演示：TUN 状态已切换");},2=>self.command('m'),3=>self.mixed_port_form(),4=>self.navigate(Page::Profiles),5=>self.runtime(),_=>self.environment()},
             Page::Proxies=>{self.state.groups[self.sub].selected=self.state.nodes[id].name.clone();if self.state.value("close_connections")=="开启" {self.state.connections.clear();}self.note(format!("演示：{} → {}",self.state.groups[self.sub].name,self.state.nodes[id].name));},
             Page::Profiles if self.sub==0=>{self.state.active_profile=id;self.note(format!("演示：已选择订阅 {}",self.state.profiles[id].name));},
             Page::Profiles=>{self.state.enhancements[id].enabled = !self.state.enhancements[id].enabled;self.note("演示：配置增强状态已切换");},
@@ -1403,7 +1486,10 @@ impl App {
             return;
         }
         match target {
-            Confirm::CoreConnection(_) | Confirm::LiveBackup(_) | Confirm::CoreUpgrade => return,
+            Confirm::CoreConnection(_)
+            | Confirm::LiveBackup(_)
+            | Confirm::CoreUpgrade
+            | Confirm::TunService => return,
             Confirm::Backup(i) => {
                 self.state.backups.remove(i);
             }
@@ -1500,6 +1586,22 @@ impl App {
             }
             return;
         }
+        if self.live.is_some() && matches!(target, SaveTarget::TunServicePassword) {
+            let password = if let Some(Modal::Form { fields, .. }) = &mut self.modal {
+                fields
+                    .iter_mut()
+                    .find(|field| field.key == "system_password")
+                    .map(|field| std::mem::take(&mut field.value))
+                    .unwrap_or_default()
+            } else {
+                String::new()
+            };
+            self.modal = None;
+            self.queue_core(crate::core::Command::InstallTunService {
+                password: crate::core::SecretInput::new(password),
+            });
+            return;
+        }
         let fields = fields.clone();
         let target = target.clone();
         if self.live.is_some() {
@@ -1573,6 +1675,7 @@ impl App {
                 }
             }
             SaveTarget::ProfileContent(i) => self.state.profiles[i].content = get("content"),
+            SaveTarget::TunServicePassword => return,
         }
         self.modal = None;
         self.note("已保存到本地演示状态 · 网络配置尚未应用到 mihomo");

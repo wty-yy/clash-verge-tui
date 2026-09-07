@@ -2,6 +2,9 @@ use anyhow::{anyhow, bail, Result};
 use serde_yaml_ng::{Mapping, Value};
 use std::collections::BTreeMap;
 
+pub const DEFAULT_MIXED_PORT: u16 = 7890;
+pub const DEFAULT_MIXED_PORT_TEXT: &str = "7890";
+
 fn set(map: &mut Mapping, path: &[&str], value: Value) {
     if path.len() == 1 {
         map.insert(path[0].into(), value);
@@ -261,11 +264,23 @@ pub async fn verify_tun(fields: &BTreeMap<String, String>, candidate: &Value) ->
     };
     let name = candidate["tun"]["device"].as_str().unwrap_or("Meta");
     let expected = value == "开启";
-    for _ in 0..20 {
+    for _ in 0..50 {
         if interface_exists(name).await? == expected {
             return Ok(());
         }
-        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
     }
-    bail!("TUN 网卡状态未达到预期；开启需要 CAP_NET_ADMIN，原配置将恢复")
+    let state = tokio::process::Command::new("ip")
+        .args(["-brief", "link", "show", "dev", name])
+        .output()
+        .await
+        .ok()
+        .filter(|output| output.status.success())
+        .map(|output| String::from_utf8_lossy(&output.stdout).trim().to_owned())
+        .filter(|output| !output.is_empty())
+        .unwrap_or_else(|| "不存在".into());
+    bail!(
+        "TUN 网卡未在 5 秒内{}（当前：{state}）；请检查权限服务和 core.log，原配置已恢复",
+        if expected { "创建" } else { "移除" }
+    )
 }

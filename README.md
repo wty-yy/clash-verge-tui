@@ -4,7 +4,7 @@
 
 A Linux terminal proxy client built with Rust, Ratatui, and mihomo. Its interface and feature mapping follow Clash Verge Rev v2.5.2.
 
-`v1.2.0` starts a self-managed workspace and the application-pinned mihomo v1.19.29 by default. Release archives contain both the TUI and the core. If only the TUI binary is copied, its first launch downloads and verifies the matching core from the official Mihomo release. The program no longer requires a separate Clash/mihomo instance.
+`v1.3.0` starts a self-managed workspace and the application-pinned mihomo v1.19.29 by default. Release archives contain both the TUI and the core. Home quick controls show and edit the current mixed proxy port, which defaults to `127.0.0.1:7890`.
 
 ![Interface preview](docs/previews/home.png)
 
@@ -69,13 +69,13 @@ clash-verge-tui --import-only --subscriptions-file ~/.config/clash-verge-tui/sou
 
 # Explicitly use an already-running proxy when a profile requires one for download
 clash-verge-tui --import-only --subscriptions-file ~/.config/clash-verge-tui/sources.json \
-  --subscription-proxy http://127.0.0.1:17897
+  --subscription-proxy http://127.0.0.1:7890
 
 # Select a downloaded profile at startup; numbering starts at 1
 clash-verge-tui --profile 1
 ```
 
-The mixed proxy defaults to `127.0.0.1:17897`; internal control uses a private Unix socket. Use `--mixed-port` and `--controller-port` to adjust ports. A controller secret is generated automatically. Listener addresses, TUN, external controller settings, and provider paths from subscriptions are replaced by workspace-owned settings. System proxy is off by default and must be enabled explicitly in Settings.
+The mixed proxy defaults to `127.0.0.1:7890`; internal control uses a private Unix socket. Home → Quick controls shows the active mixed port; press `Enter` or double-click to edit it. `--mixed-port` can also override the first-start port. A controller secret is generated automatically. Listener addresses, TUN, external controller settings, and provider paths from subscriptions are replaced by workspace-owned settings. System proxy is off by default and must be enabled explicitly in Settings.
 
 The Profiles page supports CRUD, ordering, remote updates, usage and expiry details, YAML editing, and scheduled refresh. Enhancements apply ordered YAML overrides and JavaScript `main(config)` functions. A separate mihomo process validates each composed configuration before it replaces the running one. JavaScript enhancements require Node.js 18+.
 
@@ -107,9 +107,13 @@ clash-verge-tui
 clash-verge-tui --service stop
 clash-verge-tui --service uninstall
 
-# Grant the workspace core capabilities when TUN is needed
-sudo setcap cap_net_admin,cap_net_bind_service+ep \
-  "${XDG_STATE_HOME:-$HOME/.local/state}/clash-verge-tui/core/mihomo"
+# The first TUN enable prompts for the system password and installs the helper service
+# It can also be installed or inspected from a normal terminal
+clash-verge-tui --tun-service install
+clash-verge-tui --tun-service status
+
+# Remove the capability watcher when TUN is no longer needed
+clash-verge-tui --tun-service uninstall
 ```
 
 | Key | Action |
@@ -123,12 +127,15 @@ sudo setcap cap_net_admin,cap_net_bind_service+ep \
 | `d` / `D` | Close the selected / all connections |
 | `p` / `c` | Pause logs / clear the UI log buffer |
 | `Ctrl+S`, `Ctrl+U` | Save a form / clear a field |
+| `s` | Save and immediately apply the Home mixed-port form |
 | `:`, `?`, `t` | Page palette, help, theme switch |
 | `q` / `Ctrl+C` | Quit |
 
 A single click selects an ordinary row. A second click on the same row within 400 ms acts as `Enter`. The Home profile-management button takes focus on the first click and opens on a later click. `Enter` inserts a newline in multiline forms, where Vim letters remain normal text.
 
-System proxy integration supports GNOME manual/PAC modes, restoration, and a guard. TUN needs `CAP_NET_ADMIN`. Backups support 10-file retention, local restore, optional scrypt + AES-256-GCM encryption, and WebDAV. Website checks report reachability and exit region, not account or paid-content entitlement.
+System proxy integration supports GNOME manual/PAC modes, restoration, and a guard. The first TUN enable opens a masked password form inside the TUI. The password is sent only to `sudo -S` over standard input and never enters arguments, configuration, or logs. Authorization installs a systemd path service scoped to the user and workspace; it verifies the official core and maintains only `CAP_NET_ADMIN` / `CAP_NET_BIND_SERVICE`. Debian/Ubuntu needs `sudo`, systemd, and `libcap2-bin`. Backups support retention, optional encryption, and WebDAV.
+
+![TUN system password form](docs/previews/tun-password.svg)
 
 ## Implementation and releases
 

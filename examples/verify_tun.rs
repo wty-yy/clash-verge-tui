@@ -28,6 +28,8 @@ async fn main() -> Result<()> {
         &dir.path().join("profiles/index.json"),
         &serde_json::to_vec(&vec![profile.clone()])?,
     )?;
+    std::fs::create_dir_all(dir.path().join("core/ui"))?;
+    subscriptions::private_write(&dir.path().join("core/ui/index.html"), b"test")?;
     let mut core = ManagedCore::start(&binary, &dir.path().join("core"), &profile, 17897, 19097)?;
     let client = CoreClient::new(&core.controller, core.secret.clone())?;
     core.wait_ready(&client).await?;

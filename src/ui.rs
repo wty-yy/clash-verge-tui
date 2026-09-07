@@ -1181,6 +1181,8 @@ fn modal(f: &mut Frame, app: &mut App, area: Rect, p: Palette) {
             error,
             target,
         } => {
+            let quick_apply = fields.len() == 1 && fields[0].key == "mixed_port";
+            let tun_password = matches!(&target, SaveTarget::TunServicePassword);
             f.render_widget(
                 block(
                     format!(
@@ -1223,9 +1225,16 @@ fn modal(f: &mut Frame, app: &mut App, area: Rect, p: Palette) {
                 f,
                 line_area(inner, 0, 1),
                 format!(
-                    "字段 {}/{}    Tab 切换 · Ctrl+U 清空 · Ctrl+S 保存",
+                    "字段 {}/{}    Tab 切换 · Ctrl+U 清空 · {}",
                     active + 1,
-                    fields.len()
+                    fields.len(),
+                    if tun_password {
+                        "Enter 安装服务"
+                    } else if quick_apply {
+                        "s 保存并应用"
+                    } else {
+                        "Ctrl+S 保存"
+                    }
                 ),
                 p.muted,
             );
@@ -1331,6 +1340,10 @@ fn modal(f: &mut Frame, app: &mut App, area: Rect, p: Palette) {
             let hint = if error.is_empty() {
                 if matches!(&target, SaveTarget::Profile(_)) {
                     "订阅链接按 Enter 或点击导入；确认配置后 Ctrl+S 保存".into()
+                } else if tun_password {
+                    "密码仅通过管道交给 sudo，不写入参数、配置或日志；Esc 取消".into()
+                } else if quick_apply {
+                    "端口通过占用检查和 mihomo 校验后立即应用；Esc 取消".into()
                 } else if app.live.is_some() {
                     "网络参数发送至内核；Esc 取消未保存修改".into()
                 } else {
@@ -1349,7 +1362,13 @@ fn modal(f: &mut Frame, app: &mut App, area: Rect, p: Palette) {
                 f,
                 app,
                 Rect::new(inner.x, inner.bottom() - 1, 19, 1),
-                "Ctrl+S 保存",
+                if tun_password {
+                    "Enter 安装服务"
+                } else if quick_apply {
+                    "s 保存并应用"
+                } else {
+                    "Ctrl+S 保存"
+                },
                 Action::Submit,
                 p,
                 true,

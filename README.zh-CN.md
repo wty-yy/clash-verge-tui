@@ -4,7 +4,7 @@
 
 基于 Rust、Ratatui 和 mihomo 的 Linux 终端代理客户端，界面与功能映射参考 Clash Verge Rev v2.5.2。
 
-`v1.2.0` 默认启动自管工作区和随应用固定的 mihomo v1.19.29。发行包同时包含 TUI 与内核；仅复制程序二进制时，首次启动也会从 Mihomo 官方 Release 下载并校验对应内核。程序不再要求连接另一个 Clash/mihomo 实例。
+`v1.3.0` 默认启动自管工作区和随应用固定的 mihomo v1.19.29。发行包同时包含 TUI 与内核；仅复制程序二进制时，首次启动也会从 Mihomo 官方 Release 下载并校验对应内核。首页快捷控制显示并可修改当前混合代理端口，默认监听 `127.0.0.1:7890`。
 
 ![界面预览](docs/previews/home.png)
 
@@ -69,13 +69,13 @@ clash-verge-tui --import-only --subscriptions-file ~/.config/clash-verge-tui/sou
 
 # 订阅需要已有代理时显式指定下载代理
 clash-verge-tui --import-only --subscriptions-file ~/.config/clash-verge-tui/sources.json \
-  --subscription-proxy http://127.0.0.1:17897
+  --subscription-proxy http://127.0.0.1:7890
 
 # 启动时选择已下载订阅，编号从 1 开始
 clash-verge-tui --profile 1
 ```
 
-默认混合代理端口为 `127.0.0.1:17897`，内部控制使用私有 Unix socket；可用 `--mixed-port` 与 `--controller-port` 调整。控制器密钥自动生成。订阅带入的监听地址、TUN、外部控制器和 provider 文件路径会被工作区配置覆盖；系统代理默认关闭，只能在设置页显式开启。
+默认混合代理端口为 `127.0.0.1:7890`，内部控制使用私有 Unix socket。首页“快捷控制”中的“混合代理端口”显示当前值，按 `Enter` 或双击可编辑；启动参数 `--mixed-port` 也可覆盖首次启动端口。控制器密钥自动生成。订阅带入的监听地址、TUN、外部控制器和 provider 文件路径会被工作区配置覆盖；系统代理默认关闭，只能在设置页显式开启。
 
 订阅页支持增删改、排序、远程更新、用量与到期信息、YAML 编辑和定时更新。配置增强支持按顺序执行 YAML 覆写与 JavaScript `main(config)`，新配置经独立 mihomo 进程校验后才会替换运行配置。JavaScript 增强需要 Node.js 18+。
 
@@ -107,9 +107,13 @@ clash-verge-tui
 clash-verge-tui --service stop
 clash-verge-tui --service uninstall
 
-# 需要 TUN 时，由管理员向工作区内核授予能力
-sudo setcap cap_net_admin,cap_net_bind_service+ep \
-  "${XDG_STATE_HOME:-$HOME/.local/state}/clash-verge-tui/core/mihomo"
+# 首次开启 TUN 时界面会提示系统密码并自动安装权限服务
+# 也可在普通终端中手动触发或检查
+clash-verge-tui --tun-service install
+clash-verge-tui --tun-service status
+
+# 不再使用 TUN 时卸载权限监视服务
+clash-verge-tui --tun-service uninstall
 ```
 
 | 按键 | 操作 |
@@ -123,12 +127,15 @@ sudo setcap cap_net_admin,cap_net_bind_service+ep \
 | `d` / `D` | 关闭选中 / 全部连接 |
 | `p` / `c` | 暂停日志 / 清空界面日志 |
 | `Ctrl+S`、`Ctrl+U` | 保存表单、清空字段 |
+| `s` | 在首页混合代理端口表单中保存并立即应用 |
 | `:`、`?`、`t` | 页面跳转、帮助、主题切换 |
 | `q` / `Ctrl+C` | 退出 |
 
 普通列表单击只选择，400 毫秒内双击同一条目等同 `Enter`。首页“进入订阅管理”第一次点击只聚焦，再点击进入。多行表单中 `Enter` 换行，Vim 字母作为普通输入。
 
-系统代理支持 GNOME 手动/PAC 模式、原设置恢复和守卫。TUN 需要 `CAP_NET_ADMIN`。备份支持最近 10 份、本地恢复、可选 scrypt + AES-256-GCM 加密和 WebDAV。网页检测表示页面可达性与出口地区，不代表账号或付费内容授权。
+系统代理支持 GNOME 手动/PAC 模式、原设置恢复和守卫。TUN 首次开启在 TUI 内显示遮罩密码框，密码只通过标准输入交给 `sudo -S`，不进入命令参数、配置或日志；授权后安装按用户和工作区隔离的 systemd 路径服务。该服务只验证官方内核并维护 `CAP_NET_ADMIN` / `CAP_NET_BIND_SERVICE`，内核替换后自动重新授权。Debian/Ubuntu 需要 `sudo`、systemd 和 `libcap2-bin`。备份支持最近 10 份、本地恢复、可选加密和 WebDAV。
+
+![TUN 系统密码弹窗](docs/previews/tun-password.svg)
 
 ## 实现与发布
 

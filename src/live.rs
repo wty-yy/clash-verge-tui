@@ -47,6 +47,7 @@ pub struct LiveState {
     pub workspace: crate::workspace::WorkspaceState,
     pub backups: Vec<crate::backup::BackupMeta>,
     pub backups_remote: bool,
+    pub tun_capable: bool,
 }
 impl LiveState {
     pub fn new(
@@ -54,6 +55,9 @@ impl LiveState {
         profiles: Vec<StoredProfile>,
         managed: Option<ManagedSettings>,
     ) -> Self {
+        let tun_capable = managed
+            .as_ref()
+            .is_some_and(|settings| crate::service::tun_capable(&settings.binary));
         Self {
             endpoint,
             connected: false,
@@ -82,6 +86,7 @@ impl LiveState {
             workspace: crate::workspace::WorkspaceState::default(),
             backups: Vec::new(),
             backups_remote: false,
+            tun_capable,
         }
     }
 }
@@ -304,6 +309,19 @@ impl App {
                     }
                 }
             }
+            CoreEvent::TunServiceInstalled(result) => {
+                self.live.as_mut().unwrap().pending = false;
+                match result {
+                    Ok(()) => {
+                        self.restart_core = true;
+                        self.status = "TUN 权限服务已安装，正在重启自管内核…".into();
+                    }
+                    Err(error) => {
+                        self.tun_after_restart = None;
+                        self.status = format!("TUN 权限服务安装失败：{error}");
+                    }
+                }
+            }
             CoreEvent::Workspace(snapshot) => self.apply_workspace(*snapshot),
             CoreEvent::Snapshot(snapshot) => self.apply_snapshot(*snapshot),
             CoreEvent::Offline(error) => {
@@ -384,7 +402,28 @@ impl App {
             self.status = "此操作需要自管内核工作区".into();
             return;
         }
+        let needs_tun_service = matches!(
+            &command,
+            crate::workspace::WorkspaceCommand::Settings(values)
+                if values.get("tun").is_some_and(|value| value == "开启")
+                    && self.live.as_ref().is_some_and(|live| !live.tun_capable)
+        );
+        if needs_tun_service {
+            self.tun_after_restart = Some(command);
+            self.confirm(
+                "安装 TUN 权限服务",
+                "TUN 需要 CAP_NET_ADMIN。确认后系统会提示输入管理员密码，安装仅维护当前工作区内核能力的 systemd 服务；完成后自动重启内核并继续开启 TUN。",
+                Confirm::TunService,
+            );
+            return;
+        }
         self.queue_core(Command::Workspace(command));
+    }
+    pub fn resume_tun_after_restart(&mut self) {
+        self.restart_core = false;
+        if let Some(command) = self.tun_after_restart.take() {
+            self.queue_core(Command::Workspace(command));
+        }
     }
     pub fn handle_log(&mut self, event: LogEvent) {
         match event {
@@ -609,6 +648,7 @@ impl App {
                 Command::Backup(_)
                     | Command::Extra(_)
                     | Command::ImportProfile { .. }
+                    | Command::InstallTunService { .. }
                     | Command::Workspace(crate::workspace::WorkspaceCommand::Read)
             )
         {
@@ -712,8 +752,9 @@ impl App {
                 2 => {
                     self.command_live('m');
                 }
-                3 => self.navigate(Page::Profiles),
-                4 => self.runtime_live(),
+                3 => self.mixed_port_form(),
+                4 => self.navigate(Page::Profiles),
+                5 => self.runtime_live(),
                 _ => {
                     if let Some(proxy) = self.proxy_url() {
                         let command = match self.state.value("env_type") {
@@ -1194,7 +1235,15 @@ impl App {
             );
         }
     }
-    pub fn validate_live_form(&self, fields: &[Field], _: &SaveTarget) -> Result<(), String> {
+    pub fn validate_live_form(&self, fields: &[Field], target: &SaveTarget) -> Result<(), String> {
+        if matches!(target, SaveTarget::TunServicePassword)
+            && fields
+                .iter()
+                .find(|field| field.key == "system_password")
+                .is_none_or(|field| field.value.is_empty())
+        {
+            return Err("请输入系统密码".into());
+        }
         for f in fields {
             if f.key == "name" && f.value.trim().is_empty() {
                 return Err("名称不能为空".into());
@@ -1204,6 +1253,12 @@ impl App {
                     .value
                     .parse::<u64>()
                     .map_err(|_| format!("{}需要非负整数", f.label))?;
+                if f.key.ends_with("_port") && n > u64::from(u16::MAX) {
+                    return Err(format!("{}不能大于 65535", f.label));
+                }
+                if f.key == "mixed_port" && n == 0 {
+                    return Err("混合代理端口应在 1–65535".into());
+                }
                 if f.key == "refresh" && n < 100 {
                     return Err("刷新间隔不能小于 100 毫秒".into());
                 }
@@ -1338,6 +1393,7 @@ impl App {
                     crate::core_manager::MIHOMO_VERSION
                 )
             }
+            Confirm::TunService => self.tun_password_form(),
             Confirm::LiveBackup(command) => self.queue_core(Command::Backup(command.clone())),
             Confirm::Profile(i) => {
                 self.workspace_command(crate::workspace::WorkspaceCommand::Delete(*i))

@@ -3,7 +3,7 @@ mod fixtures;
 use clash_verge_tui::{
     app::{Action, App, Field, Modal, SaveTarget},
     core::{Command, CoreEvent, Snapshot},
-    live::LiveState,
+    live::{LiveState, ManagedSettings},
     model::*,
     settings::Kind,
     subscriptions::FetchedProfile,
@@ -239,4 +239,78 @@ fn invalid_profile_link_stays_in_the_form_without_queuing_a_request() {
     app.action(Action::ImportProfile);
     assert_eq!(app.live.as_ref().unwrap().outbox.len(), before);
     assert!(matches!(&app.modal, Some(Modal::Form { error, .. }) if error.contains("HTTP(S)")));
+}
+
+#[test]
+fn live_home_port_form_applies_with_plain_s_and_tun_requests_privilege_setup() {
+    let mut app = app();
+    app.live.as_mut().unwrap().managed = Some(ManagedSettings {
+        controller: "127.0.0.1:9090".into(),
+        secret: String::new(),
+        port: 7890,
+        binary: "/bin/true".into(),
+    });
+    app.selected = 3;
+    app.activate();
+    let Modal::Form { fields, .. } = app.modal.as_mut().unwrap() else {
+        panic!("expected mixed port form")
+    };
+    fields[0].value = "7891".into();
+    fields[0].cursor = 4;
+    app.key(crossterm::event::KeyEvent::new(
+        crossterm::event::KeyCode::Char('s'),
+        crossterm::event::KeyModifiers::NONE,
+    ));
+    assert!(matches!(
+        app.live.as_ref().unwrap().outbox.last(),
+        Some(Command::Workspace(clash_verge_tui::workspace::WorkspaceCommand::Settings(values)))
+            if values.get("mixed_port").is_some_and(|value| value == "7891")
+    ));
+
+    app.handle_core(CoreEvent::Completed(Ok(())));
+    app.selected = 1;
+    app.activate();
+    assert!(matches!(
+        app.modal,
+        Some(Modal::Confirm {
+            target: clash_verge_tui::app::Confirm::TunService,
+            ..
+        })
+    ));
+    app.key(crossterm::event::KeyEvent::new(
+        crossterm::event::KeyCode::Enter,
+        crossterm::event::KeyModifiers::NONE,
+    ));
+    let Modal::Form { fields, target, .. } = app.modal.as_mut().unwrap() else {
+        panic!("expected in-TUI password form")
+    };
+    assert!(matches!(target, SaveTarget::TunServicePassword));
+    fields[0].value = "fixture-password".into();
+    fields[0].cursor = fields[0].value.len();
+    let mut terminal = Terminal::new(TestBackend::new(120, 40)).unwrap();
+    terminal.draw(|frame| ui::draw(frame, &mut app)).unwrap();
+    let mut screen = String::new();
+    for cell in terminal.backend().buffer().content() {
+        screen.push_str(cell.symbol());
+    }
+    assert!(!screen.contains("fixture-password"));
+    assert!(screen.contains("••••"));
+    app.key(crossterm::event::KeyEvent::new(
+        crossterm::event::KeyCode::Enter,
+        crossterm::event::KeyModifiers::NONE,
+    ));
+    assert!(matches!(
+        app.live.as_ref().unwrap().outbox.last(),
+        Some(Command::InstallTunService { password })
+            if password.expose() == "fixture-password"
+    ));
+    assert!(!format!("{:?}", app.live.as_ref().unwrap().outbox.last()).contains("fixture-password"));
+    app.handle_core(CoreEvent::TunServiceInstalled(Ok(())));
+    assert!(app.restart_core);
+    app.resume_tun_after_restart();
+    assert!(matches!(
+        app.live.as_ref().unwrap().outbox.last(),
+        Some(Command::Workspace(clash_verge_tui::workspace::WorkspaceCommand::Settings(values)))
+            if values.get("tun").is_some_and(|value| value == "开启")
+    ));
 }
