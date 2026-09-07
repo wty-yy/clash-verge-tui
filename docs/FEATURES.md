@@ -2,9 +2,9 @@
 
 参照：Clash Verge Rev `v2.5.2`，提交 `28f2efc`。页面来源：`src/pages/_navigation.tsx`；设置来源：`src/components/setting` 与 `src/locales/zh/settings.json`。
 
-`v0.1.0` 只交付终端界面与本地交互；`v1.3.2` 默认使用应用自管工作区与固定内核运行真实功能。
+`v0.1.0` 只交付终端界面与本地交互；`v1.3.3` 默认使用应用自管工作区与固定内核运行真实功能。
 
-## v1.3.2 当前功能
+## v1.3.3 当前功能
 
 | 模块 | 真实能力 |
 | --- | --- |

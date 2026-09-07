@@ -145,3 +145,12 @@
 - 验证空名称按订阅标题、附件文件名、配置名称、来源域名和 IP 通用名称的顺序补全，同时保留用户已输入名称。
 - `cargo fmt --check`、Clippy 严格警告、完整测试和 release 构建通过；重新生成 v1.3.2 订阅导入 SVG 快照。
 - 生成 v1.3.2 x86_64 应用/内核组合包，在隔离目录通过 `install.sh` 安装；已安装程序以独立端口完成 Mihomo v1.19.29 `--check`，退出后端口释放且无残留进程。
+
+## v1.3.3 TUN 权限服务安装修复 · 2026-09-07
+
+- 检查本机失败残留确认 sudo 已完成：root helper 与 systemd 单元已经写入；`.path` 为 `bad-setting`，日志显示带引号的 `PathChanged` 被视为非绝对路径。
+- 服务日志同时显示 helper 读取私有 `0700` 内核时返回 `Permission denied`；能力边界补充 `CAP_DAC_READ_SEARCH` 与 `CAP_FOWNER`，仍只用 `CAP_SETFCAP` 修改文件能力。
+- 新增 systemd 路径转义、生成单元验证、sudo 密码/策略/helper 错误分类回归；生成的含空格工作区单元通过本机 `systemd-analyze verify`。
+- 77 项自动化测试以及格式、Clippy 严格警告和 release 构建通过；重新生成 v1.3.3 TUN 密码弹窗 SVG 快照。
+- 生成 v1.3.3 x86_64 应用/内核组合包，在隔离目录通过 `install.sh` 安装，并以独立端口完成 Mihomo v1.19.29 `--check`。
+- 验证未读取、使用或记录真实系统密码；发布安装后由用户在 TUI 密码框重新执行一次修复后的授权流程。

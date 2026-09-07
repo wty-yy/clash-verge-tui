@@ -45,14 +45,21 @@ pub fn tun_capable(binary: &Path) -> bool {
 
 pub fn tun_units(app: &Path, dir: &Path, uid: u32) -> Result<(String, String)> {
     for value in [app, dir] {
-        if !value.is_absolute() || value.as_os_str().as_encoded_bytes().contains(&b'\n') {
+        if !value.is_absolute()
+            || value
+                .as_os_str()
+                .as_encoded_bytes()
+                .iter()
+                .any(|byte| matches!(byte, b'\0' | b'\n' | b'\r'))
+        {
             bail!("TUN 服务路径必须为不含换行的绝对路径");
         }
     }
     let base = tun_base_name(dir, uid);
-    let core = quote(&dir.join("core/mihomo").to_string_lossy());
+    let core_path = dir.join("core/mihomo");
+    let core = quote(&core_path.to_string_lossy());
     let service = format!(
-        "# Managed by clash-verge-tui\n[Unit]\nDescription=Maintain Clash Verge TUI core capabilities\n\n[Service]\nType=oneshot\nExecStart={} --tun-helper apply --tun-uid {} --data-dir {}\nCapabilityBoundingSet=CAP_SETFCAP\nNoNewPrivileges=true\nProtectSystem=strict\nProtectHome=read-only\nReadWritePaths={}\nRestrictAddressFamilies=AF_UNIX\n",
+        "# Managed by clash-verge-tui\n[Unit]\nDescription=Maintain Clash Verge TUI core capabilities\n\n[Service]\nType=oneshot\nExecStart={} --tun-helper apply --tun-uid {} --data-dir {}\nCapabilityBoundingSet=CAP_SETFCAP CAP_DAC_READ_SEARCH CAP_FOWNER\nNoNewPrivileges=true\nProtectSystem=strict\nProtectHome=read-only\nReadWritePaths={}\nRestrictAddressFamilies=AF_UNIX\n",
         quote(&app.to_string_lossy()),
         uid,
         quote(&dir.to_string_lossy()),
@@ -60,7 +67,7 @@ pub fn tun_units(app: &Path, dir: &Path, uid: u32) -> Result<(String, String)> {
     );
     let path = format!(
         "# Managed by clash-verge-tui\n[Unit]\nDescription=Watch Clash Verge TUI core for capability updates\n\n[Path]\nPathChanged={}\nUnit={base}.service\n\n[Install]\nWantedBy=multi-user.target\n",
-        core
+        path_directive(&core_path.to_string_lossy())
     );
     Ok((service, path))
 }
@@ -73,6 +80,21 @@ fn quote(value: &str) -> String {
             .replace('%', "%%")
             .replace('$', "$$")
     )
+}
+fn path_directive(value: &str) -> String {
+    let mut escaped = String::with_capacity(value.len());
+    for character in value.chars() {
+        match character {
+            ' ' => escaped.push_str("\\x20"),
+            '\t' => escaped.push_str("\\x09"),
+            '\\' => escaped.push_str("\\x5c"),
+            '"' => escaped.push_str("\\x22"),
+            '\'' => escaped.push_str("\\x27"),
+            '%' => escaped.push_str("%%"),
+            _ => escaped.push(character),
+        }
+    }
+    escaped
 }
 pub fn unit(app: &Path, dir: &Path, environment: &BTreeMap<String, String>) -> Result<String> {
     for value in [app, dir] {
@@ -511,6 +533,7 @@ pub fn tun_helper(action: &str, dir: &Path, uid: u32) -> Result<()> {
             root_write(&service_path, service.as_bytes(), 0o644)?;
             root_write(&watch_path, path.as_bytes(), 0o644)?;
             root_systemctl(&["daemon-reload"])?;
+            apply_tun_capability(&dir, uid)?;
             root_systemctl(&["enable", "--now", &format!("{base}.path")])?;
             root_systemctl(&["start", &format!("{base}.service")])?;
             Ok(())
@@ -579,7 +602,8 @@ async fn tun_helper_request(
         command
             .stdin(Stdio::piped())
             .stdout(Stdio::null())
-            .stderr(Stdio::null());
+            .stderr(Stdio::piped())
+            .env("LC_ALL", "C");
     }
     let mut child = command.spawn().context("无法启动 sudo")?;
     if let Some(password) = password {
@@ -593,13 +617,55 @@ async fn tun_helper_request(
         result?;
         stdin.shutdown().await?;
     }
-    let status = tokio::time::timeout(Duration::from_secs(180), child.wait())
-        .await
-        .map_err(|_| anyhow!("系统密码授权超时"))??;
-    if !status.success() {
-        bail!("TUN 权限服务安装已取消或系统密码不正确");
+    if password.is_some() {
+        let output = tokio::time::timeout(Duration::from_secs(180), child.wait_with_output())
+            .await
+            .map_err(|_| anyhow!("系统密码授权超时"))??;
+        if !output.status.success() {
+            bail!(tun_helper_failure(&String::from_utf8_lossy(&output.stderr)));
+        }
+    } else {
+        let status = tokio::time::timeout(Duration::from_secs(180), child.wait())
+            .await
+            .map_err(|_| anyhow!("sudo 授权超时"))??;
+        if !status.success() {
+            bail!("sudo 或 TUN 权限助手执行失败");
+        }
     }
     Ok(())
+}
+
+fn tun_helper_failure(stderr: &str) -> String {
+    let lower = stderr.to_ascii_lowercase();
+    if lower.contains("sorry, try again")
+        || lower.contains("incorrect password")
+        || lower.contains("authentication failure")
+    {
+        return "系统密码验证失败，请重新输入".into();
+    }
+    if lower.contains("not in the sudoers")
+        || lower.contains("not allowed to execute")
+        || lower.contains("may not run sudo")
+    {
+        return "当前用户没有执行 TUN 权限助手所需的 sudo 授权".into();
+    }
+    let line = stderr
+        .lines()
+        .rev()
+        .map(str::trim)
+        .find(|line| !line.is_empty())
+        .unwrap_or("sudo 或 TUN 权限助手执行失败");
+    let detail = line.strip_prefix("Error: ").unwrap_or(line);
+    let detail: String = detail
+        .chars()
+        .filter(|character| !character.is_control())
+        .take(180)
+        .collect();
+    if detail.is_empty() {
+        "sudo 或 TUN 权限助手执行失败".into()
+    } else {
+        detail
+    }
 }
 
 pub async fn install_tun_service(dir: &Path, password: &crate::core::SecretInput) -> Result<()> {
@@ -626,7 +692,7 @@ pub async fn uninstall_tun_service(dir: &Path) -> Result<()> {
 
 #[cfg(test)]
 mod tun_tests {
-    use super::tun_capability_output;
+    use super::{path_directive, tun_capability_output, tun_helper_failure};
 
     #[test]
     fn parses_libcap_getcap_output() {
@@ -635,5 +701,21 @@ mod tun_tests {
         ));
         assert!(tun_capability_output("/tmp/mihomo cap_net_admin+ep"));
         assert!(!tun_capability_output("/usr/bin/ping cap_net_raw=ep"));
+    }
+
+    #[test]
+    fn systemd_paths_and_sudo_errors_are_actionable() {
+        assert_eq!(
+            path_directive("/home/user/work space/100%/'core'/\"mihomo\""),
+            "/home/user/work\\x20space/100%%/\\x27core\\x27/\\x22mihomo\\x22"
+        );
+        assert_eq!(
+            tun_helper_failure("sudo: 1 incorrect password attempt\n"),
+            "系统密码验证失败，请重新输入"
+        );
+        assert_eq!(
+            tun_helper_failure("Error: systemd TUN 权限服务操作失败\n"),
+            "systemd TUN 权限服务操作失败"
+        );
     }
 }

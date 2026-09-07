@@ -4,7 +4,7 @@
 
 基于 Rust、Ratatui 和 mihomo 的 Linux 终端代理客户端，界面与功能映射参考 Clash Verge Rev v2.5.2。
 
-`v1.3.2` 默认启动自管工作区和随应用固定的 mihomo v1.19.29。发行包同时包含 TUI 与内核；仅复制程序二进制时，首次启动也会从 Mihomo 官方 Release 下载并校验对应内核。首页快捷控制显示并可修改当前混合代理端口，默认监听 `127.0.0.1:7890`。
+`v1.3.3` 默认启动自管工作区和随应用固定的 mihomo v1.19.29。发行包同时包含 TUI 与内核；仅复制程序二进制时，首次启动也会从 Mihomo 官方 Release 下载并校验对应内核。首页快捷控制显示并可修改当前混合代理端口，默认监听 `127.0.0.1:7890`。
 
 ![界面预览](docs/previews/home.png)
 
@@ -133,7 +133,7 @@ clash-verge-tui --tun-service uninstall
 
 普通列表单击只选择，400 毫秒内双击同一条目等同 `Enter`。首页“进入订阅管理”第一次点击只聚焦，再点击进入。多行表单中 `Enter` 换行，Vim 字母作为普通输入。
 
-系统代理支持 GNOME 手动/PAC 模式、原设置恢复和守卫。TUN 首次开启在 TUI 内显示遮罩密码框，密码只通过标准输入交给 `sudo -S`，不进入命令参数、配置或日志；授权后安装按用户和工作区隔离的 systemd 路径服务。该服务只验证官方内核并维护 `CAP_NET_ADMIN` / `CAP_NET_BIND_SERVICE`，内核替换后自动重新授权。Debian/Ubuntu 需要 `sudo`、systemd 和 `libcap2-bin`。备份支持最近 10 份、本地恢复、可选加密和 WebDAV。
+系统代理支持 GNOME 手动/PAC 模式、原设置恢复和守卫。TUN 首次开启在 TUI 内显示遮罩密码框，密码只通过标准输入交给 `sudo -S`，不进入命令参数、配置或日志；授权后先为当前内核设置能力，再安装按用户和工作区隔离的 systemd 路径服务。该服务只验证官方内核并维护 `CAP_NET_ADMIN` / `CAP_NET_BIND_SERVICE`，内核替换后自动重新授权；sudo 或 systemd 失败会在 TUI 中显示具体原因。Debian/Ubuntu 需要 `sudo`、systemd 和 `libcap2-bin`。备份支持最近 10 份、本地恢复、可选加密和 WebDAV。
 
 ![TUN 系统密码弹窗](docs/previews/tun-password.svg)
 

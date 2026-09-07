@@ -6,6 +6,15 @@
 
 See the [feature mapping](docs/FEATURES.md) for planned work.
 
+## v1.3.3 · 2026-09-07
+
+### Fix TUN permission service installation
+
+- Keep `PathChanged` absolute after systemd escaping instead of quoting it into a `bad-setting` path unit.
+- Give the capability watcher the minimal read and file-owner capabilities required to verify and update a private `0700` user-owned core.
+- Apply TUN capabilities directly after sudo succeeds, then enable the watcher for later core replacements.
+- Capture and sanitize sudo/helper errors so the TUI distinguishes a bad password, sudo policy denial, and systemd/helper failures.
+
 ## v1.3.2 · 2026-09-07
 
 ### Fix profile link import

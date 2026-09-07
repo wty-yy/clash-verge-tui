@@ -36,6 +36,8 @@
 - TUN 首次开启缺少能力时，在 TUI 内使用 Secret 字段输入系统密码，通过标准输入交给 `sudo -S`，安装按 UID 与工作区隔离的 systemd 权限监视服务；不使用图形 PolicyKit 弹窗。授权后重启自管内核，再继续用户原先的 TUN 设置。
 - 系统密码不得写入命令参数、环境变量、状态文件、日志、测试、文档或 Git；命令类型的 Debug 输出必须去敏，使用完毕后尽量清零内存。
 - root 权限助手必须验证工作区所有者、普通文件、不可组/全局写、固定官方内核哈希；只设置 `CAP_NET_ADMIN` / `CAP_NET_BIND_SERVICE`，不执行订阅或用户脚本。
+- systemd `.path` 指令中的绝对路径不能用命令行式双引号包裹；需要使用 systemd 路径转义并通过 `systemd-analyze verify`。监视服务只保留校验私有内核和设置文件能力所需的 `CAP_SETFCAP`、`CAP_DAC_READ_SEARCH` 与 `CAP_FOWNER`。
+- TUI 安装流程必须捕获去敏后的 sudo/helper 标准错误，区分认证、sudo 策略与服务错误；不能将所有非零退出统一描述为密码错误。
 
 ## 已确认的界面与交互要求
 

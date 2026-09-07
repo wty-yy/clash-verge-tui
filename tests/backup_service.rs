@@ -213,13 +213,45 @@ fn tun_capability_units_are_scoped_to_the_workspace_and_user() {
     let (service_unit, path_unit) = service::tun_units(helper, dir, 1000).unwrap();
     let base = service::tun_base_name(dir, 1000);
     assert!(service_unit.contains("--tun-helper apply --tun-uid 1000"));
-    assert!(service_unit.contains("CapabilityBoundingSet=CAP_SETFCAP"));
+    assert!(
+        service_unit.contains("CapabilityBoundingSet=CAP_SETFCAP CAP_DAC_READ_SEARCH CAP_FOWNER")
+    );
     assert!(service_unit.contains("NoNewPrivileges=true"));
     assert!(service_unit.contains("\"/home/user/work space\""));
-    assert!(path_unit.contains("/home/user/work space/core/mihomo"));
+    assert!(path_unit.contains("PathChanged=/home/user/work\\x20space/core/mihomo"));
+    assert!(!path_unit.contains("PathChanged=\""));
     assert!(path_unit.contains(&format!("Unit={base}.service")));
     assert_ne!(base, service::tun_base_name(dir, 1001));
     assert!(!service::tun_capable(std::path::Path::new("/bin/true")));
+}
+
+#[test]
+fn generated_tun_units_pass_systemd_verification() {
+    let root = tempfile::tempdir().unwrap();
+    let dir = root.path().join("work space");
+    std::fs::create_dir_all(dir.join("core")).unwrap();
+    std::fs::write(dir.join("core/mihomo"), b"fixture").unwrap();
+    let uid = 1000;
+    let base = service::tun_base_name(&dir, uid);
+    let (service_unit, path_unit) =
+        service::tun_units(std::path::Path::new("/bin/true"), &dir, uid).unwrap();
+    let service_file = root.path().join(format!("{base}.service"));
+    let path_file = root.path().join(format!("{base}.path"));
+    std::fs::write(&service_file, service_unit).unwrap();
+    std::fs::write(&path_file, path_unit).unwrap();
+    let Ok(output) = std::process::Command::new("systemd-analyze")
+        .args(["verify"])
+        .arg(&path_file)
+        .arg(&service_file)
+        .output()
+    else {
+        return;
+    };
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
 }
 #[test]
 fn access_checks_distinguish_verification_login_and_region_blocks() {
