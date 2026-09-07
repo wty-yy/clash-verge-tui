@@ -1,4 +1,5 @@
 /target/
+/dist/
 /upstream/
 /.local/
 *.tmp

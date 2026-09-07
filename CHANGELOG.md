@@ -6,6 +6,18 @@
 
 See the [feature mapping](docs/FEATURES.md) for planned work.
 
+## v1.1.0 · 2026-09-07
+
+### Managed core and Linux distribution
+
+- Start the live managed workspace by default, retain `--demo` for explicit UI previews, and remove external-controller attachment from the public CLI.
+- Pin Mihomo v1.19.29 to match the Clash Verge Rev v2.5.2 baseline on x86_64/aarch64; discover bundled cores or download the official release when absent.
+- Verify both the upstream archive and extracted binary SHA-256, repairing damaged, replaced, or independently upgraded workspace cores to the application-pinned version.
+- Create the authoritative private workspace manifest on first launch and continue storing profiles, enhancements, runtime configuration, secrets, and UI preferences locally.
+- Remove user-provided core paths from systemd units so the daemon and foreground TUI share the same managed core and workspace.
+- Add Linux bundles, checksum files, an x86_64/aarch64 release workflow, and a `curl | sh` one-line installer.
+- Replace in-app core self-upgrades with the application release policy while retaining independent GeoData and WebUI updates.
+
 ## v1.0.1 · 2026-09-07
 
 ### Fixed

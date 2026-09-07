@@ -22,18 +22,13 @@ fn quote(value: &str) -> String {
             .replace('$', "$$")
     )
 }
-pub fn unit(
-    app: &Path,
-    binary: &Path,
-    dir: &Path,
-    environment: &BTreeMap<String, String>,
-) -> Result<String> {
-    for value in [app, binary, dir] {
+pub fn unit(app: &Path, dir: &Path, environment: &BTreeMap<String, String>) -> Result<String> {
+    for value in [app, dir] {
         if !value.is_absolute() || value.as_os_str().as_encoded_bytes().contains(&b'\n') {
             bail!("服务路径必须为不含换行的绝对路径");
         }
     }
-    let mut text=format!("# Managed by clash-verge-tui\n[Unit]\nDescription=Clash Verge TUI background service\nAfter=network-online.target\n\n[Service]\nType=simple\nExecStart={} --daemon --core {} --data-dir {}\nRestart=on-failure\nRestartSec=3\nTimeoutStopSec=10\nKillMode=control-group\n",quote(&app.to_string_lossy()),quote(&binary.to_string_lossy()),quote(&dir.to_string_lossy()));
+    let mut text=format!("# Managed by clash-verge-tui\n[Unit]\nDescription=Clash Verge TUI background service\nAfter=network-online.target\n\n[Service]\nType=simple\nExecStart={} --daemon --data-dir {}\nRestart=on-failure\nRestartSec=3\nTimeoutStopSec=10\nKillMode=control-group\n",quote(&app.to_string_lossy()),quote(&dir.to_string_lossy()));
     for (key, value) in environment {
         if key.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_')
             && !value.contains(['\n', '\r'])
@@ -76,9 +71,8 @@ pub async fn status(dir: &Path) -> String {
         .await
         .unwrap_or("not-installed".into())
 }
-pub async fn install(dir: &Path, binary: &Path, enabled: bool) -> Result<()> {
+pub async fn install(dir: &Path, enabled: bool) -> Result<()> {
     let app = std::fs::canonicalize(std::env::current_exe()?)?;
-    let binary = std::fs::canonicalize(binary)?;
     let mut env = BTreeMap::new();
     if let Ok(path) = std::env::var("PATH") {
         env.insert("PATH".into(), path);
@@ -93,7 +87,7 @@ pub async fn install(dir: &Path, binary: &Path, enabled: bool) -> Result<()> {
         let previous = std::fs::read(&file)?;
         crate::subscriptions::private_write(&dir.join("service.previous"), &previous)?;
     }
-    crate::subscriptions::private_write(&file, unit(&app, &binary, dir, &env)?.as_bytes())?;
+    crate::subscriptions::private_write(&file, unit(&app, dir, &env)?.as_bytes())?;
     systemctl(&["daemon-reload"]).await?;
     if enabled {
         systemctl(&["enable", &name(dir)]).await?;
@@ -144,7 +138,7 @@ pub async fn open(
     };
     std::fs::create_dir_all(dir)?;
     let dir = std::fs::canonicalize(dir)?;
-    let mut state = workspace::load(&dir)?;
+    let mut state = workspace::initialize(&dir)?;
     let old_active = state.active;
     let active = profile.unwrap_or(state.active);
     if !state.profiles.is_empty() && active >= state.profiles.len() {
@@ -155,6 +149,18 @@ pub async fn open(
     if let Ok(secret) = std::fs::read_to_string(dir.join("core/controller.secret")) {
         if let Ok(client) = CoreClient::new(&endpoint, secret.trim().into()) {
             if let Ok(config) = client.get(&["configs"]).await {
+                let running_version = client
+                    .get(&["version"])
+                    .await
+                    .ok()
+                    .and_then(|value| value["version"].as_str().map(str::to_owned));
+                let expected_version = format!("v{}", crate::core_manager::MIHOMO_VERSION);
+                if running_version.as_deref() != Some(expected_version.as_str()) {
+                    bail!(
+                        "运行中的内核不是 v{}；请执行 clash-verge-tui --service restart",
+                        crate::core_manager::MIHOMO_VERSION
+                    );
+                }
                 let actual_port = config["mixed-port"].as_u64().unwrap_or(17897) as u16;
                 if port.is_some_and(|p| p != actual_port) {
                     bail!("已有内核正在运行，停止服务后再更改启动端口");

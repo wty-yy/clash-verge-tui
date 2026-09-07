@@ -3,6 +3,7 @@ use clap::Parser;
 use clash_verge_tui::{
     app::App,
     core::{CoreClient, CoreEvent, Worker},
+    core_manager,
     live::ManagedSettings,
     model::{DemoState, Page},
     storage,
@@ -32,18 +33,12 @@ use std::{
 #[derive(Parser)]
 #[command(version, about = "Clash Verge TUI — mihomo terminal client")]
 struct Args {
-    /// 使用独立演示模式（无连接参数时默认）
-    #[arg(long, conflicts_with_all=["connect","core","check","import_only","subscriptions_file","secret_file"])]
+    /// 使用独立演示模式，不启动 mihomo
+    #[arg(long, conflicts_with_all=["core","check","import_only","subscriptions_file","daemon","service"])]
     demo: bool,
-    /// 连接现有 mihomo 外部控制器；关闭界面不会停止该内核
-    #[arg(long, conflicts_with = "core")]
-    connect: Option<String>,
-    /// 启动独立 mihomo；退出界面时停止此子进程
-    #[arg(long)]
+    /// 开发兼容选项：导入指定的 v1.19.29 内核到当前工作区
+    #[arg(long, hide = true)]
     core: Option<PathBuf>,
-    /// 控制器密钥文件；也可通过 MIHOMO_SECRET 环境变量提供
-    #[arg(long, requires = "connect")]
-    secret_file: Option<PathBuf>,
     /// 订阅清单 JSON 文件：[{"name":"...","url":"..."}]
     #[arg(long)]
     subscriptions_file: Option<PathBuf>,
@@ -51,31 +46,31 @@ struct Args {
     #[arg(long, requires = "subscriptions_file")]
     subscription_proxy: Option<String>,
     /// 只下载订阅，不启动内核；部分失败时返回非零状态
-    #[arg(long, requires="subscriptions_file", conflicts_with_all=["core","connect","check"])]
+    #[arg(long, requires = "subscriptions_file", conflicts_with = "check")]
     import_only: bool,
-    /// 读取一次真实内核状态并输出 JSON，适合连接诊断
+    /// 启动自管内核，读取一次状态并输出 JSON
     #[arg(long)]
     check: bool,
     /// 作为后台服务运行，不打开终端界面
-    #[arg(long,requires="core",conflicts_with_all=["demo","check","snapshot","import_only"])]
+    #[arg(long,conflicts_with_all=["demo","check","snapshot","import_only"])]
     daemon: bool,
     /// 管理当前数据目录的 systemd 用户服务
     #[arg(long,value_parser=["install","start","stop","restart","status","uninstall"],conflicts_with_all=["demo","check","snapshot","import_only","daemon"])]
     service: Option<String>,
-    /// 独立内核的代理端口
+    /// 自管内核的代理端口
     #[arg(long)]
     mixed_port: Option<u16>,
-    /// 独立内核的控制器端口（仅监听 127.0.0.1）
+    /// 自管内核的控制器端口（仅监听 127.0.0.1）
     #[arg(long)]
     controller_port: Option<u16>,
     /// 启动时使用的已下载订阅编号，从 1 开始
-    #[arg(long, requires = "core")]
+    #[arg(long)]
     profile: Option<usize>,
-    /// 独立的演示状态目录
+    /// 自管工作区的数据目录
     #[arg(long)]
     data_dir: Option<PathBuf>,
     /// 导出某个页面的确定性快照，不读取或保存用户状态
-    #[arg(long,conflicts_with_all=["connect","core","subscriptions_file","check","import_only"],value_parser=["home","proxies","profiles","connections","rules","logs","unlock","settings"])]
+    #[arg(long,conflicts_with_all=["core","subscriptions_file","check","import_only"],value_parser=["home","proxies","profiles","connections","rules","logs","unlock","settings"])]
     snapshot: Option<String>,
     /// 快照输出路径；.svg 输出彩色 SVG，其他后缀输出文本
     #[arg(long, requires = "snapshot")]
@@ -104,16 +99,13 @@ fn main() -> Result<()> {
     if let Some(ref page) = args.snapshot {
         return snapshot(&args, page);
     }
-    if args.check && args.connect.is_none() && args.core.is_none() {
-        bail!("--check 需要 --connect 或 --core");
-    }
     if !args.check
         && !args.import_only
         && !args.daemon
         && args.service.is_none()
         && (!io::stdin().is_terminal() || !io::stdout().is_terminal())
     {
-        bail!("交互界面需要终端；静态预览使用 --snapshot home，连接诊断使用 --connect URL --check");
+        bail!("交互界面需要终端；静态预览使用 --snapshot home，内核诊断使用 --check");
     }
     let dir = args.data_dir.clone().unwrap_or_else(storage::default_dir);
     let dir = if dir.is_absolute() {
@@ -126,11 +118,8 @@ fn main() -> Result<()> {
         .build()?;
     if let Some(action) = &args.service {
         if action == "install" {
-            let binary = args
-                .core
-                .as_ref()
-                .context("安装服务需要 --core 指定内核路径")?;
-            runtime.block_on(clash_verge_tui::service::install(&dir, binary, true))?;
+            runtime.block_on(core_manager::ensure(&dir, args.core.as_deref()))?;
+            runtime.block_on(clash_verge_tui::service::install(&dir, true))?;
             println!("installed: {}", clash_verge_tui::service::name(&dir));
         } else {
             println!(
@@ -141,9 +130,6 @@ fn main() -> Result<()> {
         return Ok(());
     }
     if let Some(path) = &args.subscriptions_file {
-        if !args.import_only && args.core.is_none() {
-            bail!("订阅导入请使用 --import-only，或同时使用 --core 启动独立内核");
-        }
         let results = runtime.block_on(subscriptions::import_file(
             path,
             &dir.join("profiles"),
@@ -170,100 +156,75 @@ fn main() -> Result<()> {
             }
             return Ok(());
         }
-        if args.core.is_none() && args.connect.is_none() {
-            bail!("已导入订阅；使用 --core 启动，或添加 --import-only 仅导入");
-        }
     }
     let mut managed_core = None;
     let mut worker = None;
-    let mut app = if args.core.is_some() || args.connect.is_some() {
-        let (endpoint, secret, managed, profiles, active) = if let Some(binary) = &args.core {
-            if args.profile == Some(0) {
-                bail!("订阅编号从 1 开始");
-            }
-            eprintln!("准备 mihomo 工作区…");
-            let running = runtime.block_on(clash_verge_tui::service::open(
-                &dir,
-                binary,
-                args.mixed_port,
-                args.controller_port,
-                args.profile.map(|n| n - 1),
-            ))?;
-            let managed = ManagedSettings {
-                controller: running.context.controller,
-                secret: running.context.secret.clone(),
-                port: running.context.port,
-                binary: running.context.binary,
-            };
-            managed_core = running.child;
-            (
-                running.endpoint,
-                managed.secret.clone(),
-                Some(managed),
-                running.profiles,
-                running.active,
-            )
-        } else {
-            let secret = if let Some(path) = &args.secret_file {
-                std::fs::read_to_string(path)
-                    .context("无法读取控制器密钥文件")?
-                    .trim()
-                    .into()
-            } else {
-                std::env::var("MIHOMO_SECRET").unwrap_or_default()
-            };
-            (args.connect.clone().unwrap(), secret, None, Vec::new(), 0)
-        };
-        let client = CoreClient::new(&endpoint, secret.clone())?;
-        if let Some(core) = managed_core.as_mut() {
-            eprintln!("正在启动独立 mihomo…");
-            runtime.block_on(core.wait_ready(&client))?;
+    let mut app = if args.demo {
+        App::new(storage::load(&dir)?, dir)
+    } else {
+        if args.profile == Some(0) {
+            bail!("订阅编号从 1 开始");
         }
-        let context = managed
-            .as_ref()
-            .map(|m| clash_verge_tui::workspace::WorkspaceContext {
-                dir: dir.clone(),
-                binary: m.binary.clone(),
-                controller: m.controller.clone(),
-                secret: m.secret.clone(),
-                port: m.port,
-            });
+        eprintln!("准备 mihomo v{} 工作区…", core_manager::MIHOMO_VERSION);
+        let source = runtime.block_on(core_manager::ensure(&dir, args.core.as_deref()))?;
+        let running = runtime.block_on(clash_verge_tui::service::open(
+            &dir,
+            &source,
+            args.mixed_port,
+            args.controller_port,
+            args.profile.map(|number| number - 1),
+        ))?;
+        let managed = ManagedSettings {
+            controller: running.context.controller,
+            secret: running.context.secret.clone(),
+            port: running.context.port,
+            binary: running.context.binary,
+        };
+        managed_core = running.child;
+        let endpoint = running.endpoint;
+        let profiles = running.profiles;
+        let active = running.active;
+        let secret = managed.secret.clone();
+        let client = CoreClient::new(&endpoint, secret.clone())?;
+        let context = clash_verge_tui::workspace::WorkspaceContext {
+            dir: dir.clone(),
+            binary: managed.binary.clone(),
+            controller: managed.controller.clone(),
+            secret: managed.secret.clone(),
+            port: managed.port,
+        };
         if args.check {
             let snapshot = runtime.block_on(client.snapshot())?;
             let proxies = snapshot.proxies["proxies"].as_object().unwrap();
             println!(
                 "{}",
                 serde_json::to_string_pretty(
-                    &serde_json::json!({"version":snapshot.version,"proxy_entries":proxies.len(),"groups":proxies.values().filter(|p|p["all"].is_array()).count(),"rules":snapshot.rules["rules"].as_array().unwrap().len(),"connections":snapshot.connections["connections"].as_array().map(Vec::len).unwrap_or(0),"managed":managed_core.is_some()})
+                    &serde_json::json!({"app_version":env!("CARGO_PKG_VERSION"),"expected_core":format!("v{}",core_manager::MIHOMO_VERSION),"version":snapshot.version,"proxy_entries":proxies.len(),"groups":proxies.values().filter(|p|p["all"].is_array()).count(),"rules":snapshot.rules["rules"].as_array().unwrap().len(),"connections":snapshot.connections["connections"].as_array().map(Vec::len).unwrap_or(0),"managed":true})
                 )?
             );
             return Ok(());
         }
-        if !profiles.is_empty() && managed.is_some() {
+        if !profiles.is_empty() {
             clash_verge_tui::workspace::set_active_on_start(&dir, active)?;
         }
-        if let Some(context) = &context {
-            let snapshot = clash_verge_tui::workspace::load(&dir)?;
-            if snapshot
-                .state
-                .preferences
-                .get("system_proxy")
-                .is_some_and(|s| s == "开启")
-            {
-                runtime.block_on(clash_verge_tui::platform::apply_proxy(
-                    &dir,
-                    &snapshot.state.preferences,
-                    context.port,
-                ))?;
-            }
+        let snapshot = clash_verge_tui::workspace::load(&dir)?;
+        if snapshot
+            .state
+            .preferences
+            .get("system_proxy")
+            .is_some_and(|setting| setting == "开启")
+        {
+            runtime.block_on(clash_verge_tui::platform::apply_proxy(
+                &dir,
+                &snapshot.state.preferences,
+                context.port,
+            ))?;
         }
         worker = Some(Worker::spawn_with_workspace(
             CoreClient::new(&endpoint, secret)?,
-            context,
+            Some(context),
         )?);
-        App::new_live(dir.clone(), endpoint, profiles, active, managed)?
-    } else {
-        App::new(storage::load(&dir)?, dir)
+        App::new_live(dir.clone(), endpoint, profiles, active, Some(managed))?
     };
     if args.daemon {
         runtime.block_on(async {
@@ -274,7 +235,7 @@ fn main() -> Result<()> {
                 if app.live.as_ref().unwrap().connected {let _=subscriptions::private_write(&app.data_dir.join("daemon.ready"),std::process::id().to_string().as_bytes());}else{let _=std::fs::remove_file(app.data_dir.join("daemon.ready"));}
                 if !app.live.as_ref().unwrap().connected {
                     if managed_core.as_mut().is_some_and(|core|!core.is_running()){managed_core.take();}
-                    if managed_core.is_none(){if let Ok(running)=clash_verge_tui::service::open(&app.data_dir,args.core.as_ref().unwrap(),args.mixed_port,args.controller_port,None).await{let context=running.context;worker=Some(Worker::spawn_with_workspace(CoreClient::new(&running.endpoint,context.secret.clone())?,Some(context.clone()))?);app=App::new_live(context.dir.clone(),running.endpoint,running.profiles,running.active,Some(ManagedSettings{controller:context.controller,secret:context.secret,port:context.port,binary:context.binary}))?;managed_core=running.child;}}
+                    if managed_core.is_none(){if let Ok(source)=core_manager::ensure(&app.data_dir,args.core.as_deref()).await{if let Ok(running)=clash_verge_tui::service::open(&app.data_dir,&source,args.mixed_port,args.controller_port,None).await{let context=running.context;worker=Some(Worker::spawn_with_workspace(CoreClient::new(&running.endpoint,context.secret.clone())?,Some(context.clone()))?);app=App::new_live(context.dir.clone(),running.endpoint,running.profiles,running.active,Some(ManagedSettings{controller:context.controller,secret:context.secret,port:context.port,binary:context.binary}))?;managed_core=running.child;}}}
                 }
             }
             Ok::<(),anyhow::Error>(())

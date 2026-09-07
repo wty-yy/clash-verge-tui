@@ -194,26 +194,17 @@ fn service_unit_uses_quoted_paths_and_stable_workspace_identity() {
     let dir = std::path::Path::new("/tmp/work space");
     let text = service::unit(
         std::path::Path::new("/opt/client app"),
-        std::path::Path::new("/opt/mihomo"),
         dir,
         &BTreeMap::new(),
     )
     .unwrap();
-    assert!(text.contains(
-        "\"/opt/client app\" --daemon --core \"/opt/mihomo\" --data-dir \"/tmp/work space\""
-    ));
+    assert!(text.contains("\"/opt/client app\" --daemon --data-dir \"/tmp/work space\""));
     assert_eq!(service::name(dir), service::name(dir));
     assert_ne!(
         service::name(dir),
         service::name(std::path::Path::new("/tmp/other"))
     );
-    assert!(service::unit(
-        std::path::Path::new("relative"),
-        std::path::Path::new("/opt/mihomo"),
-        dir,
-        &BTreeMap::new()
-    )
-    .is_err());
+    assert!(service::unit(std::path::Path::new("relative"), dir, &BTreeMap::new()).is_err());
 }
 #[test]
 fn access_checks_distinguish_verification_login_and_region_blocks() {

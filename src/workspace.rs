@@ -129,6 +129,12 @@ pub fn load(dir: &Path) -> Result<WorkspaceSnapshot> {
         state: WorkspaceState::default(),
     })
 }
+pub fn initialize(dir: &Path) -> Result<WorkspaceSnapshot> {
+    let _lock = Lock::acquire(dir)?;
+    let snapshot = load(dir)?;
+    save(dir, &snapshot)?;
+    Ok(snapshot)
+}
 fn save(dir: &Path, snapshot: &WorkspaceSnapshot) -> Result<()> {
     // The complete manifest is the single authoritative commit point.
     subscriptions::private_write(
@@ -810,7 +816,7 @@ pub async fn execute(
         if state == "未安装" && !enabled {
             crate::service::action(&context.dir, "uninstall").await?;
         } else {
-            crate::service::install(&context.dir, &context.binary, enabled).await?;
+            crate::service::install(&context.dir, enabled).await?;
             crate::service::action(
                 &context.dir,
                 if state == "运行中" {

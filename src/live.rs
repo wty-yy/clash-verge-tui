@@ -328,7 +328,7 @@ impl App {
     }
     fn workspace_command(&mut self, command: crate::workspace::WorkspaceCommand) {
         if self.live.as_ref().unwrap().managed.is_none() {
-            self.status = "此操作需要独立内核工作区".into();
+            self.status = "此操作需要自管内核工作区".into();
             return;
         }
         self.queue_core(Command::Workspace(command));
@@ -731,7 +731,7 @@ impl App {
                         self.detail(section.name,format!("Clash Verge TUI v{}\nmihomo {}\n控制器：{}\n日志：{}\n状态目录：{}\n\n节点切换、模式、测速、连接关闭和规则启停已接入。\nMIT",env!("CARGO_PKG_VERSION"),live.version,live.endpoint,live.log_status,self.data_dir.display()));
                     }
                     "桌面功能映射"=>self.detail("终端适配","托盘快捷操作对应首页控制；后台自启不打开窗口。\n字体、窗口装饰、桌面热键由终端和桌面环境管理。\n本客户端面向 Linux，界面为简体中文。"),
-                    _=>self.detail(section.name,"附加模式仅控制内核 API；工作区和系统设置请通过 --core 打开。"),
+                    _=>self.detail(section.name,"此设置需要应用自管工作区，重启后再试。"),
                 }
             }
         }
@@ -817,11 +817,12 @@ impl App {
                     .map(|i| settings::sections()[i].name)
                     .unwrap_or("");
                 match name {
-                    "内核与 GeoData" => self.confirm(
-                        "更新独立内核",
-                        "下载并重启本工作区的内核？文件能力授权可能需要重新设置。",
-                        Confirm::CoreUpgrade,
-                    ),
+                    "内核与 GeoData" => {
+                        self.status = format!(
+                            "mihomo v{} 随 Clash Verge TUI 一起更新",
+                            crate::core_manager::MIHOMO_VERSION
+                        )
+                    }
                     "网页界面" => self.queue_core(Command::Upgrade {
                         kind: "ui".into(),
                         channel: None,
@@ -997,7 +998,7 @@ impl App {
     fn edit_workspace_profile(&mut self, index: Option<usize>) {
         let live = self.live.as_ref().unwrap();
         if live.managed.is_none() {
-            self.status = "此操作需要独立内核工作区".into();
+            self.status = "此操作需要自管内核工作区".into();
             return;
         }
         if self.sub == 0 {
@@ -1216,20 +1217,12 @@ impl App {
     }
     pub fn confirm_live(&mut self, target: &Confirm) -> bool {
         match target {
-            Confirm::CoreUpgrade if self.live.as_ref().unwrap().managed.is_none() => {
-                self.status = "附加模式不管理外部内核文件".into()
+            Confirm::CoreUpgrade => {
+                self.status = format!(
+                    "mihomo v{} 由应用发行包管理",
+                    crate::core_manager::MIHOMO_VERSION
+                )
             }
-            Confirm::CoreUpgrade => self.queue_core(Command::Upgrade {
-                kind: "core".into(),
-                channel: Some(
-                    if self.state.value("core_channel") == "Alpha" {
-                        "alpha"
-                    } else {
-                        "stable"
-                    }
-                    .into(),
-                ),
-            }),
             Confirm::LiveBackup(command) => self.queue_core(Command::Backup(command.clone())),
             Confirm::Profile(i) => {
                 self.workspace_command(crate::workspace::WorkspaceCommand::Delete(*i))

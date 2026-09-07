@@ -2,6 +2,7 @@ use anyhow::{anyhow, bail, Context, Result};
 use futures_util::StreamExt;
 use serde::{Deserialize, Serialize};
 use serde_yaml_ng::{Mapping, Value};
+use sha2::{Digest, Sha256};
 use std::{
     fs,
     path::{Path, PathBuf},
@@ -348,10 +349,11 @@ pub fn prepare_binary(binary: &Path, dir: &Path) -> Result<PathBuf> {
             .as_secs()
     );
     let source_record = dir.join("binary-source.txt");
-    if source != owned
-        && (!owned.exists()
-            || fs::read_to_string(&source_record).ok().as_deref() != Some(fingerprint.as_str()))
-    {
+    let same_binary = source == owned
+        || (owned.is_file()
+            && fs::metadata(&owned)?.len() == metadata.len()
+            && Sha256::digest(fs::read(&owned)?) == Sha256::digest(fs::read(&source)?));
+    if !same_binary {
         if fs::symlink_metadata(&owned)
             .ok()
             .is_some_and(|m| m.file_type().is_symlink())
@@ -360,17 +362,25 @@ pub fn prepare_binary(binary: &Path, dir: &Path) -> Result<PathBuf> {
         }
         let staging = dir.join("mihomo-new");
         fs::copy(&source, &staging)?;
-        fs::rename(staging, &owned)?;
-        private_write(&source_record, fingerprint.as_bytes())?;
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
-            fs::set_permissions(&owned, fs::Permissions::from_mode(0o700))?;
+            fs::set_permissions(&staging, fs::Permissions::from_mode(0o700))?;
         }
+        fs::rename(staging, &owned)?;
     }
     if fs::symlink_metadata(&owned)?.file_type().is_symlink() {
         bail!("独立内核文件不能是符号链接");
     }
+    private_write(&source_record, fingerprint.as_bytes())?;
+    private_write(
+        &dir.join("managed-core.json"),
+        &serde_json::to_vec_pretty(&serde_json::json!({
+            "app_version": env!("CARGO_PKG_VERSION"),
+            "mihomo_version": crate::core_manager::MIHOMO_VERSION,
+            "managed": true
+        }))?,
+    )?;
     Ok(owned)
 }
 pub fn ensure_secret(dir: &Path, configured: Option<&str>) -> Result<String> {

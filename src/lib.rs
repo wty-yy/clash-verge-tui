@@ -6,6 +6,7 @@ pub mod ui;
 
 pub mod backup;
 pub mod core;
+pub mod core_manager;
 pub mod extras;
 pub mod live;
 pub mod network;

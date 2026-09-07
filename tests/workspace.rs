@@ -30,6 +30,22 @@ fn local(index: Option<usize>, name: &str) -> W {
         interval: 0,
     }
 }
+#[test]
+fn initialization_creates_the_authoritative_private_manifest() {
+    let dir = tempfile::tempdir().unwrap();
+    let state = workspace::initialize(dir.path()).unwrap();
+    assert!(state.profiles.is_empty());
+    let manifest = dir.path().join("workspace-state.json");
+    assert!(manifest.is_file());
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        assert_eq!(
+            std::fs::metadata(manifest).unwrap().permissions().mode() & 0o777,
+            0o600
+        );
+    }
+}
 #[tokio::test]
 async fn workspace_profile_lifecycle_tracks_active_file_and_transaction_failure() {
     let fail = Arc::new(AtomicBool::new(false));

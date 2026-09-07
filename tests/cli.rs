@@ -7,6 +7,11 @@ fn version_matches_package_and_non_terminal_start_is_actionable() {
     let out = binary().arg("--version").output().unwrap();
     assert!(out.status.success());
     assert!(String::from_utf8_lossy(&out.stdout).contains(env!("CARGO_PKG_VERSION")));
+    let help = binary().arg("--help").output().unwrap();
+    let help = String::from_utf8_lossy(&help.stdout);
+    assert!(help.contains("启动自管内核"));
+    assert!(!help.contains("--connect"));
+    assert!(!help.contains("--core"));
     let out = binary().output().unwrap();
     assert!(!out.status.success());
     assert!(String::from_utf8_lossy(&out.stderr).contains("--snapshot home"));
