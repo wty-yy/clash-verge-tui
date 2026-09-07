@@ -1,6 +1,8 @@
 use std::process::Command;
 fn binary() -> Command {
-    Command::new(env!("CARGO_BIN_EXE_clash-verge-tui"))
+    let mut command = Command::new(env!("CARGO_BIN_EXE_clash-verge-tui"));
+    command.env("LC_ALL", "zh_CN.UTF-8");
+    command
 }
 #[test]
 fn version_matches_package_and_non_terminal_start_is_actionable() {
@@ -115,4 +117,18 @@ fn tun_service_status_is_available_without_starting_the_tui() {
         String::from_utf8_lossy(&output.stdout).trim(),
         "not-installed"
     );
+}
+
+#[test]
+fn tun_uninstall_rejects_active_configuration_before_sudo() {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::create_dir(dir.path().join("core")).unwrap();
+    std::fs::write(dir.path().join("core/config.yaml"), "tun: {enable: true}\n").unwrap();
+    let output = binary()
+        .args(["--tun-service", "uninstall", "--data-dir"])
+        .arg(dir.path())
+        .output()
+        .unwrap();
+    assert!(!output.status.success());
+    assert!(String::from_utf8_lossy(&output.stderr).contains("请先关闭当前工作区的 TUN"));
 }

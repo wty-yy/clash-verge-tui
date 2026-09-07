@@ -597,6 +597,7 @@ impl ManagedCore {
             )?
         };
         let parsed: Value = serde_yaml_ng::from_str(&payload)?;
+        crate::network::check_tun_conflicts(&parsed, None)?;
         let external_controller = parsed["external-controller"]
             .as_str()
             .unwrap_or(&default_controller)
@@ -624,6 +625,16 @@ impl ManagedCore {
             bail!("数据目录过长，请使用较短路径以创建 Unix socket");
         }
         let mut command = Command::new(&owned);
+        if let Some(workspace) = dir.parent() {
+            let resolver = crate::service::resolver_dir(workspace, unsafe { libc::getuid() });
+            // sing-tun executes resolvectl via PATH. Use the separately authorized
+            // root service shim; mihomo's file capabilities do not survive exec.
+            let mut paths = vec![resolver];
+            paths.extend(std::env::split_paths(
+                &std::env::var_os("PATH").unwrap_or_default(),
+            ));
+            command.env("PATH", std::env::join_paths(paths)?);
+        }
         #[cfg(target_os = "linux")]
         {
             use std::os::unix::process::CommandExt;

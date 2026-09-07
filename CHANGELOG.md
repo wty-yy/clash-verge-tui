@@ -1,10 +1,25 @@
 # Changelog
 
-[简体中文](CHANGELOG.zh-CN.md)
-
 ## Unreleased
 
 See the [feature mapping](docs/FEATURES.md) for planned work.
+
+## v1.4.0 · 2026-09-08
+
+1. Add English and Traditional Chinese interfaces with system locale detection and persistent language selection
+2. Add `--language auto|en|zh-CN|zh-TW` for startup and snapshots
+3. Adapt translated controls and profile import hit areas to terminal width
+4. Add centered bilingual README headers, independent-project attribution, and dependency license inventory
+5. Remove `CHANGELOG.zh-CN.md` and maintain the English changelog
+6. Handle TUN DNS setup and cleanup through a restricted root service with per-user, per-workspace sockets
+7. Add a focusable `s Save` button to profile forms while preserving text input
+8. Translate nested application errors, including proxy port conflicts
+9. Block automatic TUN routing when another active TUN adapter is present
+10. Remove the workspace preparation message from startup
+11. Add explicit TUN service install/repair and uninstall actions in Settings, with masked password entry and an active-TUN uninstall guard
+12. Add `--source gitee` installation with Gitee release discovery, verified bundles, and mirror publishing instructions
+13. Add language selection to Home quick controls and use `s Save` across editable forms, preserving text input and Ctrl+S compatibility
+14. Add cropped English and Chinese demo GIFs and remove unused previews
 
 ## v1.3.4 · 2026-09-07
 

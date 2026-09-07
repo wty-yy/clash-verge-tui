@@ -1,12 +1,14 @@
-# Clash Verge TUI
+<div align="center">
+  <h1>Clash Verge TUI</h1>
+  <p><strong>A Linux terminal proxy client built with Rust, Ratatui, and mihomo</strong></p>
+  <p><strong>🌎 English</strong>&nbsp;&nbsp;·&nbsp;&nbsp;<a href="README.zh-CN.md">🇨🇳 中文</a></p>
+</div>
 
-[简体中文](README.zh-CN.md) | [Changelog](CHANGELOG.md)
+![English TUI demo](docs/previews/demo-en.gif)
 
-A Linux terminal proxy client built with Rust, Ratatui, and mihomo. Its interface and feature mapping follow Clash Verge Rev v2.5.2.
+Created for personal use with development assistance from ChatGPT. The interface and feature mapping follow Clash Verge Rev v2.5.2. This is an unofficial project, independently developed and unaffiliated with the Clash Verge / Clash Verge Rev teams.
 
-`v1.3.4` starts a self-managed workspace and the application-pinned mihomo v1.19.29 by default. Release archives contain both the TUI and the core. Home quick controls show and edit the current mixed proxy port, which defaults to `127.0.0.1:7890`.
-
-![Interface preview](docs/previews/home.png)
+`v1.4.0` starts a self-managed workspace and the application-pinned mihomo v1.19.29 by default. Release archives contain both the TUI and the core. Home quick controls show and edit the current mixed proxy port, which defaults to `127.0.0.1:7890`.
 
 ## Install and run
 
@@ -15,6 +17,9 @@ Linux x86_64 and aarch64 are supported. Use a UTF-8 terminal; `120 × 40` is rec
 ```bash
 # Install the latest release to ~/.local/bin with its pinned mihomo v1.19.29
 curl -fsSL https://github.com/wty-yy/clash-verge-tui/releases/latest/download/install.sh | sh
+
+# Install from Gitee (the mirror must include release bundles and checksums)
+curl -fsSL https://gitee.com/wty-yy/clash-verge-tui/raw/master/scripts/install.sh | sh -s -- --source gitee
 
 # Add ~/.local/bin to PATH once if necessary
 export PATH="$HOME/.local/bin:$PATH"
@@ -29,7 +34,7 @@ clash-verge-tui --check
 clash-verge-tui --demo
 ```
 
-The installer downloads the application/core bundle from the current GitHub Release and checks the archive SHA-256 before installing:
+The installer defaults to GitHub; `--source gitee` queries the Gitee release API and downloads the application/core bundle and SHA-256 file from Gitee. Both sources verify the archive before installing:
 
 | Path | Contents |
 | --- | --- |
@@ -37,6 +42,8 @@ The installer downloads the application/core bundle from the current GitHub Rele
 | `~/.local/lib/clash-verge-tui/core/v1.19.29/mihomo` | Versioned core paired with the current application release |
 | `~/.local/lib/clash-verge-tui/release.json` | Application, core, architecture, and upstream checksum metadata |
 | `~/.local/lib/clash-verge-tui/MIHOMO-LICENSE` | GPL-3.0 license text for the bundled Mihomo core |
+
+Gitee repository synchronization does not copy release attachments. The mirror needs a release with the same version tag, both Linux bundles, their `.sha256` files, and `install.sh`; see [release maintenance](docs/RELEASING.md). A missing Gitee release or asset stops installation without switching to GitHub. Set `CLASH_VERGE_TUI_VERSION=v1.4.0` on the `sh` command to select a published version; `CLASH_VERGE_TUI_REPOSITORY` selects a custom repository, while an explicit `--source` takes precedence.
 
 Source builds work as well. If no bundled core is found, the program downloads official Mihomo v1.19.29 into `${XDG_DATA_HOME:-$HOME/.local/share}/clash-verge-tui/core/`, verifies both the archive and extracted binary, and copies it into the active workspace. A damaged, replaced, or independently upgraded workspace core is restored to the application-pinned version on the next launch.
 
@@ -48,11 +55,34 @@ cargo build --locked --release
 ./target/release/clash-verge-tui
 ```
 
+## Interface language
+
+Supports English, Simplified Chinese, and Traditional Chinese, following the system by default. Detection precedence is `LC_ALL` → `LC_MESSAGES` → `LANGUAGE` → `LANG`. `zh_CN` / `zh_SG` select Simplified Chinese; `zh_TW` / `zh_HK` / `zh_MO` select Traditional Chinese. `Hans` / `Hant` override the region. Other locales, including `C` / `POSIX`, use English.
+
+Select Interface language in Home quick controls, press `Enter` or double-click, cycle with `←/→`, and press `s` to apply immediately. The setting is also available under Settings → Interface → Appearance and layout. The preference persists in the current workspace without restarting the core. Profile names, node names, configuration content, and core logs retain their original text.
+
+```bash
+# Open in English and save it as the workspace language preference
+clash-verge-tui --language en
+
+# Traditional Chinese; use zh-CN for Simplified Chinese
+clash-verge-tui --language zh-TW
+
+# Follow the system again
+clash-verge-tui --language auto
+
+# English demo; snapshots do not read or save user state
+clash-verge-tui --demo --language en
+clash-verge-tui --snapshot home --language en --output home-en.svg
+```
+
+[Traditional Chinese preview](docs/previews/home-zh-TW.svg)
+
 ## Profiles and workspace
 
-Press `a Link import` on Profiles to open the form. Its first row is always **Profile file URL + [ Import ]**, immediately followed by the YAML editor, with the URL focused. Enter or click the button to download and validate the complete Clash YAML asynchronously. When the name is empty, a successful import fills it from the profile title, attachment filename, configuration name, or source domain without replacing a name entered by the user. The profile is saved only after `Ctrl+S`. Local files, direct YAML editing, and private JSON manifests are also supported:
+Press `a Link import` on Profiles to open the form. Its first row is always **Profile file URL + [ Import ]**, immediately followed by the YAML editor, with the URL focused. Enter or click the button to download and validate the complete Clash YAML asynchronously. When the name is empty, a successful import fills it from the profile title, attachment filename, configuration name, or source domain without replacing a name entered by the user. Use `Tab` / `Shift+Tab` to focus `s Save`, then press `s` or `Enter` to save (or click the button). Local files, direct YAML editing, and private JSON manifests are also supported:
 
-![Profile link import](docs/previews/profile-import.svg)
+![Profile link import](docs/previews/profile-import-en.svg)
 
 ```json
 [
@@ -112,7 +142,7 @@ clash-verge-tui --service uninstall
 clash-verge-tui --tun-service install
 clash-verge-tui --tun-service status
 
-# Remove the capability watcher when TUN is no longer needed
+# Turn off this workspace’s TUN before removing its permission and DNS services
 clash-verge-tui --tun-service uninstall
 ```
 
@@ -126,16 +156,18 @@ clash-verge-tui --tun-service uninstall
 | `r`, `s`, `m` | Refresh, test, reread profiles, sort, or change mode as shown by the page |
 | `d` / `D` | Close the selected / all connections |
 | `p` / `c` | Pause logs / clear the UI log buffer |
-| `Ctrl+S`, `Ctrl+U` | Save a form / clear a field |
+| `s`, `Ctrl+U` | Save a form / clear a field; while editing text, Tab / Shift+Tab to Save then press s / Enter, or click Save; Ctrl+S remains supported |
 | `s` | Save and immediately apply the Home mixed-port form |
 | `:`, `?`, `t` | Page palette, help, theme switch |
 | `q` / `Ctrl+C` | Quit |
 
 A single click selects an ordinary row. A second click on the same row within 400 ms acts as `Enter`. The Home profile-management button takes focus on the first click and opens on a later click. `Enter` inserts a newline in multiline forms, where Vim letters remain normal text.
 
-System proxy integration supports GNOME manual/PAC modes, restoration, and a guard. The first TUN enable opens a masked password form inside the TUI. The password is sent only to `sudo -S` over standard input and never enters arguments, configuration, or logs. Authorization first grants the current core its capabilities, then installs a systemd path service scoped to the user and workspace. The service verifies the official core and maintains only `CAP_NET_ADMIN` / `CAP_NET_BIND_SERVICE` after replacement; sudo or systemd failures are shown with their specific cause in the TUI. TUN toggles and parameter changes use a controlled core restart, restoring the previous workspace if startup or interface verification fails. Debian/Ubuntu needs `sudo`, systemd, and `libcap2-bin`. Backups support retention, optional encryption, and WebDAV.
+Settings → System provides **Install / repair TUN service** and **Uninstall TUN service**. Both use a confirmation and masked password form. Installation does not enable TUN; uninstall requires TUN to be off and keeps profiles and configuration.
 
-![TUN system password form](docs/previews/tun-password.svg)
+System proxy integration supports GNOME manual/PAC modes, restoration, and a guard. The first TUN enable opens a masked password form inside the TUI. The password is sent only to `sudo -S` over standard input and never enters arguments, configuration, or logs. Authorization first grants the current core its capabilities, then installs a systemd path service scoped to the user and workspace. The service verifies the official core and maintains `CAP_NET_ADMIN` / `CAP_NET_BIND_SERVICE` after replacement. A root DNS service accepts only the four TUN DNS operations through a socket scoped to the user and workspace; the system `resolvectl` remains unchanged. Automatic TUN routing is blocked while another active TUN adapter exists; disable TUN in the other app before enabling it here. Existing installations need one password entry in the TUI to upgrade the service; sudo or systemd failures are shown with their specific cause in the TUI. TUN toggles and parameter changes use a controlled core restart, restoring the previous workspace if startup or interface verification fails. Debian/Ubuntu needs `sudo`, systemd, and `libcap2-bin`. Backups support retention, optional encryption, and WebDAV.
+
+![TUN system password form](docs/previews/tun-password-en.svg)
 
 ## Implementation and releases
 
@@ -159,4 +191,38 @@ clash-verge-tui --snapshot home --output home.svg
 
 Pushing a `v*.*.*` tag makes GitHub Actions build Linux x86_64/aarch64 binaries, download and verify the pinned official Mihomo assets, create bundles and checksum files, and publish them with `install.sh` as a GitHub Release. See [release maintenance](docs/RELEASING.md) for version and commit rules.
 
-The interface reference is pinned to Clash Verge Rev `v2.5.2` / `28f2efc`; the core is pinned to [Mihomo v1.19.29](https://github.com/MetaCubeX/mihomo/releases/tag/v1.19.29). This is an independent implementation, not an official Clash Verge Rev project. The TUI source is [MIT](LICENSE); bundled Mihomo is GPL-3.0, with its license at [docs/LICENSE-GPL-3.0](docs/LICENSE-GPL-3.0) and corresponding upstream source recorded in the release manifest.
+## License and third-party components
+
+The TUI source is licensed under [MIT](LICENSE). Third-party components retain their own licenses. Bundled mihomo uses GPL-3.0; its license is preserved in [docs/LICENSE-GPL-3.0](docs/LICENSE-GPL-3.0), and the release manifest records the corresponding upstream source.
+
+The table lists direct Rust dependencies pinned in `Cargo.lock` and the bundled core. `OR` denotes alternative licenses. See [third-party licenses](docs/THIRD-PARTY-LICENSES.md) for the complete Rust dependency inventory.
+
+| Component | Version | License |
+| --- | --- | --- |
+| [mihomo](https://github.com/MetaCubeX/mihomo/tree/v1.19.29) | `1.19.29` | `GPL-3.0` |
+| [aes-gcm](https://github.com/RustCrypto/AEADs) | `0.10.3` | `Apache-2.0 OR MIT` |
+| [anyhow](https://github.com/dtolnay/anyhow) | `1.0.104` | `MIT OR Apache-2.0` |
+| [base64](https://github.com/marshallpierce/rust-base64) | `0.22.1` | `MIT OR Apache-2.0` |
+| [clap](https://github.com/clap-rs/clap) | `4.6.6` | `MIT OR Apache-2.0` |
+| [crossterm](https://github.com/crossterm-rs/crossterm) | `0.28.1` | `MIT` |
+| [flate2](https://github.com/rust-lang/flate2-rs) | `1.1.10` | `MIT OR Apache-2.0` |
+| [fs2](https://github.com/danburkert/fs2-rs) | `0.4.3` | `MIT OR Apache-2.0` |
+| [futures-util](https://github.com/rust-lang/futures-rs) | `0.3.34` | `MIT OR Apache-2.0` |
+| [getrandom](https://github.com/rust-random/getrandom) | `0.2.17` | `MIT OR Apache-2.0` |
+| [libc](https://github.com/rust-lang/libc) | `0.2.189` | `MIT OR Apache-2.0` |
+| [ratatui](https://github.com/ratatui/ratatui) | `0.29.0` | `MIT` |
+| [reqwest](https://github.com/seanmonstar/reqwest) | `0.12.28` | `MIT OR Apache-2.0` |
+| [roxmltree](https://github.com/RazrFalcon/roxmltree) | `0.20.0` | `MIT OR Apache-2.0` |
+| [scrypt](https://github.com/RustCrypto/password-hashes/tree/master/scrypt) | `0.11.0` | `MIT OR Apache-2.0` |
+| [semver](https://github.com/dtolnay/semver) | `1.0.28` | `MIT OR Apache-2.0` |
+| [serde](https://github.com/serde-rs/serde) | `1.0.229` | `MIT OR Apache-2.0` |
+| [serde_json](https://github.com/serde-rs/json) | `1.0.151` | `MIT OR Apache-2.0` |
+| [serde_yaml_ng](https://github.com/acatton/serde-yaml-ng) | `0.10.0` | `MIT` |
+| [sha2](https://github.com/RustCrypto/hashes) | `0.10.9` | `MIT OR Apache-2.0` |
+| [tempfile](https://github.com/Stebalien/tempfile) | `3.27.0` | `MIT OR Apache-2.0` |
+| [tokio](https://github.com/tokio-rs/tokio) | `1.53.1` | `MIT` |
+| [unicode-width](https://github.com/unicode-rs/unicode-width) | `0.2.0` | `MIT OR Apache-2.0` |
+| [url](https://github.com/servo/rust-url) | `2.5.8` | `MIT OR Apache-2.0` |
+| [zeroize](https://github.com/RustCrypto/utils) | `1.9.0` | `Apache-2.0 OR MIT` |
+
+Clash Verge Rev is the interface and feature reference; its upstream license is GPL-3.0. The optional JavaScript enhancement runtime [Node.js](https://github.com/nodejs/node/blob/main/LICENSE) uses MIT and includes components distributed under their respective licenses.

@@ -1,4 +1,5 @@
 pub mod app;
+pub mod locale;
 pub mod model;
 pub mod settings;
 pub mod storage;
@@ -14,3 +15,5 @@ pub mod platform;
 pub mod service;
 pub mod subscriptions;
 pub mod workspace;
+
+pub mod resolver_service;

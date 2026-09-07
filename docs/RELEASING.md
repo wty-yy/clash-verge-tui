@@ -6,7 +6,7 @@
 
 1. 提交说明统一为 `v主版本.次版本.补丁版本: English summary`，使用简短英文，例如 `v0.1.5: Compact content lists and settings forms`。同一版本内的多个提交使用相同版本号，不使用 `feat:`、`fix:` 等类型前缀。
 2. 新版本修改 `Cargo.toml` 的 `version`，运行 Cargo 更新 `Cargo.lock`。
-3. 将 CHANGELOG 的未发布内容归入新版本，同步 `CHANGELOG.md` 与 `CHANGELOG.zh-CN.md`。
+3. 将 CHANGELOG 的未发布内容归入新版本，同步 英文 `CHANGELOG.md`。
 4. 使用方式或功能范围变化时同步 `README.md` 与 `README.zh-CN.md`。
 5. 界面变化后重新生成并检查 `docs/previews`。
 6. Linux 发行变更使用临时 HOME 测试组合包、安装脚本和 `--check`，确认固定内核版本与文件权限。
@@ -14,6 +14,8 @@
 
 ```bash
 # 发布前检查
+sh -n scripts/install.sh
+python3 scripts/test-install.py
 cargo fmt --check
 cargo clippy --locked --all-targets -- -D warnings
 cargo test --locked
@@ -52,3 +54,22 @@ clash-verge-tui --check
 远端为 `https://github.com/wty-yy/clash-verge-tui.git`，默认分支为 `master`。Release 必须同时包含两个架构的 `.tar.gz`、对应 `.sha256` 和 `install.sh`。Mihomo 版本变化时，同步修改应用常量、两种架构的压缩包/二进制哈希、打包脚本、README、CHANGELOG 与验证记录。
 
 补丁版本用于兼容修复；次版本用于新增能力或预发布阶段接口调整。`v1.0.0` 前需完成明确的真实功能验收，不能以演示状态作为网络功能验收结果。
+
+## Gitee 镜像发行
+
+镜像仓库为 `https://gitee.com/wty-yy/clash-verge-tui`。Git 同步只复制源码和标签，不复制 Release 附件；当前 Release 工作流只发布 GitHub。
+
+1. 同步包含新版 `scripts/install.sh` 的 `master` 分支及版本标签
+2. 在 Gitee 创建同标签的发行版，上传 GitHub Release 中同一份 x86_64 / aarch64 `.tar.gz`、各自 `.tar.gz.sha256` 和 `install.sh`
+3. 核对两个来源归档的 SHA-256 一致，再执行 Gitee 一键安装和 `--check`
+
+```bash
+# 从 Gitee 脚本与 Gitee Release 安装
+curl -fsSL https://gitee.com/wty-yy/clash-verge-tui/raw/master/scripts/install.sh | sh -s -- --source gitee
+
+# 指定已经发布到 Gitee 的版本；环境变量放在 sh 前
+curl -fsSL https://gitee.com/wty-yy/clash-verge-tui/raw/master/scripts/install.sh | CLASH_VERGE_TUI_VERSION=v1.4.0 sh -s -- --source gitee
+clash-verge-tui --check
+```
+
+Gitee 版本发现使用 `/api/v5/repos/{owner}/{repo}/releases/latest`，附件使用 `/releases/download/{tag}/{filename}`。源码同步后若发行版或附件尚未上传，安装脚本明确报错，不回退至 GitHub。

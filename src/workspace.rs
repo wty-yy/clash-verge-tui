@@ -477,7 +477,7 @@ pub async fn execute(
         WorkspaceCommand::Settings(values) => {
             if values.get("tun").is_some_and(|value| value == "开启")
                 && unsafe { libc::geteuid() } != 0
-                && !crate::service::tun_capable(&context.binary)
+                && !crate::service::tun_ready(&context.binary)
             {
                 bail!("TUN 权限未安装；请从首页启用 TUN 并按提示安装权限服务");
             }

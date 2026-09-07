@@ -45,7 +45,7 @@ pub fn sections() -> Vec<Section> {
  Section{category:1,name:"内核与 GeoData",description:"固定 mihomo v1.19.29；GeoData 来源与更新偏好",fields:vec![f("geo_auto","GeoData 自动更新","开启",Toggle),f("geo_interval","更新间隔 / 小时","24",Number),f("geo_source","MetaCubeX 或 geox-url YAML","MetaCubeX",Multiline)]},
  Section{category:1,name:"网页界面",description:"外部面板地址与界面资源",fields:vec![f("webui","面板","MetaCubeXD",Choice(&["MetaCubeXD","Yacd"])),f("webui_url","面板地址","http://127.0.0.1:9090/ui",Text),f("webui_path","界面目录","ui",Text)]},
  Section{category:1,name:"流量隧道",description:"隧道列表编辑（YAML），支持多条映射",fields:vec![f("tunnels","隧道配置","# 演示隧道列表\n- network: [tcp, udp]\n  address: 127.0.0.1:5353\n  target: 1.1.1.1:53\n  proxy: DIRECT",Multiline)]},
- Section{category:2,name:"外观与布局",description:"主题、强调色、导航与流量图",fields:vec![f("theme","主题","深色",Choice(&["深色","浅色"])),f("accent","强调色","紫色",Choice(&["紫色","青色","蓝色"])),f("compact","紧凑导航","关闭",Toggle),f("traffic_graph","流量图","开启",Toggle),f("memory","内核占用","开启",Toggle),f("start_page","启动页面","首页",Choice(&["首页","代理","订阅","连接","规则","日志","解锁检测","设置"]))]},
+ Section{category:2,name:"外观与布局",description:"主题、强调色、导航与流量图",fields:vec![f("language","界面语言","auto",Choice(&["auto","zh-CN","zh-TW","en"])),f("theme","主题","深色",Choice(&["深色","浅色"])),f("accent","强调色","紫色",Choice(&["紫色","青色","蓝色"])),f("compact","紧凑导航","关闭",Toggle),f("traffic_graph","流量图","开启",Toggle),f("memory","内核占用","开启",Toggle),f("start_page","启动页面","首页",Choice(&["首页","代理","订阅","连接","规则","日志","解锁检测","设置"]))]},
  Section{category:2,name:"热键与终端",description:"鼠标操作与交互偏好",fields:vec![f("mouse","鼠标操作","开启",Toggle),f("vim","Vim 导航 j/k","开启",Toggle),f("env_type","环境变量类型","bash",Choice(&["bash","zsh","fish","powershell"])),f("refresh","刷新间隔 / 毫秒","1000",Number)]},
  Section{category:2,name:"杂项设置",description:"延迟测试、连接清理与日志保留",fields:vec![f("close_connections","切换节点清理连接","关闭",Toggle),f("auto_check","自动检查更新","开启",Toggle),f("enhance","启用全局增强","开启",Toggle),f("auto_delay","自动延迟检测","关闭",Toggle),f("delay_interval","测速间隔 / 秒","300",Number),f("test_url","测试链接","https://www.gstatic.com/generate_204",Text),f("timeout","测试超时 / 毫秒","5000",Number),f("log_size","日志大小 / MB","10",Number),f("log_count","日志文件数量","7",Number),f("log_clean","自动轮转日志","开启",Toggle)]},
  Section{category:3,name:"备份与恢复",description:"本地演示快照；WebDAV 配置表单",fields:vec![f("auto_backup","自动备份","关闭",Toggle),f("backup_password","备份加密密码（可留空）","",Secret),f("webdav_url","WebDAV 地址","",Text),f("webdav_user","用户名","",Text),f("webdav_password","密码","",Secret)]},
@@ -53,6 +53,8 @@ pub fn sections() -> Vec<Section> {
  Section{category:3,name:"诊断与目录",description:"状态路径、版本和诊断信息",fields:vec![]},
  Section{category:3,name:"轻量模式",description:"后台保留与空闲刷新设置",fields:vec![f("lite","自动轻量模式","关闭",Toggle),f("lite_delay","空闲延迟 / 秒","60",Number)]},
  Section{category:4,name:"关于 Clash Verge TUI",description:"终端客户端 · MIT",fields:vec![]},
+ Section{category:0,name:"安装 / 修复 TUN 权限服务",description:"仅安装当前工作区服务，不开启 TUN",fields:vec![]},
+ Section{category:0,name:"卸载 TUN 权限服务",description:"先关闭 TUN，再卸载当前工作区服务",fields:vec![]},
  Section{category:4,name:"桌面功能映射",description:"桌面专有功能的终端适配说明",fields:vec![]},
  ]
 }

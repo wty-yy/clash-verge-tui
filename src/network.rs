@@ -209,6 +209,11 @@ pub async fn preflight(
     candidate: &Value,
     previous: &serde_json::Value,
 ) -> Result<()> {
+    let owned_device = previous["tun"]["enable"]
+        .as_bool()
+        .unwrap_or(false)
+        .then(|| previous["tun"]["device"].as_str().unwrap_or("Meta"));
+    check_tun_conflicts(candidate, owned_device)?;
     if fields.contains_key("bind_address") || fields.contains_key("allow_lan") {
         let address = candidate["bind-address"].as_str().unwrap_or("127.0.0.1");
         let address = if address == "*" { "0.0.0.0" } else { address };
@@ -259,6 +264,53 @@ pub async fn preflight(
     }
     Ok(())
 }
+
+/// Reject competing TUN routing before changing configuration or starting a core.
+pub fn check_tun_conflicts(candidate: &Value, owned_device: Option<&str>) -> Result<()> {
+    check_tun_interfaces(
+        candidate,
+        owned_device,
+        std::path::Path::new("/sys/class/net"),
+    )
+}
+
+fn check_tun_interfaces(
+    candidate: &Value,
+    owned_device: Option<&str>,
+    net: &std::path::Path,
+) -> Result<()> {
+    if !candidate["tun"]["enable"].as_bool().unwrap_or(false) {
+        return Ok(());
+    }
+    let device = candidate["tun"]["device"].as_str().unwrap_or("Meta");
+    let routes = candidate["tun"]["auto-route"].as_bool().unwrap_or(false)
+        || candidate["tun"]["auto-redirect"].as_bool().unwrap_or(false);
+    for entry in std::fs::read_dir(net)? {
+        let entry = entry?;
+        let name = entry.file_name();
+        if name.to_str() == owned_device {
+            continue;
+        }
+        if name == device {
+            bail!("TUN 网卡名称已被占用，请使用独立名称");
+        }
+        let flag = |file: &str| {
+            std::fs::read_to_string(entry.path().join(file))
+                .ok()
+                .and_then(|value| {
+                    u32::from_str_radix(value.trim().trim_start_matches("0x"), 16).ok()
+                })
+                .unwrap_or(0)
+        };
+        if routes && flag("tun_flags") & 1 != 0 && flag("flags") & 1 != 0 {
+            bail!(
+                "检测到其他活动 TUN 网卡，为避免路由和 DNS 冲突，请先在对应应用中关闭 TUN 后重试"
+            );
+        }
+    }
+    Ok(())
+}
+
 async fn interface_exists(name: &str) -> Result<bool> {
     let status = tokio::process::Command::new("ip")
         .args(["link", "show", "dev", name])
@@ -300,4 +352,37 @@ pub async fn verify_tun(fields: &BTreeMap<String, String>, candidate: &Value) ->
     verify_tun_state(name, value == "开启")
         .await
         .map_err(|error| anyhow!("{error}，原配置已恢复"))
+}
+
+#[cfg(test)]
+mod tun_conflict_tests {
+    use super::*;
+
+    #[test]
+    fn competing_tun_is_rejected_before_start_but_owned_and_disabled_are_allowed() {
+        let net = tempfile::tempdir().unwrap();
+        let other = net.path().join("Meta");
+        std::fs::create_dir(&other).unwrap();
+        std::fs::write(other.join("tun_flags"), "0x0001\n").unwrap();
+        std::fs::write(other.join("flags"), "0x1003\n").unwrap();
+        let mut config: Value =
+            serde_yaml_ng::from_str("tun: {enable: true, device: cvtun0, auto-route: true}")
+                .unwrap();
+        assert!(check_tun_interfaces(&config, None, net.path()).is_err());
+        assert!(check_tun_interfaces(&config, Some("Meta"), net.path()).is_ok());
+        config["tun"]["enable"] = false.into();
+        assert!(check_tun_interfaces(&config, None, net.path()).is_ok());
+        config["tun"]["enable"] = true.into();
+        config["tun"]["auto-route"] = false.into();
+        assert!(check_tun_interfaces(&config, None, net.path()).is_ok());
+        config["tun"]["device"] = "Meta".into();
+        assert!(check_tun_interfaces(&config, None, net.path()).is_err());
+        config["tun"]["device"] = "cvtun0".into();
+        config["tun"]["auto-route"] = true.into();
+        std::fs::write(other.join("flags"), "0x1002\n").unwrap();
+        assert!(check_tun_interfaces(&config, None, net.path()).is_ok());
+        std::fs::write(other.join("flags"), "0x1003\n").unwrap();
+        std::fs::write(other.join("tun_flags"), "0x0002\n").unwrap();
+        assert!(check_tun_interfaces(&config, None, net.path()).is_ok());
+    }
 }

@@ -261,3 +261,89 @@ fn access_checks_distinguish_verification_login_and_region_blocks() {
     assert!(classify(451, "", false).contains("地区"));
     assert!(classify(200, "hello", false).contains("网页"));
 }
+
+#[test]
+fn dns_helper_is_scoped_and_watched_with_core_permissions() {
+    use clash_verge_tui::service;
+    let first = std::path::Path::new("/tmp/workspace-one");
+    let second = std::path::Path::new("/tmp/workspace-two");
+    assert_ne!(
+        service::resolver_dir(first, 1000),
+        service::resolver_dir(second, 1000)
+    );
+    assert_ne!(
+        service::resolver_dir(first, 1000),
+        service::resolver_dir(first, 1001)
+    );
+    let (unit, watch) = service::tun_units(std::path::Path::new("/bin/true"), first, 1000).unwrap();
+    assert!(unit.contains("CAP_CHOWN"));
+    assert!(unit.contains(&*service::resolver_dir(first, 1000).to_string_lossy()));
+    assert!(watch.contains("PathChanged=/usr/bin/resolvectl"));
+    assert!(!service::tun_ready(&first.join("core/mihomo")));
+}
+
+#[test]
+fn privileged_dns_protocol_rejects_unrelated_commands_and_injection() {
+    use clash_verge_tui::resolver_service::validate_args;
+    for args in [
+        vec!["domain", "cvtun0", "~."],
+        vec!["default-route", "cvtun0", "true"],
+        vec!["dns", "cvtun0", "198.18.0.2", "fd00::2"],
+        vec!["revert", "cvtun0"],
+    ] {
+        assert!(validate_args(&args.into_iter().map(str::to_owned).collect::<Vec<_>>()).is_ok());
+    }
+    for args in [
+        vec!["flush-caches"],
+        vec!["dns", "../etc", "1.1.1.1"],
+        vec!["dns", "cvtun0", "--help"],
+        vec!["dns", "cvtun0", "1.1.1.1;id"],
+        vec!["domain", "cvtun0", "~.;id"],
+        vec!["default-route", "cvtun0", "true", "extra"],
+        vec!["revert", "cvtun0", "extra"],
+    ] {
+        assert!(validate_args(&args.into_iter().map(str::to_owned).collect::<Vec<_>>()).is_err());
+    }
+}
+
+#[test]
+fn privileged_dns_unit_and_shim_use_fixed_commands() {
+    use clash_verge_tui::{resolver_service, service};
+    let dir = std::path::Path::new("/home/user/work space/it's");
+    let shim = resolver_service::shim(dir, 1000);
+    assert!(shim.contains("exec /usr/libexec/clash-verge-tui/tun-helper --tun-helper dns-client"));
+    assert!(shim.contains("-- \"$@\""));
+    assert!(shim.contains("'\\''"));
+    let unit = service::dns_unit(std::path::Path::new("/bin/true"), dir, 1000);
+    assert!(unit.contains("--tun-helper dns-server"));
+    assert!(unit.contains("NoNewPrivileges=true"));
+    assert!(!unit.contains("User=1000"));
+    let tmp = tempfile::tempdir().unwrap();
+    let path = tmp.path().join("dns.service");
+    std::fs::write(&path, unit).unwrap();
+    let result = std::process::Command::new("systemd-analyze")
+        .arg("verify")
+        .arg(path)
+        .output()
+        .unwrap();
+    assert!(
+        result.status.success(),
+        "{}",
+        String::from_utf8_lossy(&result.stderr)
+    );
+}
+
+#[test]
+fn uninstall_requires_tun_shutdown_without_changing_configuration() {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::create_dir(dir.path().join("core")).unwrap();
+    let config = dir.path().join("core/config.yaml");
+    let enabled = "tun: {enable: true, device: fixturetun}\n";
+    std::fs::write(&config, enabled).unwrap();
+    assert!(service::ensure_tun_disabled(dir.path()).is_err());
+    assert_eq!(std::fs::read_to_string(&config).unwrap(), enabled);
+    std::fs::write(&config, "tun: {enable: false}\n").unwrap();
+    assert!(service::ensure_tun_disabled(dir.path()).is_ok());
+    std::fs::write(&config, "tun: [invalid yaml").unwrap();
+    assert!(service::ensure_tun_disabled(dir.path()).is_err());
+}

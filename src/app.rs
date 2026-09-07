@@ -1,4 +1,5 @@
 use crate::{
+    locale::{self, Language},
     model::*,
     settings::{self, Kind, Spec},
 };
@@ -43,6 +44,7 @@ pub enum SaveTarget {
     Rule(Option<usize>),
     ProfileContent(usize),
     TunServicePassword,
+    UninstallTunServicePassword,
 }
 #[derive(Clone, Debug)]
 pub enum Confirm {
@@ -53,6 +55,7 @@ pub enum Confirm {
     CoreConnection(String),
     CoreUpgrade,
     TunService,
+    UninstallTunService,
     LiveBackup(crate::backup::BackupCommand),
     Rule(usize),
     Logs,
@@ -295,6 +298,7 @@ struct PendingClick {
 
 pub struct App {
     pub state: DemoState,
+    pub language: Language,
     pub live: Option<crate::live::LiveState>,
     pub page: Page,
     pub home_focus: HomeFocus,
@@ -302,6 +306,7 @@ pub struct App {
     pub selected: usize,
     pub query: String,
     pub searching: bool,
+    pub form_save_focused: bool,
     pub modal: Option<Modal>,
     pub status: String,
     pub tick: u64,
@@ -323,12 +328,14 @@ pub struct App {
 }
 impl App {
     pub fn new(state: DemoState, data_dir: PathBuf) -> Self {
+        let language = Language::from_preference(state.value("language"));
         let page = Page::ALL
             .into_iter()
             .find(|p| p.title() == state.value("start_page"))
             .unwrap_or(Page::Home);
         Self {
             state,
+            language,
             live: None,
             page,
             home_focus: HomeFocus::Controls,
@@ -336,6 +343,7 @@ impl App {
             selected: 0,
             query: String::new(),
             searching: false,
+            form_save_focused: false,
             modal: None,
             status: "欢迎使用 · 所有网络数据与操作均为本地演示".into(),
             tick: 0,
@@ -356,6 +364,19 @@ impl App {
             pending_click: None,
         }
     }
+    pub fn sync_language(&mut self) {
+        self.language = Language::from_preference(self.state.value("language"));
+    }
+    pub fn active_profile_name(&self) -> String {
+        self.state
+            .profiles
+            .get(self.state.active_profile)
+            .map(|profile| profile.name.clone())
+            .unwrap_or_else(|| self.tr("未选择订阅"))
+    }
+    pub fn tr(&self, source: &str) -> String {
+        locale::translate(source, self.language)
+    }
     pub fn navigate(&mut self, page: Page) {
         self.cancel_pending_click();
         self.page = page;
@@ -367,7 +388,7 @@ impl App {
         self.table_offset = 0;
     }
     pub fn tabs(&self) -> Vec<String> {
-        match self.page {
+        let tabs = match self.page {
             Page::Proxies => self.state.groups.iter().map(|g| g.name.clone()).collect(),
             Page::Profiles => vec!["订阅配置".into(), "配置增强".into()],
             Page::Rules => vec!["路由规则".into(), "规则集合".into()],
@@ -379,6 +400,11 @@ impl App {
                 .to_vec(),
             Page::Settings => settings::CATEGORIES.map(str::to_string).to_vec(),
             _ => vec![],
+        };
+        if self.page == Page::Proxies {
+            tabs
+        } else {
+            tabs.into_iter().map(|tab| self.tr(&tab)).collect()
         }
     }
     pub fn rows(&self) -> Vec<DataRow> {
@@ -400,7 +426,7 @@ impl App {
                     vec![
                         "虚拟网卡 TUN".into(),
                         if self.live.as_ref().is_some_and(|live| !live.tun_capable) {
-                            format!("{} · 需权限服务", self.state.value("tun"))
+                            format!("{} · 需权限服务", self.tr(self.state.value("tun")))
                         } else {
                             self.state.value("tun").into()
                         },
@@ -417,9 +443,13 @@ impl App {
                     3,
                     vec!["混合代理端口".into(), self.state.value("mixed_port").into()],
                 ),
-                row(4, vec!["当前订阅".into(), self.state.active_name().into()]),
+                row(4, vec!["当前订阅".into(), self.active_profile_name()]),
                 row(5, vec!["运行配置".into(), "查看".into()]),
                 row(6, vec!["环境变量".into(), "查看".into()]),
+                row(
+                    7,
+                    vec!["界面语言".into(), self.state.value("language").into()],
+                ),
             ],
             Page::Proxies => self
                 .state
@@ -608,6 +638,25 @@ impl App {
                 .map(|(i, s)| row(i, vec![s.name.into(), s.description.into(), "›".into()]))
                 .collect(),
         };
+        for row in &mut rows {
+            for (column, cell) in row.cells.iter_mut().enumerate() {
+                let owned = match self.page {
+                    Page::Home => column == 0 || (column == 1 && ![3, 4].contains(&row.id)),
+                    Page::Profiles => {
+                        column == 0
+                            || (self.sub == 1 && column == 3)
+                            || (self.sub == 0 && column == 4)
+                    }
+                    Page::Settings => true,
+                    Page::Unlock => column == 1 || column == 2,
+                    Page::Proxies => column == 4,
+                    _ => false,
+                };
+                if owned {
+                    *cell = self.tr(cell);
+                }
+            }
+        }
         if !self.query.is_empty() {
             let q = self.query.to_lowercase();
             rows.retain(|r| r.cells.iter().any(|s| s.to_lowercase().contains(&q)));
@@ -677,7 +726,11 @@ impl App {
             scroll: 0,
         });
     }
-    pub fn form(&mut self, title: impl Into<String>, fields: Vec<Field>, target: SaveTarget) {
+    pub fn form(&mut self, title: impl Into<String>, mut fields: Vec<Field>, target: SaveTarget) {
+        self.form_save_focused = false;
+        for field in &mut fields {
+            field.label = self.tr(&field.label);
+        }
         self.modal = Some(Modal::Form {
             title: title.into(),
             fields,
@@ -703,6 +756,23 @@ impl App {
             SaveTarget::Settings(section),
         );
     }
+    pub fn language_form(&mut self) {
+        let sections = settings::sections();
+        let id = sections
+            .iter()
+            .position(|section| section.name == "外观与布局")
+            .unwrap();
+        let spec = sections[id]
+            .fields
+            .iter()
+            .find(|field| field.key == "language")
+            .unwrap();
+        self.form(
+            "界面语言",
+            vec![Field::from_spec(spec, self.state.value("language"))],
+            SaveTarget::Settings(id),
+        );
+    }
     pub fn tun_password_form(&mut self) {
         self.form(
             "安装 TUN 权限服务",
@@ -713,6 +783,18 @@ impl App {
                 Kind::Secret,
             )],
             SaveTarget::TunServicePassword,
+        );
+    }
+    pub fn tun_uninstall_password_form(&mut self) {
+        self.form(
+            "卸载 TUN 权限服务",
+            vec![Field::new(
+                "system_password",
+                "系统密码（仅用于本次 sudo 验证）",
+                "",
+                Kind::Secret,
+            )],
+            SaveTarget::UninstallTunServicePassword,
         );
     }
     pub fn confirm(&mut self, title: &str, body: &str, target: Confirm) {
@@ -729,6 +811,24 @@ impl App {
                 format!("{} {}", p.title(), p.slug())
                     .to_lowercase()
                     .contains(&query.to_lowercase())
+            })
+            .collect()
+    }
+    pub fn localized_palette_entries(&self, query: &str) -> Vec<Page> {
+        Self::palette_entries_for(query, self.language)
+    }
+    fn palette_entries_for(query: &str, language: Language) -> Vec<Page> {
+        Page::ALL
+            .into_iter()
+            .filter(|page| {
+                format!(
+                    "{} {} {}",
+                    page.localized_title(language),
+                    page.title(),
+                    page.slug()
+                )
+                .to_lowercase()
+                .contains(&query.to_lowercase())
             })
             .collect()
     }
@@ -918,6 +1018,7 @@ impl App {
             Action::Activate => self.activate(),
             Action::Key(c) => self.key(KeyEvent::new(KeyCode::Char(c), KeyModifiers::NONE)),
             Action::Field(i) => {
+                self.form_save_focused = false;
                 if let Some(Modal::Form { active, fields, .. }) = &mut self.modal {
                     *active = i;
                     if matches!(fields[i].kind, Kind::Choice(_) | Kind::Toggle) {
@@ -1023,15 +1124,47 @@ impl App {
             }
             return;
         }
+        let editable_form = matches!(&self.modal, Some(Modal::Form { .. }));
+        if editable_form && self.form_save_focused {
+            match key.code {
+                KeyCode::Char('s') | KeyCode::Enter => {
+                    self.save_form();
+                }
+                KeyCode::BackTab | KeyCode::Up | KeyCode::Left => {
+                    self.form_save_focused = false;
+                    if let Some(Modal::Form { fields, active, .. }) = &mut self.modal {
+                        *active = fields.len() - 1;
+                    }
+                }
+                KeyCode::Tab | KeyCode::Down | KeyCode::Right => {
+                    self.form_save_focused = false;
+                    if let Some(Modal::Form { active, .. }) = &mut self.modal {
+                        *active = 0;
+                    }
+                }
+                _ => {}
+            }
+            return;
+        }
+        if editable_form {
+            if let Some(Modal::Form { fields, active, .. }) = &self.modal {
+                if (key.code == KeyCode::Tab && *active + 1 == fields.len())
+                    || (key.code == KeyCode::BackTab && *active == 0)
+                {
+                    self.form_save_focused = true;
+                    return;
+                }
+            }
+        }
         let quick_apply = matches!(
             &self.modal,
-            Some(Modal::Form { fields, .. })
-                if fields.len() == 1 && fields[0].key == "mixed_port"
+            Some(Modal::Form { fields, active, .. })
+                if matches!(fields[*active].kind, Kind::Number | Kind::Choice(_) | Kind::Toggle)
         );
         let tun_password = matches!(
             &self.modal,
             Some(Modal::Form {
-                target: SaveTarget::TunServicePassword,
+                target: SaveTarget::TunServicePassword | SaveTarget::UninstallTunServicePassword,
                 ..
             })
         );
@@ -1089,8 +1222,11 @@ impl App {
             }
             Modal::Palette { query, selected } => match key.code {
                 KeyCode::Down => {
-                    *selected =
-                        (*selected + 1).min(Self::palette_entries(query).len().saturating_sub(1))
+                    *selected = (*selected + 1).min(
+                        Self::palette_entries_for(query, self.language)
+                            .len()
+                            .saturating_sub(1),
+                    )
                 }
                 KeyCode::Up => *selected = selected.saturating_sub(1),
                 KeyCode::Backspace => {
@@ -1102,13 +1238,15 @@ impl App {
                     *selected = 0;
                 }
                 KeyCode::Enter => {
-                    destination = Self::palette_entries(query).get(*selected).copied()
+                    destination = Self::palette_entries_for(query, self.language)
+                        .get(*selected)
+                        .copied()
                 }
                 _ => {}
             },
         }
         if let Some(target) = confirm {
-            let opens_form = matches!(&target, Confirm::TunService);
+            let opens_form = matches!(&target, Confirm::TunService | Confirm::UninstallTunService);
             self.execute_confirm(target);
             if !opens_form {
                 self.modal = None;
@@ -1133,7 +1271,7 @@ impl App {
         }
         let Some(id) = self.selected_id() else { return };
         match self.page {
-            Page::Home=>match id {0=>{self.state.toggle("system_proxy");self.note("演示：系统代理状态已切换");},1=>{self.state.toggle("tun");self.note("演示：TUN 状态已切换");},2=>self.command('m'),3=>self.mixed_port_form(),4=>self.navigate(Page::Profiles),5=>self.runtime(),_=>self.environment()},
+            Page::Home=>match id {0=>{self.state.toggle("system_proxy");self.note("演示：系统代理状态已切换");},1=>{self.state.toggle("tun");self.note("演示：TUN 状态已切换");},2=>self.command('m'),3=>self.mixed_port_form(),4=>self.navigate(Page::Profiles),5=>self.runtime(),7=>self.language_form(),_=>self.environment()},
             Page::Proxies=>{self.state.groups[self.sub].selected=self.state.nodes[id].name.clone();if self.state.value("close_connections")=="开启" {self.state.connections.clear();}self.note(format!("演示：{} → {}",self.state.groups[self.sub].name,self.state.nodes[id].name));},
             Page::Profiles if self.sub==0=>{self.state.active_profile=id;self.note(format!("演示：已选择订阅 {}",self.state.profiles[id].name));},
             Page::Profiles=>{self.state.enhancements[id].enabled = !self.state.enhancements[id].enabled;self.note("演示：配置增强状态已切换");},
@@ -1435,9 +1573,10 @@ impl App {
             return;
         }
         match section.name {
+            "安装 / 修复 TUN 权限服务" | "卸载 TUN 权限服务" => self.detail(section.name, "演示模式不安装或卸载系统服务"),
             "运行配置"=>self.runtime(),
             "诊断与目录"=>self.detail("诊断与目录",format!("Clash Verge TUI v{}\n状态目录：{}\n状态文件：demo-state.json\n数据模式：本地演示\n后端连接：未接入\n备份数量：{}\n\n未读取 Clash Verge 的真实配置、密钥或订阅。\n网络设置仅保存为演示值；实际生效的是主题、导航、\n图表、鼠标、Vim 键位、启动页与刷新间隔。",env!("CARGO_PKG_VERSION"),self.data_dir.display(),self.state.backups.len())),
-            "桌面功能映射"=>self.detail("桌面功能映射","终端适配\n\n桌面导航 → 数字键 1–8 / 鼠标侧栏\n托盘快捷操作 → 首页快捷控制\n全局热键 → 终端内快捷键\n配置编辑器 → 多行表单\n文件选择 → 路径与文本输入\n开发者工具 → 诊断页 / --snapshot\n\n窗口标题栏、托盘图标、字体和 CSS 由终端或桌面管理。\n终端界面为简体中文。\n真实模式支持 TUN、代理守卫、后台服务、自启动与备份同步。"),
+            "桌面功能映射"=>self.detail("桌面功能映射","终端适配\n\n桌面导航 → 数字键 1–8 / 鼠标侧栏\n托盘快捷操作 → 首页快捷控制\n全局热键 → 终端内快捷键\n配置编辑器 → 多行表单\n文件选择 → 路径与文本输入\n开发者工具 → 诊断页 / --snapshot\n\n窗口标题栏、托盘图标、字体和 CSS 由终端或桌面管理。\n介面支持简体中文、繁體中文与 English，可在设置中切换。\n真实模式支持 TUN、代理守卫、后台服务、自启动与备份同步。"),
             _=>self.detail("关于 Clash Verge TUI",format!("CLASH VERGE / TERMINAL\n\nv{}  ·  DEMO\n\n以 Clash Verge Rev v2.5.2 为参照的 Linux 终端客户端。\nRust + Ratatui + Crossterm\nMIT\n\n当前为显式演示模式，不启动 mihomo。\n无参数启动使用应用自管的 mihomo v{} 和私有工作区。\n\n源码参考：https://github.com/clash-verge-rev/clash-verge-rev\n内核：https://github.com/MetaCubeX/mihomo",env!("CARGO_PKG_VERSION"),crate::core_manager::MIHOMO_VERSION)),
         }
     }
@@ -1493,7 +1632,8 @@ impl App {
             Confirm::CoreConnection(_)
             | Confirm::LiveBackup(_)
             | Confirm::CoreUpgrade
-            | Confirm::TunService => return,
+            | Confirm::TunService
+            | Confirm::UninstallTunService => return,
             Confirm::Backup(i) => {
                 self.state.backups.remove(i);
             }
@@ -1525,6 +1665,7 @@ impl App {
                 self.state.active_profile = b.active_profile;
                 self.state.enhancements = b.enhancements;
                 self.state.rules = b.rules;
+                self.sync_language();
             }
         }
         self.selected = self.selected.min(self.rows().len().saturating_sub(1));
@@ -1590,7 +1731,13 @@ impl App {
             }
             return;
         }
-        if self.live.is_some() && matches!(target, SaveTarget::TunServicePassword) {
+        if self.live.is_some()
+            && matches!(
+                target,
+                SaveTarget::TunServicePassword | SaveTarget::UninstallTunServicePassword
+            )
+        {
+            let uninstall = matches!(target, SaveTarget::UninstallTunServicePassword);
             let password = if let Some(Modal::Form { fields, .. }) = &mut self.modal {
                 fields
                     .iter_mut()
@@ -1601,8 +1748,11 @@ impl App {
                 String::new()
             };
             self.modal = None;
-            self.queue_core(crate::core::Command::InstallTunService {
-                password: crate::core::SecretInput::new(password),
+            let password = crate::core::SecretInput::new(password);
+            self.queue_core(if uninstall {
+                crate::core::Command::UninstallTunService { password }
+            } else {
+                crate::core::Command::InstallTunService { password }
             });
             return;
         }
@@ -1624,6 +1774,7 @@ impl App {
                 for f in fields {
                     self.state.settings.insert(f.key, f.value);
                 }
+                self.sync_language();
             }
             SaveTarget::Profile(id) => {
                 if let Some(i) = id {
@@ -1679,7 +1830,7 @@ impl App {
                 }
             }
             SaveTarget::ProfileContent(i) => self.state.profiles[i].content = get("content"),
-            SaveTarget::TunServicePassword => return,
+            SaveTarget::TunServicePassword | SaveTarget::UninstallTunServicePassword => return,
         }
         self.modal = None;
         self.note("已保存到本地演示状态 · 网络配置尚未应用到 mihomo");
@@ -1707,7 +1858,7 @@ impl App {
         self.selected = self.selected.min(self.rows().len().saturating_sub(1));
     }
     pub fn help(&mut self) {
-        self.detail("键盘操作","导航\n  1–8               切换主页面\n  Tab / Shift+Tab   切换区域或分组\n  ← → / h l         首页左右区域；其他页面切换分组\n  ↑ ↓ / j k         选择条目\n  PgUp / PgDn       快速翻页\n  Enter / Space     执行主操作\n  /                 搜索当前列表\n  :                 页面跳转面板\n  Esc               取消弹窗 / 清除搜索\n  t                 切换深色 / 浅色主题\n  q / Ctrl+C        退出\n\n页面操作（以当前模式工具栏为准）\n  a / e / d         新建 / 编辑 / 删除\n  r                 刷新或检测\n  s                 排序（代理 / 连接）\n  m                 代理模式切换\n  v                 编辑订阅 YAML\n  [ / ]             上移 / 下移订阅或增强链\n  D                 关闭全部连接\n  p / c             暂停 / 清空日志\n  b / R             创建 / 恢复最近备份（设置页）\n\n表单\n  Tab / ↑ ↓         切换字段\n  ← → / Space       切换开关或选项\n  Home / End        文本首尾\n  Ctrl+U            清空当前字段\n  Enter             下一字段；多行字段换行\n  Ctrl+S            校验并保存\n\n鼠标\n  点击侧栏、标签、工具按钮；单击行选择，双击等同 Enter\n  同一行同一位置附近 400 毫秒内双击；备份恢复仍需确认\n  滚轮移动选择；Shift+鼠标使用终端原生文本选择\n\n默认启动使用应用自管内核；--demo 使用独立演示数据。\n详情见 README。" );
+        self.detail("键盘操作","导航\n  1–8               切换主页面\n  Tab / Shift+Tab   切换区域或分组\n  ← → / h l         首页左右区域；其他页面切换分组\n  ↑ ↓ / j k         选择条目\n  PgUp / PgDn       快速翻页\n  Enter / Space     执行主操作\n  /                 搜索当前列表\n  :                 页面跳转面板\n  Esc               取消弹窗 / 清除搜索\n  t                 切换深色 / 浅色主题\n  q / Ctrl+C        退出\n\n页面操作（以当前模式工具栏为准）\n  a / e / d         新建 / 编辑 / 删除\n  r                 刷新或检测\n  s                 排序（代理 / 连接）\n  m                 代理模式切换\n  v                 编辑订阅 YAML\n  [ / ]             上移 / 下移订阅或增强链\n  D                 关闭全部连接\n  p / c             暂停 / 清空日志\n  b / R             创建 / 恢复最近备份（设置页）\n\n表单\n  Tab / ↑ ↓         切换字段\n  ← → / Space       切换开关或选项\n  Home / End        文本首尾\n  Ctrl+U            清空当前字段\n  Enter             下一字段；多行字段换行\n  s                 保存（文本编辑时先 Tab 聚焦保存按钮）\n\n鼠标\n  点击侧栏、标签、工具按钮；单击行选择，双击等同 Enter\n  同一行同一位置附近 400 毫秒内双击；备份恢复仍需确认\n  滚轮移动选择；Shift+鼠标使用终端原生文本选择\n\n默认启动使用应用自管内核；--demo 使用独立演示数据。\n详情见 README。" );
     }
 }
 

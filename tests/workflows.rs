@@ -8,7 +8,9 @@ use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ratatui::{backend::TestBackend, Terminal};
 use std::path::PathBuf;
 fn app() -> App {
-    App::new(DemoState::default(), PathBuf::from("/tmp/clash-verge-test"))
+    let mut state = DemoState::default();
+    state.settings.insert("language".into(), "zh-CN".into());
+    App::new(state, PathBuf::from("/tmp/clash-verge-test"))
 }
 fn key(app: &mut App, code: KeyCode) {
     app.key(KeyEvent::new(code, KeyModifiers::NONE));

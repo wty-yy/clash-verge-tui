@@ -54,6 +54,9 @@ pub enum Command {
         url: String,
         proxy: Option<String>,
     },
+    UninstallTunService {
+        password: SecretInput,
+    },
     InstallTunService {
         password: SecretInput,
     },
@@ -97,6 +100,7 @@ pub enum CoreEvent {
         result: Result<crate::subscriptions::FetchedProfile, String>,
     },
     TunServiceInstalled(Result<(), String>),
+    TunServiceUninstalled(Result<(), String>),
     BackgroundNotice(String),
     Completed(Result<(), String>),
 }
@@ -236,6 +240,7 @@ impl CoreClient {
             | Command::Extra(_)
             | Command::ImportProfile { .. }
             | Command::InstallTunService { .. }
+            | Command::UninstallTunService { .. }
             | Command::PollEvery(_) => bail!("工作区命令必须由后台工作线程处理"),
             Command::Upgrade { kind, channel } => {
                 let path = match kind.as_str() {
@@ -451,6 +456,11 @@ if ticks.is_multiple_of(3){let host=prefs.get("proxy_host").map(String::as_str).
                         let source=crate::subscriptions::Source{name:String::new(),url:url.clone(),proxy:proxy.clone()};
                         let result=tokio::select!{_=stopped.changed()=>break,result=crate::subscriptions::fetch(&source)=>result}.map_err(|error|error.to_string());
                         let _=events_tx.send(CoreEvent::ProfileImported{request:*request,result});
+                        continue;
+                    }
+                    if let Command::UninstallTunService { password }=&command {
+                        let result=if let Some(context)=&workspace{tokio::select!{_=stopped.changed()=>break,result=crate::service::uninstall_tun_service_with_password(&context.dir,password)=>result}}else{Err(anyhow!("TUN 权限服务需要自管工作区"))};
+                        let _=events_tx.send(CoreEvent::TunServiceUninstalled(result.map_err(|error|error.to_string())));
                         continue;
                     }
                     if let Command::InstallTunService { password }=&command {

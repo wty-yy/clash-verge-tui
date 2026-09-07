@@ -43,6 +43,48 @@ pub fn tun_capable(binary: &Path) -> bool {
         .unwrap_or(false)
 }
 
+pub fn resolver_dir(dir: &Path, uid: u32) -> PathBuf {
+    Path::new("/usr/libexec/clash-verge-tui")
+        .join(format!("resolved-{uid}-{:016x}", workspace_hash(dir)))
+}
+
+fn system_resolvectl() -> Option<PathBuf> {
+    Path::new("/usr/bin/resolvectl")
+        .is_file()
+        .then(|| PathBuf::from("/usr/bin/resolvectl"))
+}
+
+pub fn tun_ready(binary: &Path) -> bool {
+    if !tun_capable(binary) {
+        return false;
+    }
+    if system_resolvectl().is_none() {
+        return true;
+    }
+    let Some(dir) = binary.parent().and_then(Path::parent) else {
+        return false;
+    };
+    let uid = unsafe { libc::getuid() };
+    let helper = resolver_dir(dir, uid).join("resolvectl");
+    std::fs::read_to_string(helper)
+        .is_ok_and(|text| text == crate::resolver_service::shim(dir, uid))
+        && crate::resolver_service::ready(dir, uid)
+}
+
+fn install_resolver(dir: &Path, uid: u32) -> Result<()> {
+    let destination = resolver_dir(dir, uid).join("resolvectl");
+    // Atomic replacement also removes the obsolete executable's file capabilities.
+    let text = crate::resolver_service::shim(dir, uid);
+    if std::fs::read_to_string(&destination).ok().as_deref() != Some(&text) {
+        root_write(&destination, text.as_bytes(), 0o755)?;
+    }
+    Ok(())
+}
+
+pub fn dns_unit(app: &Path, dir: &Path, uid: u32) -> String {
+    format!("# Managed by clash-verge-tui\n[Unit]\nDescription=Clash Verge TUI privileged DNS broker\nAfter=systemd-resolved.service\n\n[Service]\nType=simple\nExecStart={} --tun-helper dns-server --tun-uid {uid} --data-dir {}\nRestart=on-failure\nRestartSec=1\nRuntimeDirectory=clash-verge-tui\nRuntimeDirectoryPreserve=yes\nCapabilityBoundingSet=CAP_NET_ADMIN CAP_CHOWN CAP_DAC_READ_SEARCH CAP_FOWNER\nNoNewPrivileges=true\nProtectSystem=strict\nProtectHome=read-only\nReadWritePaths=/run/clash-verge-tui\nRestrictAddressFamilies=AF_UNIX AF_NETLINK AF_INET AF_INET6\n\n[Install]\nWantedBy=multi-user.target\n",quote(&app.to_string_lossy()),quote(&dir.to_string_lossy()))
+}
+
 pub fn tun_units(app: &Path, dir: &Path, uid: u32) -> Result<(String, String)> {
     for value in [app, dir] {
         if !value.is_absolute()
@@ -59,14 +101,15 @@ pub fn tun_units(app: &Path, dir: &Path, uid: u32) -> Result<(String, String)> {
     let core_path = dir.join("core/mihomo");
     let core = quote(&core_path.to_string_lossy());
     let service = format!(
-        "# Managed by clash-verge-tui\n[Unit]\nDescription=Maintain Clash Verge TUI core capabilities\n\n[Service]\nType=oneshot\nExecStart={} --tun-helper apply --tun-uid {} --data-dir {}\nCapabilityBoundingSet=CAP_SETFCAP CAP_DAC_READ_SEARCH CAP_FOWNER\nNoNewPrivileges=true\nProtectSystem=strict\nProtectHome=read-only\nReadWritePaths={}\nRestrictAddressFamilies=AF_UNIX\n",
+        "# Managed by clash-verge-tui\n[Unit]\nDescription=Maintain Clash Verge TUI core capabilities\n\n[Service]\nType=oneshot\nExecStart={} --tun-helper apply --tun-uid {} --data-dir {}\nCapabilityBoundingSet=CAP_SETFCAP CAP_DAC_READ_SEARCH CAP_FOWNER CAP_CHOWN\nNoNewPrivileges=true\nProtectSystem=strict\nProtectHome=read-only\nReadWritePaths={} {}\nRestrictAddressFamilies=AF_UNIX\n",
         quote(&app.to_string_lossy()),
         uid,
         quote(&dir.to_string_lossy()),
-        core
+        core,
+        path_directive(&resolver_dir(dir, uid).to_string_lossy())
     );
     let path = format!(
-        "# Managed by clash-verge-tui\n[Unit]\nDescription=Watch Clash Verge TUI core for capability updates\n\n[Path]\nPathChanged={}\nUnit={base}.service\n\n[Install]\nWantedBy=multi-user.target\n",
+        "# Managed by clash-verge-tui\n[Unit]\nDescription=Watch Clash Verge TUI core for capability updates\n\n[Path]\nPathChanged={}\nPathChanged=/usr/bin/resolvectl\nUnit={base}.service\n\n[Install]\nWantedBy=multi-user.target\n",
         path_directive(&core_path.to_string_lossy())
     );
     Ok((service, path))
@@ -365,17 +408,7 @@ pub async fn open(
         .and_then(|tun| tun.get("enable"))
         .and_then(serde_yaml_ng::Value::as_bool)
         .unwrap_or(false);
-    if tun_enabled && unsafe { libc::geteuid() } != 0 && !tun_capable(&owned) {
-        for _ in 0..30 {
-            tokio::time::sleep(Duration::from_millis(100)).await;
-            if tun_capable(&owned) {
-                break;
-            }
-        }
-        if !tun_capable(&owned) {
-            bail!("TUN 已启用，但权限服务尚未为新内核授权；请运行 --tun-service install");
-        }
-    }
+    let needs_tun_setup = tun_enabled && unsafe { libc::geteuid() } != 0 && !tun_ready(&owned);
     let context = workspace::WorkspaceContext {
         dir: dir.clone(),
         binary: owned.clone(),
@@ -387,7 +420,16 @@ pub async fn open(
         .state
         .overrides
         .insert("mixed-port".into(), port.into());
-    let payload = workspace::compose(&state, &context).await?;
+    let mut boot_state = state.clone();
+    if needs_tun_setup {
+        // Keep the saved request, but open the UI safely until its terminal-only
+        // permission form has upgraded core capabilities and the DNS service.
+        crate::network::apply(
+            &mut boot_state.state.overrides,
+            &BTreeMap::from([("tun".into(), "关闭".into())]),
+        )?;
+    }
+    let payload = workspace::compose(&boot_state, &context).await?;
     workspace::validate(&payload, &context).await?;
     let bootstrap;
     let profile = if let Some(p) = state.profiles.get(active) {
@@ -510,6 +552,7 @@ fn apply_tun_capability(dir: &Path, uid: u32) -> Result<()> {
     if !status.success() || !tun_capable(&core) {
         bail!("无法为 mihomo 安装 TUN 所需能力");
     }
+    install_resolver(dir, uid)?;
     Ok(())
 }
 
@@ -521,7 +564,12 @@ pub fn tun_helper(action: &str, dir: &Path, uid: u32) -> Result<()> {
     let base = tun_base_name(&dir, uid);
     let service_path = Path::new(SYSTEMD_DIR).join(format!("{base}.service"));
     let watch_path = Path::new(SYSTEMD_DIR).join(format!("{base}.path"));
+    let dns_path = Path::new(SYSTEMD_DIR).join(format!("{base}-dns.service"));
     match action {
+        "dns-server" => {
+            validate_tun_core(&dir, uid)?;
+            crate::resolver_service::serve(&dir, uid)
+        }
         "apply" => apply_tun_capability(&dir, uid),
         "install" => {
             validate_tun_core(&dir, uid)?;
@@ -529,29 +577,65 @@ pub fn tun_helper(action: &str, dir: &Path, uid: u32) -> Result<()> {
             let helper = Path::new(TUN_HELPER);
             let binary = std::fs::read(current)?;
             root_write(helper, &binary, 0o755)?;
+            install_resolver(&dir, uid)?;
             let (service, path) = tun_units(helper, &dir, uid)?;
             root_write(&service_path, service.as_bytes(), 0o644)?;
             root_write(&watch_path, path.as_bytes(), 0o644)?;
+            root_write(&dns_path, dns_unit(helper, &dir, uid).as_bytes(), 0o644)?;
             root_systemctl(&["daemon-reload"])?;
             apply_tun_capability(&dir, uid)?;
+            root_systemctl(&["enable", &format!("{base}-dns.service")])?;
+            root_systemctl(&["restart", &format!("{base}-dns.service")])?;
+            let started = std::time::Instant::now();
+            while !crate::resolver_service::ready(&dir, uid) {
+                if started.elapsed() > Duration::from_secs(5) {
+                    bail!("TUN DNS service failed to start");
+                }
+                std::thread::sleep(Duration::from_millis(50));
+            }
             root_systemctl(&["enable", "--now", &format!("{base}.path")])?;
             root_systemctl(&["start", &format!("{base}.service")])?;
             Ok(())
         }
         "uninstall" => {
-            let _ = root_systemctl(&["disable", "--now", &format!("{base}.path")]);
+            ensure_tun_disabled(&dir)?;
+            for file in [&service_path, &watch_path, &dns_path] {
+                if file.exists()
+                    && !std::fs::read_to_string(file)?.starts_with("# Managed by clash-verge-tui")
+                {
+                    bail!("拒绝删除非本工具管理的 TUN 服务文件");
+                }
+            }
+            if watch_path.exists() {
+                root_systemctl(&["disable", "--now", &format!("{base}.path")])?;
+            }
+            if service_path.exists() {
+                root_systemctl(&["stop", &format!("{base}.service")])?;
+            }
+            if dns_path.exists() {
+                root_systemctl(&["disable", "--now", &format!("{base}-dns.service")])?;
+            }
+            let _ = std::fs::remove_file(crate::resolver_service::socket_path(&dir, uid));
+            let resolver = resolver_dir(&dir, uid).join("resolvectl");
+            if resolver.is_file() {
+                std::fs::remove_file(&resolver)?;
+            }
+            let _ = std::fs::remove_dir(resolver_dir(&dir, uid));
             if let Ok(core) = validate_tun_core(&dir, uid) {
                 if tun_capable(&core) {
                     if let Some(setcap) = privileged_program("setcap") {
-                        let _ = std::process::Command::new(setcap)
+                        let status = std::process::Command::new(setcap)
                             .args(["-r"])
                             .arg(core)
                             .stdin(Stdio::null())
-                            .status();
+                            .status()?;
+                        if !status.success() {
+                            bail!("无法移除当前内核的 TUN 能力");
+                        }
                     }
                 }
             }
-            for file in [service_path, watch_path] {
+            for file in [service_path, watch_path, dns_path] {
                 if file.exists() {
                     if !std::fs::read_to_string(&file)?.starts_with("# Managed by clash-verge-tui")
                     {
@@ -671,7 +755,7 @@ fn tun_helper_failure(stderr: &str) -> String {
 pub async fn install_tun_service(dir: &Path, password: &crate::core::SecretInput) -> Result<()> {
     tun_helper_request("install", dir, Some(password)).await?;
     let core = std::fs::canonicalize(dir)?.join("core/mihomo");
-    if !tun_capable(&core) {
+    if !tun_ready(&core) {
         bail!("TUN 权限服务已返回，但内核能力校验失败");
     }
     Ok(())
@@ -680,14 +764,49 @@ pub async fn install_tun_service(dir: &Path, password: &crate::core::SecretInput
 pub async fn install_tun_service_cli(dir: &Path) -> Result<()> {
     tun_helper_request("install", dir, None).await?;
     let core = std::fs::canonicalize(dir)?.join("core/mihomo");
-    if !tun_capable(&core) {
+    if !tun_ready(&core) {
         bail!("TUN 权限服务已返回，但内核能力校验失败");
     }
     Ok(())
 }
 
 pub async fn uninstall_tun_service(dir: &Path) -> Result<()> {
+    ensure_tun_disabled(dir)?;
     tun_helper_request("uninstall", dir, None).await
+}
+
+pub async fn uninstall_tun_service_with_password(
+    dir: &Path,
+    password: &crate::core::SecretInput,
+) -> Result<()> {
+    ensure_tun_disabled(dir)?;
+    tun_helper_request("uninstall", dir, Some(password)).await
+}
+
+/// Require an explicit TUN shutdown before removing its DNS cleanup service.
+pub fn ensure_tun_disabled(dir: &Path) -> Result<()> {
+    if dir.join("workspace-state.json").exists() {
+        let snapshot = crate::workspace::load(dir)?;
+        if snapshot
+            .state
+            .overrides
+            .get(serde_yaml_ng::Value::from("tun"))
+            .and_then(|tun| tun.get("enable"))
+            .and_then(serde_yaml_ng::Value::as_bool)
+            .unwrap_or(false)
+        {
+            bail!("请先关闭当前工作区的 TUN，再卸载权限服务");
+        }
+    }
+    let config = dir.join("core/config.yaml");
+    if config.exists() {
+        let value: serde_yaml_ng::Value =
+            serde_yaml_ng::from_str(&std::fs::read_to_string(config)?)?;
+        if value["tun"]["enable"].as_bool().unwrap_or(false) {
+            bail!("请先关闭当前工作区的 TUN，再卸载权限服务");
+        }
+    }
+    Ok(())
 }
 
 #[cfg(test)]

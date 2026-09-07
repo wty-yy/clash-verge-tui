@@ -12,6 +12,28 @@ fail() {
     exit 1
 }
 
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --source)
+            [ "$#" -ge 2 ] || fail "--source requires github or gitee"
+            case "$2" in
+                github) repository="https://github.com/wty-yy/clash-verge-tui" ;;
+                gitee) repository="https://gitee.com/wty-yy/clash-verge-tui" ;;
+                *) fail "unsupported source: $2 (use github or gitee)" ;;
+            esac
+            shift 2
+            ;;
+        -h | --help)
+            printf 'Usage: sh install.sh [--source github|gitee]\n'
+            printf 'Optional environment: CLASH_VERGE_TUI_VERSION, CLASH_VERGE_TUI_REPOSITORY, CLASH_VERGE_TUI_INSTALL_DIR, CLASH_VERGE_TUI_ASSET_BASE_URL\n'
+            exit 0
+            ;;
+        *) fail "unknown argument: $1" ;;
+    esac
+done
+repository="${repository%/}"
+repository="${repository%.git}"
+
 command -v curl >/dev/null 2>&1 || fail "curl is required"
 command -v tar >/dev/null 2>&1 || fail "tar is required"
 command -v sha256sum >/dev/null 2>&1 || fail "sha256sum is required"
@@ -24,13 +46,23 @@ case "$(uname -m)" in
 esac
 
 if [ -z "$version" ]; then
-    latest_url="$(curl -fsSL --connect-timeout 15 --retry 5 --retry-delay 2 --retry-all-errors -o /dev/null -w '%{url_effective}' "$repository/releases/latest")"
-    version="${latest_url##*/}"
+    case "$repository" in
+        https://gitee.com/*)
+            repository_path="${repository#https://gitee.com/}"
+            release="$(curl -fsSL --connect-timeout 15 --retry 5 --retry-delay 2 --retry-all-errors \
+                "https://gitee.com/api/v5/repos/$repository_path/releases/latest")" || \
+                fail "cannot find a Gitee release; publish the release bundles and checksums at $repository/releases first"
+            # Extract only a stable version tag; do not evaluate API response content.
+            version="$(printf '%s\n' "$release" | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\(v[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\)".*/\1/p' | head -1)"
+            [ -n "$version" ] || fail "Gitee release has no stable version tag; check $repository/releases"
+            ;;
+        *)
+            latest_url="$(curl -fsSL --connect-timeout 15 --retry 5 --retry-delay 2 --retry-all-errors -o /dev/null -w '%{url_effective}' "$repository/releases/latest")"
+            version="${latest_url##*/}"
+            ;;
+    esac
 fi
-case "$version" in
-    v[0-9]*.[0-9]*.[0-9]*) ;;
-    *) fail "invalid release version: $version" ;;
-esac
+printf '%s\n' "$version" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$' || fail "invalid release version: $version"
 numeric_version="${version#v}"
 
 asset="clash-verge-tui-${version}-linux-${architecture}.tar.gz"
@@ -44,10 +76,11 @@ cleanup() {
 trap cleanup EXIT HUP INT TERM
 
 printf 'Downloading clash-verge-tui %s for Linux %s...\n' "$version" "$architecture"
+printf 'Source: %s\n' "$base_url"
 curl -fL --connect-timeout 15 --retry 5 --retry-delay 2 --retry-all-errors \
-    -o "$temporary_dir/$asset" "$base_url/$asset"
+    -o "$temporary_dir/$asset" "$base_url/$asset" || fail "release bundle unavailable at $base_url; repository sync alone does not copy release attachments"
 curl -fL --connect-timeout 15 --retry 5 --retry-delay 2 --retry-all-errors \
-    -o "$temporary_dir/$asset.sha256" "$base_url/$asset.sha256"
+    -o "$temporary_dir/$asset.sha256" "$base_url/$asset.sha256" || fail "release checksum unavailable at $base_url; refusing to install"
 (cd "$temporary_dir" && sha256sum -c "$asset.sha256")
 
 mkdir -p "$temporary_dir/package"

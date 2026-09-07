@@ -57,7 +57,7 @@ impl LiveState {
     ) -> Self {
         let tun_capable = managed
             .as_ref()
-            .is_some_and(|settings| crate::service::tun_capable(&settings.binary));
+            .is_some_and(|settings| crate::service::tun_ready(&settings.binary));
         Self {
             endpoint,
             connected: false,
@@ -109,6 +109,7 @@ fn flag(value: bool) -> String {
     if value { "开启" } else { "关闭" }.into()
 }
 pub const UI_KEYS: &[&str] = &[
+    "language",
     "theme",
     "accent",
     "compact",
@@ -211,6 +212,22 @@ impl App {
                 }
             }
         }
+        if app.live.as_ref().is_some_and(|live| {
+            !live.tun_capable
+                && live.managed.is_some()
+                && live
+                    .workspace
+                    .overrides
+                    .get(serde_yaml_ng::Value::from("tun"))
+                    .and_then(|tun| tun.get("enable"))
+                    .and_then(serde_yaml_ng::Value::as_bool)
+                    .unwrap_or(false)
+        }) {
+            app.tun_after_restart = Some(crate::workspace::WorkspaceCommand::Settings(
+                BTreeMap::from([("tun".into(), "开启".into())]),
+            ));
+            app.tun_password_form();
+        }
         app.status = "正在连接 mihomo…".into();
         Ok(app)
     }
@@ -298,7 +315,7 @@ impl App {
                                 }
                                 error.clear();
                                 self.status = format!(
-                                    "已导入 {proxies} 个节点、{groups} 个策略组；按 Ctrl+S 保存"
+                                    "已导入 {proxies} 个节点、{groups} 个策略组；聚焦保存按钮后按 s 保存"
                                 );
                             } else {
                                 self.status = "订阅链接已更改，本次导入结果未写入表单".into();
@@ -319,13 +336,29 @@ impl App {
                 self.live.as_mut().unwrap().pending = false;
                 match result {
                     Ok(()) => {
-                        self.restart_core = true;
-                        self.status = "TUN 权限服务已安装，正在重启自管内核…".into();
+                        self.live.as_mut().unwrap().tun_capable = true;
+                        if self.tun_after_restart.is_some() {
+                            self.restart_core = true;
+                            self.status = "TUN 权限服务已安装，正在重启自管内核…".into();
+                        } else {
+                            self.status = "TUN 权限服务已安装".into();
+                        }
                     }
                     Err(error) => {
                         self.tun_after_restart = None;
                         self.status = format!("TUN 权限服务安装失败：{error}");
                     }
+                }
+            }
+            CoreEvent::TunServiceUninstalled(result) => {
+                self.live.as_mut().unwrap().pending = false;
+                match result {
+                    Ok(()) => {
+                        self.live.as_mut().unwrap().tun_capable = false;
+                        self.tun_after_restart = None;
+                        self.status = "TUN 权限服务已卸载".into();
+                    }
+                    Err(error) => self.status = format!("TUN 权限服务卸载失败：{error}"),
                 }
             }
             CoreEvent::Workspace(snapshot) => self.apply_workspace(*snapshot),
@@ -414,6 +447,7 @@ impl App {
         let live = self.live.as_mut().unwrap();
         live.profiles = snapshot.profiles;
         live.workspace = snapshot.state;
+        self.sync_language();
         self.selected = self.selected.min(self.rows().len().saturating_sub(1));
     }
     fn workspace_command(&mut self, command: crate::workspace::WorkspaceCommand) {
@@ -685,6 +719,7 @@ impl App {
                     | Command::Extra(_)
                     | Command::ImportProfile { .. }
                     | Command::InstallTunService { .. }
+                    | Command::UninstallTunService { .. }
                     | Command::Workspace(crate::workspace::WorkspaceCommand::Read)
             )
         {
@@ -799,6 +834,7 @@ impl App {
                 3 => self.mixed_port_form(),
                 4 => self.navigate(Page::Profiles),
                 5 => self.runtime_live(),
+                7 => self.language_form(),
                 _ => {
                     if let Some(proxy) = self.proxy_url() {
                         let command = match self.state.value("env_type") {
@@ -863,6 +899,20 @@ impl App {
             Page::Settings => {
                 let section = settings::sections().remove(id);
                 match section.name {
+                    "安装 / 修复 TUN 权限服务" | "卸载 TUN 权限服务" => {
+                        if self.live.as_ref().unwrap().managed.is_none() {
+                            self.status = "此操作需要自管内核工作区".into();
+                        } else if section.name == "卸载 TUN 权限服务" {
+                            if self.state.value("tun") == "开启" {
+                                self.status = "请先关闭当前工作区的 TUN，再卸载权限服务".into();
+                            } else {
+                                self.confirm(section.name, "仅卸载当前工作区的 TUN 权限和 DNS 服务，保留订阅与配置。", Confirm::UninstallTunService);
+                            }
+                        } else {
+                            self.tun_after_restart = None;
+                            self.confirm(section.name, "仅安装或修复当前工作区的权限和 DNS 服务，不开启 TUN。", Confirm::TunService);
+                        }
+                    }
                     "外观与布局" | "热键与终端" => {
                         let fields = section
                             .fields
@@ -930,7 +980,7 @@ impl App {
                         let live = self.live.as_ref().unwrap();
                         self.detail(section.name,format!("Clash Verge TUI v{}\nmihomo {}\n控制器：{}\n日志：{}\n状态目录：{}\n\n节点切换、模式、测速、连接关闭和规则启停已接入。\nMIT",env!("CARGO_PKG_VERSION"),live.version,live.endpoint,live.log_status,self.data_dir.display()));
                     }
-                    "桌面功能映射"=>self.detail("终端适配","托盘快捷操作对应首页控制；后台自启不打开窗口。\n字体、窗口装饰、桌面热键由终端和桌面环境管理。\n本客户端面向 Linux，界面为简体中文。"),
+                    "桌面功能映射"=>self.detail("终端适配","托盘快捷操作对应首页控制；后台自启不打开窗口。\n字体、窗口装饰、桌面热键由终端和桌面环境管理。\n本客户端面向 Linux，支持简体中文、繁體中文与 English。"),
                     _=>self.detail(section.name,"此设置需要应用自管工作区，重启后再试。"),
                 }
             }
@@ -1283,11 +1333,13 @@ impl App {
         }
     }
     pub fn validate_live_form(&self, fields: &[Field], target: &SaveTarget) -> Result<(), String> {
-        if matches!(target, SaveTarget::TunServicePassword)
-            && fields
-                .iter()
-                .find(|field| field.key == "system_password")
-                .is_none_or(|field| field.value.is_empty())
+        if matches!(
+            target,
+            SaveTarget::TunServicePassword | SaveTarget::UninstallTunServicePassword
+        ) && fields
+            .iter()
+            .find(|field| field.key == "system_password")
+            .is_none_or(|field| field.value.is_empty())
         {
             return Err("请输入系统密码".into());
         }
@@ -1441,6 +1493,7 @@ impl App {
                 )
             }
             Confirm::TunService => self.tun_password_form(),
+            Confirm::UninstallTunService => self.tun_uninstall_password_form(),
             Confirm::LiveBackup(command) => self.queue_core(Command::Backup(command.clone())),
             Confirm::Profile(i) => {
                 self.workspace_command(crate::workspace::WorkspaceCommand::Delete(*i))
@@ -1466,10 +1519,10 @@ impl App {
             UI_KEYS.contains(&f.key.as_str())
                 || ["service", "auto_launch", "start_script", "silent"].contains(&f.key.as_str())
         });
-        if live.pending || !live.connected && !offline_safe {
+        if !offline_safe && (live.pending || !live.connected) {
             if let Some(crate::app::Modal::Form { error, .. }) = &mut self.modal {
                 *error = if live.pending {
-                    "上一项操作尚未完成，请稍后按 Ctrl+S 重试"
+                    "上一项操作尚未完成，请稍后使用保存按钮重试"
                 } else {
                     "内核未连接，输入已保留"
                 }
@@ -1619,6 +1672,7 @@ impl App {
                 _ => {}
             }
         }
+        self.sync_language();
         self.modal = None;
         if patch.is_empty() {
             self.note("界面偏好已保存");

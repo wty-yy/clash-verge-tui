@@ -33,6 +33,9 @@ use std::{
 #[derive(Parser)]
 #[command(version, about = "Clash Verge TUI — mihomo terminal client")]
 struct Args {
+    /// Interface language: auto, en, zh-CN, or zh-TW
+    #[arg(long, value_parser=["auto", "en", "zh-CN", "zh-TW"])]
+    language: Option<String>,
     /// 使用独立演示模式，不启动 mihomo
     #[arg(long, conflicts_with_all=["core","check","import_only","subscriptions_file","daemon","service"])]
     demo: bool,
@@ -60,10 +63,12 @@ struct Args {
     /// 安装、检查或卸载需要系统密码的 TUN 权限服务
     #[arg(long,value_parser=["install","status","uninstall"],conflicts_with_all=["demo","check","snapshot","import_only","daemon","service"])]
     tun_service: Option<String>,
-    #[arg(long, hide = true, value_parser=["install","apply","uninstall"])]
+    #[arg(long, hide = true, value_parser=["install","apply","uninstall","dns-server","dns-client"])]
     tun_helper: Option<String>,
     #[arg(long, hide = true, requires = "tun_helper")]
     tun_uid: Option<u32>,
+    #[arg(last = true, hide = true, requires = "tun_helper")]
+    dns_args: Vec<String>,
     /// 自管内核的代理端口
     #[arg(long)]
     mixed_port: Option<u16>,
@@ -126,6 +131,13 @@ fn main() -> Result<()> {
         .enable_all()
         .build()?;
     if let Some(action) = &args.tun_helper {
+        if action == "dns-client" {
+            return clash_verge_tui::resolver_service::request(
+                &dir,
+                args.tun_uid.context("Missing DNS service UID")?,
+                &args.dns_args,
+            );
+        }
         clash_verge_tui::service::tun_helper(
             action,
             &dir,
@@ -142,7 +154,7 @@ fn main() -> Result<()> {
                 println!("TUN permission service installed; restart the managed core before use");
             }
             "status" => {
-                let ready = clash_verge_tui::service::tun_capable(&dir.join("core/mihomo"));
+                let ready = clash_verge_tui::service::tun_ready(&dir.join("core/mihomo"));
                 println!("{}", if ready { "ready" } else { "not-installed" });
             }
             "uninstall" => {
@@ -202,7 +214,6 @@ fn main() -> Result<()> {
         if args.profile == Some(0) {
             bail!("订阅编号从 1 开始");
         }
-        eprintln!("准备 mihomo v{} 工作区…", core_manager::MIHOMO_VERSION);
         let source = runtime.block_on(core_manager::ensure(&dir, args.core.as_deref()))?;
         let running = runtime.block_on(clash_verge_tui::service::open(
             &dir,
@@ -263,6 +274,16 @@ fn main() -> Result<()> {
         )?);
         App::new_live(dir.clone(), endpoint, profiles, active, Some(managed))?
     };
+    if let Some(language) = &args.language {
+        app.state
+            .settings
+            .insert("language".into(), language.clone());
+        app.sync_language();
+        app.dirty = true;
+    }
+    if args.daemon && app.tun_after_restart.is_some() {
+        bail!("TUN permission service needs an upgrade; run --tun-service install in a terminal");
+    }
     if args.daemon {
         runtime.block_on(async {
             let mut term=tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())?;
@@ -462,10 +483,11 @@ fn restart_after_tun(
             }
         }
     }
-    app.live
-        .as_mut()
-        .context("TUN 重启缺少真实内核状态")?
-        .tun_capable = true;
+    let live = app.live.as_mut().context("TUN 重启缺少真实内核状态")?;
+    live.tun_capable = live
+        .managed
+        .as_ref()
+        .is_some_and(|managed| clash_verge_tui::service::tun_ready(&managed.binary));
     app.resume_tun_after_restart();
     Ok(())
 }
@@ -534,6 +556,12 @@ fn verify_workspace_tun(runtime: &tokio::runtime::Runtime, dir: &std::path::Path
 
 fn snapshot(args: &Args, page: &str) -> Result<()> {
     let mut app = App::new(DemoState::default(), PathBuf::from("<demo-state>"));
+    if let Some(language) = &args.language {
+        app.state
+            .settings
+            .insert("language".into(), language.clone());
+        app.sync_language();
+    }
     if page == "profile-import" {
         app.navigate(Page::Profiles);
         app.command('a');

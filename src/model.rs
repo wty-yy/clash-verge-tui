@@ -38,6 +38,9 @@ impl Page {
             "设置",
         ][self.index()]
     }
+    pub fn localized_title(self, language: crate::locale::Language) -> String {
+        crate::locale::translate(self.title(), language)
+    }
     pub fn slug(self) -> &'static str {
         [
             "home",
@@ -61,6 +64,9 @@ impl Page {
             "流媒体与 AI 服务可用性",
             "系统、内核与界面偏好",
         ][self.index()]
+    }
+    pub fn localized_description(self, language: crate::locale::Language) -> String {
+        crate::locale::translate(self.description(), language)
     }
 }
 

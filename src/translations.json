@@ -1,0 +1,2546 @@
+{
+  "auto": [
+    "Follow system",
+    "跟隨系統"
+  ],
+  "zh-CN": [
+    "Simplified Chinese",
+    "簡體中文"
+  ],
+  "zh-TW": [
+    "Traditional Chinese",
+    "繁體中文"
+  ],
+  "en": [
+    "English",
+    "English"
+  ],
+  "首页": [
+    "Home",
+    "首頁"
+  ],
+  "代理": [
+    "Proxies",
+    "代理"
+  ],
+  "订阅": [
+    "Profiles",
+    "訂閱"
+  ],
+  "连接": [
+    "Connections",
+    "連線"
+  ],
+  "规则": [
+    "Rules",
+    "規則"
+  ],
+  "日志": [
+    "Logs",
+    "日誌"
+  ],
+  "解锁检测": [
+    "Unlock checks",
+    "解鎖檢測"
+  ],
+  "设置": [
+    "Settings",
+    "設定"
+  ],
+  "网络概览与快捷控制": [
+    "Network overview and quick controls",
+    "網路概覽與快速控制"
+  ],
+  "策略组与节点管理": [
+    "Proxy groups and nodes",
+    "策略群組與節點管理"
+  ],
+  "订阅配置与增强链": [
+    "Profiles and enhancement chain",
+    "訂閱設定與增強鏈"
+  ],
+  "实时会话与流量去向": [
+    "Live sessions and traffic routes",
+    "即時連線與流量路徑"
+  ],
+  "路由规则与规则集合": [
+    "Routing rules and providers",
+    "路由規則與規則集合"
+  ],
+  "内核日志与事件追踪": [
+    "Core logs and events",
+    "核心日誌與事件追蹤"
+  ],
+  "流媒体与 AI 服务可用性": [
+    "Streaming and AI availability",
+    "串流與 AI 服務可用性"
+  ],
+  "系统、内核与界面偏好": [
+    "System, core, and interface preferences",
+    "系統、核心與介面偏好"
+  ],
+  "系统": [
+    "System",
+    "系統"
+  ],
+  "内核": [
+    "Core",
+    "核心"
+  ],
+  "界面": [
+    "interface",
+    "介面"
+  ],
+  "高级": [
+    "Advanced",
+    "進階"
+  ],
+  "关于": [
+    "About",
+    "關於"
+  ],
+  "订阅配置": [
+    "Profiles",
+    "訂閱設定"
+  ],
+  "配置增强": [
+    "Enhancements",
+    "設定增強"
+  ],
+  "路由规则": [
+    "Routing rules",
+    "路由規則"
+  ],
+  "规则集合": [
+    "Rule providers",
+    "規則集合"
+  ],
+  "全部": [
+    "All",
+    "全部"
+  ],
+  "流媒体": [
+    "Streaming",
+    "串流"
+  ],
+  "社交": [
+    "Social",
+    "社群"
+  ],
+  "系统代理": [
+    "System proxy",
+    "系統代理"
+  ],
+  "虚拟网卡 TUN": [
+    "TUN adapter",
+    "虛擬網卡 TUN"
+  ],
+  "代理模式": [
+    "Proxy mode",
+    "代理模式"
+  ],
+  "全局": [
+    "Global",
+    "全域"
+  ],
+  "直连": [
+    "Direct",
+    "直連"
+  ],
+  "混合代理端口": [
+    "Mixed proxy port",
+    "混合代理連接埠"
+  ],
+  "当前订阅": [
+    "Active profile",
+    "目前訂閱"
+  ],
+  "运行配置": [
+    "Runtime config",
+    "執行設定"
+  ],
+  "查看": [
+    "View",
+    "檢視"
+  ],
+  "环境变量": [
+    "Environment variables",
+    "環境變數"
+  ],
+  "开启": [
+    "On",
+    "開啟"
+  ],
+  "关闭": [
+    "Off",
+    "關閉"
+  ],
+  "自动": [
+    "Auto",
+    "自動"
+  ],
+  "未安装": [
+    "Not installed",
+    "未安裝"
+  ],
+  "运行中": [
+    "Running",
+    "執行中"
+  ],
+  "已停止": [
+    "Stopped",
+    "已停止"
+  ],
+  "当前": [
+    "Active",
+    "目前"
+  ],
+  "超时": [
+    "Timeout",
+    "逾時"
+  ],
+  "演示数据": [
+    "Demo data",
+    "示範資料"
+  ],
+  "代理主机、PAC、绕过与守卫": [
+    "Proxy host, PAC, bypass, and guard",
+    "代理主機、PAC、略過與守衛"
+  ],
+  "代理主机": [
+    "Proxy host",
+    "代理主機"
+  ],
+  "PAC 模式": [
+    "PAC mode",
+    "PAC 模式"
+  ],
+  "代理守卫": [
+    "Proxy guard",
+    "代理守衛"
+  ],
+  "守卫间隔 / 秒": [
+    "Guard interval / seconds",
+    "守衛間隔 / 秒"
+  ],
+  "代理绕过": [
+    "Proxy bypass",
+    "代理略過"
+  ],
+  "PAC 脚本（留空自动生成）": [
+    "PAC script (empty for automatic)",
+    "PAC 指令碼（留空自動產生）"
+  ],
+  "首次启用提示系统密码安装权限服务": [
+    "Install the permission service on first enable",
+    "首次啟用時輸入系統密碼安裝權限服務"
+  ],
+  "虚拟网卡模式": [
+    "Virtual adapter mode",
+    "虛擬網卡模式"
+  ],
+  "协议栈": [
+    "Stack",
+    "協定堆疊"
+  ],
+  "网卡名称": [
+    "Adapter name",
+    "網卡名稱"
+  ],
+  "自动路由": [
+    "Auto route",
+    "自動路由"
+  ],
+  "严格路由": [
+    "Strict route",
+    "嚴格路由"
+  ],
+  "自动重定向": [
+    "Auto redirect",
+    "自動重新導向"
+  ],
+  "自动选择出口": [
+    "Auto-detect interface",
+    "自動選擇出口"
+  ],
+  "DNS 劫持": [
+    "DNS hijack",
+    "DNS 劫持"
+  ],
+  "排除网段": [
+    "Excluded routes",
+    "排除網段"
+  ],
+  "启动与服务": [
+    "Startup and service",
+    "啟動與服務"
+  ],
+  "开机启动、后台服务与静默启动": [
+    "Autostart, background service, and silent startup",
+    "開機啟動、背景服務與靜默啟動"
+  ],
+  "登录后自启": [
+    "Start after login",
+    "登入後自動啟動"
+  ],
+  "静默启动": [
+    "Silent startup",
+    "靜默啟動"
+  ],
+  "后台服务": [
+    "Background service",
+    "背景服務"
+  ],
+  "启动脚本": [
+    "Startup script",
+    "啟動指令碼"
+  ],
+  "基础网络": [
+    "Basic network",
+    "基礎網路"
+  ],
+  "局域网、IPv6、统一延迟、日志等级": [
+    "LAN, IPv6, unified delay, and log level",
+    "區域網路、IPv6、統一延遲與日誌等級"
+  ],
+  "局域网连接": [
+    "LAN access",
+    "區域網路連線"
+  ],
+  "绑定地址": [
+    "Bind address",
+    "繫結位址"
+  ],
+  "出口接口": [
+    "Outbound interface",
+    "出口介面"
+  ],
+  "统一延迟": [
+    "Unified delay",
+    "統一延遲"
+  ],
+  "日志等级": [
+    "Log level",
+    "日誌等級"
+  ],
+  "端口设置": [
+    "Port settings",
+    "連接埠設定"
+  ],
+  "SOCKS 端口（0 关闭）": [
+    "SOCKS port (0 disables)",
+    "SOCKS 連接埠（0 關閉）"
+  ],
+  "HTTP 端口（0 关闭）": [
+    "HTTP port (0 disables)",
+    "HTTP 連接埠（0 關閉）"
+  ],
+  "Redir 端口（0 关闭）": [
+    "Redir port (0 disables)",
+    "Redir 連接埠（0 關閉）"
+  ],
+  "TProxy 端口（0 关闭）": [
+    "TProxy port (0 disables)",
+    "TProxy 連接埠（0 關閉）"
+  ],
+  "DNS 覆写": [
+    "DNS override",
+    "DNS 覆寫"
+  ],
+  "解析模式、服务器、Fake IP 与过滤策略": [
+    "Mode, servers, Fake IP, and filters",
+    "解析模式、伺服器、Fake IP 與過濾策略"
+  ],
+  "启用 DNS 覆写": [
+    "Enable DNS override",
+    "啟用 DNS 覆寫"
+  ],
+  "监听地址": [
+    "Listen address",
+    "監聽位址"
+  ],
+  "增强模式": [
+    "Enhanced mode",
+    "增強模式"
+  ],
+  "Fake IP 范围": [
+    "Fake IP range",
+    "Fake IP 範圍"
+  ],
+  "Fake IP IPv6 范围": [
+    "Fake IP IPv6 range",
+    "Fake IP IPv6 範圍"
+  ],
+  "Fake IP 过滤模式": [
+    "Fake IP filter mode",
+    "Fake IP 過濾模式"
+  ],
+  "IPv6 解析": [
+    "IPv6 resolution",
+    "IPv6 解析"
+  ],
+  "优先 HTTP/3": [
+    "Prefer HTTP/3",
+    "優先 HTTP/3"
+  ],
+  "遵循路由规则": [
+    "Respect routing rules",
+    "遵循路由規則"
+  ],
+  "使用 Hosts": [
+    "Use Hosts",
+    "使用 Hosts"
+  ],
+  "使用系统 Hosts": [
+    "Use system Hosts",
+    "使用系統 Hosts"
+  ],
+  "默认服务器": [
+    "Default servers",
+    "預設伺服器"
+  ],
+  "域名服务器": [
+    "Name servers",
+    "網域名稱伺服器"
+  ],
+  "回退服务器": [
+    "Fallback servers",
+    "後備伺服器"
+  ],
+  "代理节点 DNS": [
+    "Proxy node DNS",
+    "代理節點 DNS"
+  ],
+  "直连 DNS": [
+    "Direct DNS",
+    "直連 DNS"
+  ],
+  "直连遵循策略": [
+    "Direct DNS follows policy",
+    "直連 DNS 遵循策略"
+  ],
+  "Fake IP 过滤": [
+    "Fake IP filter",
+    "Fake IP 過濾"
+  ],
+  "域名策略": [
+    "Domain policy",
+    "網域名稱策略"
+  ],
+  "GeoIP 过滤": [
+    "GeoIP filter",
+    "GeoIP 過濾"
+  ],
+  "GeoIP 国家代码": [
+    "GeoIP country code",
+    "GeoIP 國家代碼"
+  ],
+  "回退 IP CIDR": [
+    "Fallback IP CIDR",
+    "後備 IP CIDR"
+  ],
+  "回退域名": [
+    "Fallback domains",
+    "後備網域名稱"
+  ],
+  "Hosts 映射": [
+    "Hosts mapping",
+    "Hosts 對應"
+  ],
+  "外部控制器": [
+    "External controller",
+    "外部控制器"
+  ],
+  "控制地址、访问密钥与跨域设置": [
+    "Controller address, secret, and CORS",
+    "控制位址、存取金鑰與跨來源設定"
+  ],
+  "启用外部控制器": [
+    "Enable external controller",
+    "啟用外部控制器"
+  ],
+  "API 密钥": [
+    "API secret",
+    "API 金鑰"
+  ],
+  "允许专用网络": [
+    "Allow private network",
+    "允許私人網路"
+  ],
+  "允许来源": [
+    "Allowed origins",
+    "允許來源"
+  ],
+  "内核与 GeoData": [
+    "Core and GeoData",
+    "核心與 GeoData"
+  ],
+  "固定 mihomo v1.19.29；GeoData 来源与更新偏好": [
+    "Pinned mihomo v1.19.29; GeoData sources and updates",
+    "固定 mihomo v1.19.29；GeoData 來源與更新偏好"
+  ],
+  "GeoData 自动更新": [
+    "Auto-update GeoData",
+    "GeoData 自動更新"
+  ],
+  "更新间隔 / 小时": [
+    "Update interval / hours",
+    "更新間隔 / 小時"
+  ],
+  "MetaCubeX 或 geox-url YAML": [
+    "MetaCubeX or geox-url YAML",
+    "MetaCubeX 或 geox-url YAML"
+  ],
+  "网页界面": [
+    "Web UI",
+    "網頁介面"
+  ],
+  "外部面板地址与界面资源": [
+    "External dashboard address and assets",
+    "外部面板位址與介面資源"
+  ],
+  "面板": [
+    "Dashboard",
+    "面板"
+  ],
+  "面板地址": [
+    "Dashboard address",
+    "面板位址"
+  ],
+  "界面目录": [
+    "UI directory",
+    "介面目錄"
+  ],
+  "流量隧道": [
+    "Traffic tunnels",
+    "流量隧道"
+  ],
+  "隧道列表编辑（YAML），支持多条映射": [
+    "Edit tunnel mappings as YAML",
+    "以 YAML 編輯多條隧道對應"
+  ],
+  "隧道配置": [
+    "Tunnel config",
+    "隧道設定"
+  ],
+  "外观与布局": [
+    "Appearance and layout",
+    "外觀與版面配置"
+  ],
+  "主题、强调色、导航与流量图": [
+    "Theme, accent, navigation, and traffic graph",
+    "主題、強調色、導覽與流量圖"
+  ],
+  "界面语言": [
+    "Interface language",
+    "介面語言"
+  ],
+  "跟随系统；支持简体中文、繁體中文与 English": [
+    "Follow the system or choose Chinese or English",
+    "跟隨系統；支援簡體中文、繁體中文與 English"
+  ],
+  "主题": [
+    "Theme",
+    "主題"
+  ],
+  "深色": [
+    "Dark",
+    "深色"
+  ],
+  "浅色": [
+    "Light",
+    "淺色"
+  ],
+  "强调色": [
+    "Accent color",
+    "強調色"
+  ],
+  "紫色": [
+    "Purple",
+    "紫色"
+  ],
+  "青色": [
+    "Teal",
+    "青色"
+  ],
+  "蓝色": [
+    "Blue",
+    "藍色"
+  ],
+  "紧凑导航": [
+    "Compact navigation",
+    "緊湊導覽"
+  ],
+  "流量图": [
+    "Traffic graph",
+    "流量圖"
+  ],
+  "内核占用": [
+    "Core memory",
+    "核心記憶體"
+  ],
+  "启动页面": [
+    "Start page",
+    "啟動頁面"
+  ],
+  "热键与终端": [
+    "Keys and terminal",
+    "快捷鍵與終端機"
+  ],
+  "鼠标操作与交互偏好": [
+    "Mouse and interaction preferences",
+    "滑鼠與互動偏好"
+  ],
+  "鼠标操作": [
+    "Mouse input",
+    "滑鼠操作"
+  ],
+  "Vim 导航 j/k": [
+    "Vim navigation j/k",
+    "Vim 導覽 j/k"
+  ],
+  "环境变量类型": [
+    "Environment variable shell",
+    "環境變數類型"
+  ],
+  "刷新间隔 / 毫秒": [
+    "Refresh interval / ms",
+    "重新整理間隔 / 毫秒"
+  ],
+  "杂项设置": [
+    "Miscellaneous",
+    "其他設定"
+  ],
+  "延迟测试、连接清理与日志保留": [
+    "Delay tests, connection cleanup, and log retention",
+    "延遲測試、連線清理與日誌保留"
+  ],
+  "切换节点清理连接": [
+    "Close connections after switching nodes",
+    "切換節點後清理連線"
+  ],
+  "自动检查更新": [
+    "Check for updates automatically",
+    "自動檢查更新"
+  ],
+  "启用全局增强": [
+    "Enable global enhancements",
+    "啟用全域增強"
+  ],
+  "自动延迟检测": [
+    "Automatic delay tests",
+    "自動延遲檢測"
+  ],
+  "测速间隔 / 秒": [
+    "Test interval / seconds",
+    "測速間隔 / 秒"
+  ],
+  "测试链接": [
+    "Test URL",
+    "測試連結"
+  ],
+  "测试超时 / 毫秒": [
+    "Test timeout / ms",
+    "測試逾時 / 毫秒"
+  ],
+  "日志大小 / MB": [
+    "Log size / MB",
+    "日誌大小 / MB"
+  ],
+  "日志文件数量": [
+    "Log file count",
+    "日誌檔案數量"
+  ],
+  "自动轮转日志": [
+    "Rotate logs automatically",
+    "自動輪替日誌"
+  ],
+  "备份与恢复": [
+    "Backup and restore",
+    "備份與還原"
+  ],
+  "本地演示快照；WebDAV 配置表单": [
+    "Local demo snapshots and WebDAV",
+    "本機示範快照與 WebDAV 設定"
+  ],
+  "自动备份": [
+    "Automatic backup",
+    "自動備份"
+  ],
+  "备份加密密码（可留空）": [
+    "Backup password (optional)",
+    "備份加密密碼（可留空）"
+  ],
+  "WebDAV 地址": [
+    "WebDAV address",
+    "WebDAV 位址"
+  ],
+  "用户名": [
+    "Username",
+    "使用者名稱"
+  ],
+  "密码": [
+    "Password",
+    "密碼"
+  ],
+  "查看组合后的演示配置": [
+    "View the composed demo configuration",
+    "檢視組合後的示範設定"
+  ],
+  "诊断与目录": [
+    "Diagnostics and directories",
+    "診斷與目錄"
+  ],
+  "状态路径、版本和诊断信息": [
+    "State paths, versions, and diagnostics",
+    "狀態路徑、版本與診斷資訊"
+  ],
+  "轻量模式": [
+    "Lightweight mode",
+    "輕量模式"
+  ],
+  "后台保留与空闲刷新设置": [
+    "Background retention and idle refresh",
+    "背景保留與閒置重新整理設定"
+  ],
+  "自动轻量模式": [
+    "Automatic lightweight mode",
+    "自動輕量模式"
+  ],
+  "空闲延迟 / 秒": [
+    "Idle delay / seconds",
+    "閒置延遲 / 秒"
+  ],
+  "关于 Clash Verge TUI": [
+    "About Clash Verge TUI",
+    "關於 Clash Verge TUI"
+  ],
+  "终端客户端 · MIT": [
+    "Terminal client · MIT",
+    "終端機用戶端 · MIT"
+  ],
+  "桌面功能映射": [
+    "Desktop feature mapping",
+    "桌面功能對應"
+  ],
+  "桌面专有功能的终端适配说明": [
+    "Terminal equivalents for desktop features",
+    "桌面專有功能的終端機對應說明"
+  ],
+  "终端尺寸": [
+    "Terminal size",
+    "終端機尺寸"
+  ],
+  "● LIVE / 已连接 mihomo": [
+    "● LIVE / mihomo connected",
+    "● LIVE / 已連線 mihomo"
+  ],
+  "○ LIVE / 连接中断": [
+    "○ LIVE / disconnected",
+    "○ LIVE / 連線中斷"
+  ],
+  "● DEMO  /  未连接 mihomo": [
+    "● DEMO / offline",
+    "● DEMO  /  未連線 mihomo"
+  ],
+  " 真实内核 ": [
+    " Live core ",
+    " 真實核心 "
+  ],
+  " 演示工作区 ": [
+    " Demo workspace ",
+    " 示範工作區 "
+  ],
+  "  数据来自 mihomo · 未接入的操作会单独说明": [
+    "  Data from mihomo · unavailable actions are identified",
+    "  資料來自 mihomo · 未接入的操作會另行說明"
+  ],
+  "  所有网络数据为示例 · 操作仅保存在本地": [
+    "  All network data is a sample · actions stay local",
+    "  所有網路資料皆為範例 · 操作僅儲存於本機"
+  ],
+  "↑↓ / j/k 选择": [
+    "↑↓ / j/k Select",
+    "↑↓ / j/k 選擇"
+  ],
+  "↑↓ 选择": [
+    "↑↓ Select",
+    "↑↓ 選擇"
+  ],
+  "焦点": [
+    "focus",
+    "焦點"
+  ],
+  "分组": [
+    "section",
+    "分組"
+  ],
+  "●  内核已连接": [
+    "●  Core connected",
+    "●  核心已連線"
+  ],
+  "○  等待连接": [
+    "○  Connecting",
+    "○  等待連線"
+  ],
+  "○  内核未连接": [
+    "○  Core disconnected",
+    "○  核心未連線"
+  ],
+  "本地演示 · 独立状态": [
+    "Local demo · isolated state",
+    "本機示範 · 獨立狀態"
+  ],
+  "下载速率": [
+    "Download rate",
+    "下載速率"
+  ],
+  "上传速率": [
+    "Upload rate",
+    "上傳速率"
+  ],
+  "活动连接": [
+    "Active connections",
+    "作用中連線"
+  ],
+  "等待采样": [
+    "Waiting for sample",
+    "等待取樣"
+  ],
+  "内核未提供内存数据": [
+    "Core memory unavailable",
+    "核心未提供記憶體資料"
+  ],
+  "内存显示已关闭": [
+    "Memory display is off",
+    "記憶體顯示已關閉"
+  ],
+  "下载速率 · 演示": [
+    "Download rate · demo",
+    "下載速率 · 示範"
+  ],
+  "上传速率 · 演示": [
+    "Upload rate · demo",
+    "上傳速率 · 示範"
+  ],
+  "活动连接 · 演示": [
+    "Active connections · demo",
+    "作用中連線 · 示範"
+  ],
+  "流量趋势 / 最近 60 个采样": [
+    "Traffic / last 60 samples",
+    "流量趨勢 / 最近 60 次取樣"
+  ],
+  "流量趋势 / 最近 60 个采样 · 演示": [
+    "Traffic / last 60 samples · demo",
+    "流量趨勢 / 最近 60 次取樣 · 示範"
+  ],
+  "现在   ↓ 下载": [
+    "Now ↓ Download",
+    "現在   ↓ 下載"
+  ],
+  "流量图已关闭 · 设置 → 界面 → 外观与布局": [
+    "Traffic graph is off · Settings → Interface → Appearance",
+    "流量圖已關閉 · 設定 → 介面 → 外觀與版面配置"
+  ],
+  "快捷控制 · ←": [
+    "Quick controls · ←",
+    "快速控制 · ←"
+  ],
+  "当前订阅 · →": [
+    "Active profile · →",
+    "目前訂閱 · →"
+  ],
+  "外部内核管理": [
+    "Managed by external core",
+    "由外部核心管理"
+  ],
+  "› 进入订阅管理 ↵": [
+    "› Open profiles ↵",
+    "› 進入訂閱管理 ↵"
+  ],
+  "进入订阅管理 →": [
+    "Open profiles →",
+    "進入訂閱管理 →"
+  ],
+  "状态": [
+    "State",
+    "狀態"
+  ],
+  "节点名称": [
+    "Node",
+    "節點名稱"
+  ],
+  "协议": [
+    "Protocol",
+    "協定"
+  ],
+  "地区": [
+    "Area",
+    "地區"
+  ],
+  "延迟": [
+    "Delay",
+    "延遲"
+  ],
+  "订阅名称": [
+    "Profile name",
+    "訂閱名稱"
+  ],
+  "用量": [
+    "Usage",
+    "用量"
+  ],
+  "更新间隔": [
+    "Interval",
+    "更新間隔"
+  ],
+  "最近更新": [
+    "Last update",
+    "最近更新"
+  ],
+  "顺序": [
+    "Order",
+    "順序"
+  ],
+  "名称": [
+    "Name",
+    "名稱"
+  ],
+  "类型": [
+    "Type",
+    "類型"
+  ],
+  "目标地址": [
+    "Destination",
+    "目標位址"
+  ],
+  "进程": [
+    "Process",
+    "程序"
+  ],
+  "网络": [
+    "Net",
+    "網路"
+  ],
+  "出站链": [
+    "Chain",
+    "出站鏈"
+  ],
+  "下载": [
+    "Download",
+    "下載"
+  ],
+  "上传": [
+    "Upload",
+    "上傳"
+  ],
+  "匹配内容": [
+    "Match",
+    "比對內容"
+  ],
+  "出站策略": [
+    "Target",
+    "出站策略"
+  ],
+  "集合名称": [
+    "Provider",
+    "集合名稱"
+  ],
+  "行为": [
+    "Behavior",
+    "行為"
+  ],
+  "规则数": [
+    "Rules",
+    "規則數"
+  ],
+  "来源": [
+    "Source",
+    "來源"
+  ],
+  "更新": [
+    "Updated",
+    "更新"
+  ],
+  "策略": [
+    "Policy",
+    "策略"
+  ],
+  "时间": [
+    "Time",
+    "時間"
+  ],
+  "等级": [
+    "Level",
+    "等級"
+  ],
+  "内容": [
+    "Content",
+    "內容"
+  ],
+  "服务": [
+    "Service",
+    "服務"
+  ],
+  "结果": [
+    "Result",
+    "結果"
+  ],
+  "区域": [
+    "Region",
+    "區域"
+  ],
+  "设置项": [
+    "Setting",
+    "設定項目"
+  ],
+  "说明": [
+    "Description",
+    "說明"
+  ],
+  "本地配置": [
+    "Local config",
+    "本機設定"
+  ],
+  "真实模式": [
+    "Live mode",
+    "真實模式"
+  ],
+  "本地演示": [
+    "Local demo",
+    "本機示範"
+  ],
+  "确认操作": [
+    "Confirm action",
+    "確認操作"
+  ],
+  "页面跳转": [
+    "Go to page",
+    "頁面跳轉"
+  ],
+  "没有匹配页面": [
+    "No matching page",
+    "沒有相符頁面"
+  ],
+  "[ 导入 ]": [
+    "[ Import ]",
+    "[ 匯入 ]"
+  ],
+  "[ 导入中 ]": [
+    "[ Importing ]",
+    "[ 匯入中 ]"
+  ],
+  "订阅文件链接": [
+    "Profile file URL",
+    "訂閱檔案連結"
+  ],
+  "订阅配置 YAML": [
+    "Profile YAML",
+    "訂閱設定 YAML"
+  ],
+  "更新间隔 / 分钟": [
+    "Update interval / minutes",
+    "更新間隔 / 分鐘"
+  ],
+  "更新间隔 / 分钟（0 关闭）": [
+    "Update interval / minutes (0 disables)",
+    "更新間隔 / 分鐘（0 關閉）"
+  ],
+  "下载代理（可留空）": [
+    "Download proxy (optional)",
+    "下載代理（可留空）"
+  ],
+  "导入本地文件（可留空）": [
+    "Import local file (optional)",
+    "匯入本機檔案（可留空）"
+  ],
+  "配置内容": [
+    "Configuration",
+    "設定內容"
+  ],
+  "监听端口（1–65535）": [
+    "Listen port (1–65535)",
+    "監聽連接埠（1–65535）"
+  ],
+  "安装 TUN 权限服务": [
+    "Install TUN permission service",
+    "安裝 TUN 權限服務"
+  ],
+  "系统密码（仅用于本次 sudo 验证）": [
+    "System password (only for this sudo check)",
+    "系統密碼（僅用於本次 sudo 驗證）"
+  ],
+  "Enter 安装服务": [
+    "Enter Install service",
+    "Enter 安裝服務"
+  ],
+  "s 保存并应用": [
+    "s Save and apply",
+    "s 儲存並套用"
+  ],
+  "Ctrl+S 保存": [
+    "Ctrl+S Save",
+    "Ctrl+S 儲存"
+  ],
+  "Esc 取消": [
+    "Esc Cancel",
+    "Esc 取消"
+  ],
+  "Esc 关闭": [
+    "Esc Close",
+    "Esc 關閉"
+  ],
+  "Enter 确认": [
+    "Enter Confirm",
+    "Enter 確認"
+  ],
+  "使用 / 搜索，Esc 清除筛选。": [
+    "Use / to search and Esc to clear the filter.",
+    "使用 / 搜尋，Esc 清除篩選。"
+  ],
+  "暂无真实数据 · 连接或功能状态见上方说明": [
+    "No live data · see the status above",
+    "暫無真實資料 · 連線或功能狀態請見上方說明"
+  ],
+  "暂无条目 · 使用上方操作添加或重新载入": [
+    "No items · add or reload from the toolbar",
+    "暫無項目 · 使用上方操作新增或重新載入"
+  ],
+  "没有匹配结果 · Esc 清除筛选": [
+    "No matches · Esc clears the filter",
+    "沒有相符結果 · Esc 清除篩選"
+  ],
+  "欢迎使用 · 所有网络数据与操作均为本地演示": [
+    "Welcome · all network data and actions are a local demo",
+    "歡迎使用 · 所有網路資料與操作皆為本機示範"
+  ],
+  "正在连接 mihomo…": [
+    "Connecting to mihomo…",
+    "正在連線 mihomo…"
+  ],
+  "已连接 mihomo · 数据来自真实内核": [
+    "mihomo connected · live core data",
+    "已連線 mihomo · 資料來自真實核心"
+  ],
+  "内核尚未连接，等待重连后再操作": [
+    "Core is not connected; wait for reconnection",
+    "核心尚未連線，請等待重新連線"
+  ],
+  "上一个内核操作尚未完成": [
+    "The previous core operation is still running",
+    "上一個核心操作尚未完成"
+  ],
+  "正在下载并校验订阅配置…": [
+    "Downloading and validating the profile…",
+    "正在下載並驗證訂閱設定…"
+  ],
+  "正在执行 mihomo 操作…": [
+    "Running mihomo operation…",
+    "正在執行 mihomo 操作…"
+  ],
+  "订阅正在导入，请等待当前下载完成": [
+    "A profile is being imported; wait for it to finish",
+    "訂閱正在匯入，請等待目前下載完成"
+  ],
+  "请先填写完整的 HTTP(S) 订阅文件链接": [
+    "Enter a complete HTTP(S) profile URL first",
+    "請先填寫完整的 HTTP(S) 訂閱檔案連結"
+  ],
+  "界面偏好已保存": [
+    "Interface preferences saved",
+    "介面偏好已儲存"
+  ],
+  "当前页面没有此操作": [
+    "This action is unavailable on the current page",
+    "目前頁面沒有此操作"
+  ],
+  "可用操作见页面工具栏和帮助。": [
+    "See the page toolbar and help for available actions.",
+    "可用操作請見頁面工具列與說明。"
+  ],
+  "请将终端调整至至少": [
+    "Resize the terminal to at least",
+    "請將終端機調整至至少"
+  ],
+  "建议尺寸": [
+    "Recommended size",
+    "建議尺寸"
+  ],
+  "退出": [
+    "Quit",
+    "退出"
+  ],
+  "Enter/双击 操作": [
+    "Enter/double-click Activate",
+    "Enter/雙擊 操作"
+  ],
+  "? 帮助": [
+    "? Help",
+    "? 說明"
+  ],
+  "累计 ": [
+    "Total ",
+    "累計 "
+  ],
+  "内存 ": [
+    "Memory ",
+    "記憶體 "
+  ],
+  " 会话": [
+    " sessions",
+    " 個連線"
+  ],
+  "示例配额": [
+    "sample quota",
+    "範例配額"
+  ],
+  "Enter 选择": [
+    "Enter Select",
+    "Enter 選擇"
+  ],
+  "r 测速": [
+    "r Test",
+    "r 測速"
+  ],
+  "s 排序": [
+    "s Sort",
+    "s 排序"
+  ],
+  "m 模式": [
+    "m Mode",
+    "m 模式"
+  ],
+  "c 解除固定": [
+    "c Unpin",
+    "c 解除固定"
+  ],
+  "a 链接导入": [
+    "a Import URL",
+    "a 連結匯入"
+  ],
+  "e 编辑": [
+    "e Edit",
+    "e 編輯"
+  ],
+  "d 删除": [
+    "d Delete",
+    "d 刪除"
+  ],
+  "r 更新": [
+    "r Update",
+    "r 更新"
+  ],
+  "i 详情": [
+    "i Details",
+    "i 詳情"
+  ],
+  "上移": [
+    "Move up",
+    "上移"
+  ],
+  "下移": [
+    "Move down",
+    "下移"
+  ],
+  "Enter 详情": [
+    "Enter Details",
+    "Enter 詳情"
+  ],
+  "d 关闭": [
+    "d Close",
+    "d 關閉"
+  ],
+  "D 全部关闭": [
+    "D Close all",
+    "D 全部關閉"
+  ],
+  "Enter 启停": [
+    "Enter Toggle",
+    "Enter 啟停"
+  ],
+  "Enter 开关": [
+    "Enter Toggle",
+    "Enter 開關"
+  ],
+  "a 新建": [
+    "a New",
+    "a 新增"
+  ],
+  "r 刷新": [
+    "r Refresh",
+    "r 重新整理"
+  ],
+  "r 更新集合": [
+    "r Update provider",
+    "r 更新集合"
+  ],
+  "p 继续": [
+    "p Resume",
+    "p 繼續"
+  ],
+  "p 暂停": [
+    "p Pause",
+    "p 暫停"
+  ],
+  "c 清空": [
+    "c Clear",
+    "c 清空"
+  ],
+  "Enter 打开": [
+    "Enter Open",
+    "Enter 開啟"
+  ],
+  "u 更新": [
+    "u Update",
+    "u 更新"
+  ],
+  "o 打开": [
+    "o Open",
+    "o 開啟"
+  ],
+  "x 导出": [
+    "x Export",
+    "x 匯出"
+  ],
+  "r 检测全部": [
+    "r Check all",
+    "r 檢測全部"
+  ],
+  "Enter 单项检测": [
+    "Enter Check",
+    "Enter 單項檢測"
+  ],
+  "Enter 检测选中": [
+    "Enter Check selected",
+    "Enter 檢測所選項目"
+  ],
+  "b 备份": [
+    "b Backup",
+    "b 備份"
+  ],
+  "R 恢复": [
+    "R Restore",
+    "R 還原"
+  ],
+  "r 版本": [
+    "r Version",
+    "r 版本"
+  ],
+  "等待内核策略组数据": [
+    "Waiting for core proxy groups",
+    "等待核心策略群組資料"
+  ],
+  "份订阅": [
+    "profiles",
+    "份訂閱"
+  ],
+  "当前：": [
+    "Active: ",
+    "目前："
+  ],
+  "模式：": [
+    "Mode: ",
+    "模式："
+  ],
+  "已暂停": [
+    "Paused",
+    "已暫停"
+  ],
+  "持续采样": [
+    "Sampling",
+    "持續取樣"
+  ],
+  "搜索": [
+    "Search",
+    "搜尋"
+  ],
+  " 项": [
+    " items",
+    " 項"
+  ],
+  " 字段": [
+    " fields",
+    " 欄位"
+  ],
+  "字段 ": [
+    "Field ",
+    "欄位 "
+  ],
+  "Tab 切换": [
+    "Tab Switch",
+    "Tab 切換"
+  ],
+  "Ctrl+U 清空": [
+    "Ctrl+U Clear",
+    "Ctrl+U 清空"
+  ],
+  "滚动": [
+    "Scroll",
+    "捲動"
+  ],
+  "导入": [
+    "Import",
+    "匯入"
+  ],
+  "保存": [
+    "Save",
+    "儲存"
+  ],
+  "已下载": [
+    "Downloaded",
+    "已下載"
+  ],
+  "检测中": [
+    "Checking",
+    "檢測中"
+  ],
+  "操作失败：": [
+    "Operation failed: ",
+    "操作失敗："
+  ],
+  "导入失败：": [
+    "Import failed: ",
+    "匯入失敗："
+  ],
+  "连接断开，自动重试：": [
+    "Disconnected; retrying: ",
+    "連線中斷，正在自動重試："
+  ],
+  "正在重启自管内核…": [
+    "Restarting the managed core…",
+    "正在重新啟動自管核心…"
+  ],
+  "权限服务": [
+    "permission service",
+    "權限服務"
+  ],
+  "增强链按列表顺序应用 · Enter 开关 · [ / ] 调整顺序": [
+    "Apply enhancements in order · Enter Toggle · [ / ] Reorder",
+    "增強鏈按列表順序應用 · Enter 開關 · [ / ] 調整順序"
+  ],
+  "规则按顺序匹配 · 第一条命中生效 · 当前为演示规则": [
+    "Rules match in order · first match wins · demo rules",
+    "規則按順序匹配 · 第一條命中生效 · 當前為演示規則"
+  ],
+  "示例出口：日本 / 美国 · 检测结果仅用于展示界面": [
+    "Demo exit: Japan / USA · results are illustrative",
+    "示例出口：日本 / 美國 · 檢測結果僅用於展示介面"
+  ],
+  "真实模式 · 仅已接入的网络参数可修改": [
+    "Live mode · edit supported network settings",
+    "真真實模式 · 僅已接入的網路引數可修改"
+  ],
+  "真实网页可达性检测 · 出口地区参考 · 不确定结果单独标记": [
+    "Website reachability · exit region reference · uncertain results marked",
+    "真實網頁可達性檢測 · 出口地區參考 · 不確定結果單獨標記"
+  ],
+  "按顺序应用 YAML / JavaScript；失败保留原配置": [
+    "Apply YAML / JavaScript in order; retain config on failure",
+    "按順序應用 YAML / JavaScript；失敗保留原配置"
+  ],
+  "规则来自 mihomo；启停为运行时操作": [
+    "Rules from mihomo; toggles affect runtime",
+    "規則來自 mihomo；啟停為執行時操作"
+  ],
+  "配置内容使用 e 编辑；按顺序执行并通过内核校验。": [
+    "Press e to edit; apply in order after core validation.",
+    "配置內容使用 e 編輯；按順序執行並透過核心校驗。"
+  ],
+  "演示模式只保存内容，不执行配置增强。": [
+    "Demo mode saves content without executing enhancements.",
+    "演示模式只儲存內容，不執行配置增強。"
+  ],
+  "备份与恢复 / WebDAV": [
+    "Backup and restore / WebDAV",
+    "備份與恢復 / WebDAV"
+  ],
+  "备份与恢复 / 本地演示": [
+    "Backup and restore / local demo",
+    "備份與恢復 / 本地演示"
+  ],
+  "备份与恢复 / 本地": [
+    "Backup and restore / local",
+    "備份與恢復 / 本地"
+  ],
+  "←→ 本地 / WebDAV   u 上传选中备份   e 设置": [
+    "←→ Local / WebDAV   u Upload backup   e Settings",
+    "←→ 本地 / WebDAV   u 上傳選中備份   e 設定"
+  ],
+  "本地快照    /    WebDAV 配置按 e 打开": [
+    "Local snapshots    /    e WebDAV settings",
+    "本地快照    /    WebDAV 配置按 e 開啟"
+  ],
+  "包含设置、订阅、增强链与规则 · 最多保留 10 份": [
+    "Settings, profiles, enhancements, rules · keep 10 backups",
+    "包含設定、訂閱、增強鏈與規則 · 最多保留 10 份"
+  ],
+  "远端文件": [
+    "Remote file",
+    "遠端檔案"
+  ],
+  "文件损坏，可删除": [
+    "Corrupt file; safe to delete",
+    "檔案損壞，可刪除"
+  ],
+  "已加密": [
+    "Encrypted",
+    "已加密"
+  ],
+  "未加密": [
+    "Unencrypted",
+    "未加密"
+  ],
+  "尚无备份 · b 创建，←→ 切换本地 / WebDAV": [
+    "No backups · b Create · ←→ Local / WebDAV",
+    "尚無備份 · b 建立，←→ 切換本地 / WebDAV"
+  ],
+  "↑↓ 选择   Enter/双击 恢复   d 删除   Esc 关闭": [
+    "↑↓ Select   Enter/double-click Restore   d Delete   Esc Close",
+    "↑↓ 選擇   Enter/雙擊 恢復   d 刪除   Esc 關閉"
+  ],
+  "b 创建快照": [
+    "b Create snapshot",
+    "b 建立快照"
+  ],
+  "e WebDAV 设置": [
+    "e WebDAV settings",
+    "e WebDAV 設定"
+  ],
+  "订阅链接按 Enter 或点击导入；确认配置后 Ctrl+S 保存": [
+    "Enter / Import: load URL; Ctrl+S: save reviewed config",
+    "訂閱連結按 Enter 或點選匯入；確認配置後 Ctrl+S 儲存"
+  ],
+  "密码仅通过管道交给 sudo，不写入参数、配置或日志；Esc 取消": [
+    "Password goes only to sudo stdin; Esc cancels",
+    "密碼僅透過管道交給 sudo，不寫入引數、配置或日誌；Esc 取消"
+  ],
+  "端口通过占用检查和 mihomo 校验后立即应用；Esc 取消": [
+    "Check and apply the port immediately; Esc cancels",
+    "埠透過佔用檢查和 mihomo 校驗後立即應用；Esc 取消"
+  ],
+  "网络参数发送至内核；Esc 取消未保存修改": [
+    "Apply network settings to the core; Esc discards edits",
+    "網路引數傳送至核心；Esc 取消未儲存修改"
+  ],
+  "网络设置仅保存演示值；Esc 取消未保存修改": [
+    "Save demo settings locally; Esc discards edits",
+    "網路設定僅儲存演示值；Esc 取消未儲存修改"
+  ],
+  "↑ ↓ 滚动 / PgUp PgDn": [
+    "↑ ↓ Scroll / PgUp PgDn",
+    "↑ ↓ 滾動 / PgUp PgDn"
+  ],
+  "演示模式不发起订阅下载": [
+    "Profile downloads are unavailable in demo mode",
+    "演示模式不發起訂閱下載"
+  ],
+  "WebDAV 与自动备份": [
+    "WebDAV and automatic backup",
+    "WebDAV 與自動備份"
+  ],
+  "恢复备份": [
+    "Restore backup",
+    "恢復備份"
+  ],
+  "删除备份": [
+    "Delete backup",
+    "刪除備份"
+  ],
+  "演示：系统代理状态已切换": [
+    "Demo: system proxy toggled",
+    "演示：系統代理狀態已切換"
+  ],
+  "演示：TUN 状态已切换": [
+    "Demo: TUN toggled",
+    "演示：TUN 狀態已切換"
+  ],
+  "演示：配置增强状态已切换": [
+    "Demo: enhancement toggled",
+    "演示：配置增強狀態已切換"
+  ],
+  "连接详情": [
+    "Connection details",
+    "連線詳情"
+  ],
+  "演示：路由规则状态已切换": [
+    "Demo: routing rule toggled",
+    "演示：路由規則狀態已切換"
+  ],
+  "规则集合详情": [
+    "Rule provider details",
+    "規則集合詳情"
+  ],
+  "日志已暂停": [
+    "Logs paused",
+    "日誌已暫停"
+  ],
+  "日志已继续": [
+    "Logs resumed",
+    "日誌已繼續"
+  ],
+  "编辑订阅配置": [
+    "Edit profile configuration",
+    "編輯訂閱配置"
+  ],
+  "YAML 配置": [
+    "YAML configuration",
+    "YAML 配置"
+  ],
+  "删除条目": [
+    "Delete item",
+    "刪除條目"
+  ],
+  "删除当前演示条目？此操作只修改本地演示状态。": [
+    "Delete this demo item? Only local demo state will change.",
+    "刪除當前演示條目？此操作只修改本地演示狀態。"
+  ],
+  "关闭连接": [
+    "Close connection",
+    "關閉連線"
+  ],
+  "从演示连接列表移除该会话？": [
+    "Remove this session from the demo connection list?",
+    "從演示連線列表移除該會話？"
+  ],
+  "关闭全部连接": [
+    "Close all connections",
+    "關閉全部連線"
+  ],
+  "清空当前全部演示连接？": [
+    "Clear all demo connections?",
+    "清空當前全部演示連線？"
+  ],
+  "删除规则": [
+    "Delete rule",
+    "刪除規則"
+  ],
+  "删除当前演示路由规则？": [
+    "Delete this demo routing rule?",
+    "刪除當前演示路由規則？"
+  ],
+  "清空日志": [
+    "Clear logs",
+    "清空日誌"
+  ],
+  "清空本地演示日志？": [
+    "Clear local demo logs?",
+    "清空本地演示日誌？"
+  ],
+  "演示：条目顺序已更新": [
+    "Demo: item order updated",
+    "演示：條目順序已更新"
+  ],
+  "恢复最近备份": [
+    "Restore latest backup",
+    "恢復最近備份"
+  ],
+  "恢复最近一次本地演示快照中的设置、订阅、增强链和规则？": [
+    "Restore settings, profiles, enhancements, and rules from the latest demo snapshot?",
+    "恢復最近一次本地演示快照中的設定、訂閱、增強鏈和規則？"
+  ],
+  "尚无备份；按 b 创建本地演示快照": [
+    "No backups; press b to create a local demo snapshot",
+    "尚無備份；按 b 建立本地演示快照"
+  ],
+  "界面主题已切换": [
+    "Theme switched",
+    "介面主題已切換"
+  ],
+  "演示测速完成 · 延迟为本地生成数据": [
+    "Demo delay test complete · locally generated values",
+    "演示測速完成 · 延遲為本地生成資料"
+  ],
+  "演示订阅刷新完成；未发起网络请求": [
+    "Demo profiles refreshed; no network requests were made",
+    "演示訂閱重新整理完成；未發起網路請求"
+  ],
+  "已重新载入示例连接": [
+    "Sample connections reloaded",
+    "已重新載入示例連線"
+  ],
+  "演示：规则集合刷新流程已完成；未下载规则": [
+    "Demo: provider refresh complete; no rules downloaded",
+    "演示：規則集合重新整理流程已完成；未下載規則"
+  ],
+  "更新检查": [
+    "Check for updates",
+    "更新檢查"
+  ],
+  "演示 · 不可用": [
+    "Demo · unavailable",
+    "演示 · 不可用"
+  ],
+  "演示 · 可用": [
+    "Demo · available",
+    "演示 · 可用"
+  ],
+  "演示检测完成 · 结果不代表实际网络可用性": [
+    "Demo checks complete · results do not reflect actual availability",
+    "演示檢測完成 · 結果不代表實際網路可用性"
+  ],
+  "编辑订阅 / 链接导入": [
+    "Edit profile / URL import",
+    "編輯訂閱 / 連結匯入"
+  ],
+  "添加订阅 / 链接导入": [
+    "Add profile / URL import",
+    "新增訂閱 / 連結匯入"
+  ],
+  "内容（预览版不执行）": [
+    "Content (not executed in demo)",
+    "內容（預覽版不執行）"
+  ],
+  "规则类型": [
+    "Rule type",
+    "規則型別"
+  ],
+  "运行配置预览": [
+    "Runtime configuration preview",
+    "執行配置預覽"
+  ],
+  "环境变量预览": [
+    "Environment variable preview",
+    "環境變數預覽"
+  ],
+  "本地演示快照已创建 · R 恢复最近备份 · 最多保留 10 份": [
+    "Demo snapshot created · R Restore latest · keep 10 backups",
+    "本地演示快照已建立 · R 恢復最近備份 · 最多保留 10 份"
+  ],
+  "本地演示操作已完成": [
+    "Local demo action completed",
+    "本地演示操作已完成"
+  ],
+  "刷新间隔不能小于 100 毫秒": [
+    "Refresh interval must be at least 100 ms",
+    "重新整理間隔不能小於 100 毫秒"
+  ],
+  "订阅 URL 必须以 http:// 或 https:// 开头": [
+    "Profile URL must start with http:// or https://",
+    "訂閱 URL 必須以 http:// 或 https:// 開頭"
+  ],
+  "请输入完整且不含空白的订阅 URL": [
+    "Enter a complete profile URL without whitespace",
+    "請輸入完整且不含空白的訂閱 URL"
+  ],
+  "配置内容不能为空": [
+    "Configuration must not be empty",
+    "配置內容不能為空"
+  ],
+  "未更新 · 演示": [
+    "Not updated · demo",
+    "未更新 · 演示"
+  ],
+  "已保存到本地演示状态 · 网络配置尚未应用到 mihomo": [
+    "Demo state saved locally · network settings not applied to mihomo",
+    "已儲存到本地演示狀態 · 網路配置尚未應用到 mihomo"
+  ],
+  "键盘操作": [
+    "Keyboard help",
+    "鍵盤操作"
+  ],
+  "日志流连接中": [
+    "Connecting log stream",
+    "日誌流連線中"
+  ],
+  "界面偏好文件损坏": [
+    "Interface preference file is corrupt",
+    "介面偏好檔案損壞"
+  ],
+  "检测完成；结果表示网页可达性，地区为出口参考": [
+    "Checks complete; results show reachability and reference exit region",
+    "檢測完成；結果表示網頁可達性，地區為出口參考"
+  ],
+  "应用更新": [
+    "Application update",
+    "應用更新"
+  ],
+  "已请求打开": [
+    "Open requested",
+    "已請求開啟"
+  ],
+  "订阅链接已更改，本次导入结果未写入表单": [
+    "Profile URL changed; this import was discarded",
+    "訂閱連結已更改，本次匯入結果未寫入表單"
+  ],
+  "订阅已下载，但表单已关闭，未保存": [
+    "Profile downloaded, but the form was closed; nothing saved",
+    "訂閱已下載，但表單已關閉，未儲存"
+  ],
+  "订阅配置导入失败": [
+    "Profile import failed",
+    "訂閱配置匯入失敗"
+  ],
+  "TUN 权限服务已安装，正在重启自管内核…": [
+    "TUN permission service installed; restarting the core…",
+    "TUN 許可權服務已安裝，正在重啟自管核心…"
+  ],
+  "订阅已应用，但保存当前订阅索引失败": [
+    "Profile applied, but saving the active index failed",
+    "訂閱已應用，但儲存當前訂閱索引失敗"
+  ],
+  "TUN 配置已保存，正在重启自管内核…": [
+    "TUN configuration saved; restarting the core…",
+    "TUN 配置已儲存，正在重啟自管核心…"
+  ],
+  "mihomo 操作已完成": [
+    "mihomo operation completed",
+    "mihomo 操作已完成"
+  ],
+  "操作已提交；状态刷新失败，正在重连": [
+    "Action submitted; status refresh failed, reconnecting",
+    "操作已提交；狀態重新整理失敗，正在重連"
+  ],
+  "此操作需要自管内核工作区": [
+    "This action requires a managed core workspace",
+    "此操作需要自管核心工作區"
+  ],
+  "TUN 需要 CAP_NET_ADMIN。确认后系统会提示输入管理员密码，安装仅维护当前工作区内核能力的 systemd 服务；完成后自动重启内核并继续开启 TUN。": [
+    "TUN requires CAP_NET_ADMIN. Enter your system password to install the workspace permission service. The core will restart and continue enabling TUN.",
+    "TUN 需要 CAP_NET_ADMIN。確認後系統會提示輸入管理員密碼，安裝僅維護當前工作區核心能力的 systemd 服務；完成後自動重啟核心並繼續開啟 TUN。"
+  ],
+  "没有可用代理端口": [
+    "No proxy port available",
+    "沒有可用代理埠"
+  ],
+  "此策略组不支持手动固定选择": [
+    "This group does not support manually pinning a node",
+    "此策略組不支援手動固定選擇"
+  ],
+  "外部控制器 · 重启后生效": [
+    "External controller · restart required",
+    "外部控制器 · 重啟後生效"
+  ],
+  "内核网络参数": [
+    "Core network settings",
+    "核心網路引數"
+  ],
+  "终端适配": [
+    "Terminal adaptations",
+    "終端適配"
+  ],
+  "此设置需要应用自管工作区，重启后再试。": [
+    "This setting requires a managed workspace; restart and try again.",
+    "此設定需要應用自管工作區，重啟後再試。"
+  ],
+  "关闭选中的真实网络连接？": [
+    "Close the selected live connection?",
+    "關閉選中的真實網路連線？"
+  ],
+  "关闭内核当前的全部网络连接？": [
+    "Close all current core connections?",
+    "關閉核心當前的全部網路連線？"
+  ],
+  "已清空界面日志缓存": [
+    "UI log buffer cleared",
+    "已清空介面日誌快取"
+  ],
+  "此组没有自动选择固定状态": [
+    "This group has no pinned automatic selection",
+    "此組沒有自動選擇固定狀態"
+  ],
+  "覆写当前规则列表": [
+    "Override current rules",
+    "覆寫當前規則列表"
+  ],
+  "删除后持久化覆写当前规则列表？": [
+    "Delete and persist the updated rule list?",
+    "刪除後持久化覆寫當前規則列表？"
+  ],
+  "本地文件": [
+    "Local file",
+    "本地檔案"
+  ],
+  "未提供": [
+    "Not provided",
+    "未提供"
+  ],
+  "订阅详情": [
+    "Profile details",
+    "訂閱詳情"
+  ],
+  "编辑订阅 YAML": [
+    "Edit profile YAML",
+    "編輯訂閱 YAML"
+  ],
+  "配置文件读取失败": [
+    "Failed to read configuration file",
+    "配置檔案讀取失敗"
+  ],
+  "删除该条目并重新校验当前配置？": [
+    "Delete this item and revalidate the current configuration?",
+    "刪除該條目並重新校驗當前配置？"
+  ],
+  "配置增强 · 执行用户编写的脚本": [
+    "Enhancements · execute user scripts",
+    "配置增強 · 執行使用者編寫的指令碼"
+  ],
+  "请输入系统密码": [
+    "Enter your system password",
+    "請輸入系統密碼"
+  ],
+  "名称不能为空": [
+    "Name must not be empty",
+    "名稱不能為空"
+  ],
+  "混合代理端口应在 1–65535": [
+    "Mixed proxy port must be within 1–65535",
+    "混合代理埠應在 1–65535"
+  ],
+  "订阅 URL 无效": [
+    "Invalid profile URL",
+    "訂閱 URL 無效"
+  ],
+  "备份与 WebDAV": [
+    "Backups and WebDAV",
+    "備份與 WebDAV"
+  ],
+  "确认备份操作": [
+    "Confirm backup action",
+    "確認備份操作"
+  ],
+  "执行所选操作？恢复会替换订阅、增强脚本和设置。": [
+    "Proceed? Restoring replaces profiles, enhancement scripts, and settings.",
+    "執行所選操作？恢復會替換訂閱、增強指令碼和設定。"
+  ],
+  "没有可用的代理监听端口": [
+    "No available proxy listening port",
+    "沒有可用的代理監聽埠"
+  ],
+  "导出失败": [
+    "Export failed",
+    "匯出失敗"
+  ],
+  "当前确认操作不支持真实模式": [
+    "This confirmation action is unavailable in live mode",
+    "當前確認操作不支援真真實模式"
+  ],
+  "上一项操作尚未完成，请稍后使用保存按钮重试": [
+    "Previous action is still running; retry with the Save button later",
+    "上一項操作尚未完成，請稍後使用儲存按鈕重試"
+  ],
+  "内核未连接，输入已保留": [
+    "Core disconnected; your input has been retained",
+    "核心未連線，輸入已保留"
+  ],
+  "本地文件读取失败或超过 8 MiB": [
+    "Local file could not be read or exceeds 8 MiB",
+    "本地檔案讀取失敗或超過 8 MiB"
+  ],
+  "本地配置需要 YAML 内容或文件路径": [
+    "Local profiles require YAML content or a file path",
+    "本地配置需要 YAML 內容或檔案路徑"
+  ],
+  "此表单尚未接入": [
+    "This form is not yet connected",
+    "此表單尚未接入"
+  ],
+  "当前配置 · 认证信息已隐藏": [
+    "Current config · credentials hidden",
+    "當前配置 · 認證資訊已隱藏"
+  ],
+  "未选择订阅": [
+    "No active profile",
+    "未選擇訂閱"
+  ],
+  "未检测": [
+    "Not checked",
+    "未檢測"
+  ],
+  "连接中": [
+    "Connecting",
+    "連線中"
+  ],
+  "已连接": [
+    "Connected",
+    "已連線"
+  ],
+  "未连接": [
+    "Disconnected",
+    "未連線"
+  ],
+  "日志流已连接": [
+    "Log stream connected",
+    "日誌流已連線"
+  ],
+  "{} 个活动会话    示例流量  ↓ 223.1 MiB   ↑ 2.2 MiB": [
+    "{} active sessions    Demo traffic  ↓ 223.1 MiB   ↑ 2.2 MiB",
+    "{} 個活動會話    示例流量  ↓ 223.1 MiB   ↑ 2.2 MiB"
+  ],
+  "{} 条记录    {}    最多保留 300 条演示日志": [
+    "{} entries    {}    Up to 300 demo log entries",
+    "{} 條記錄    {}    最多保留 300 條演示日誌"
+  ],
+  "{}设置    所有表单支持本地保存    {} 份演示备份": [
+    "{} settings    Forms save locally    {} demo backups",
+    "{}設定    所有表單支援本地儲存    {} 份演示備份"
+  ],
+  "{} 个活动会话    累计 ↓ {}   ↑ {}": [
+    "{} active sessions    Total ↓ {}   ↑ {}",
+    "{} 個活動會話    累計 ↓ {}   ↑ {}"
+  ],
+  "{} 条日志 · {} · UTC 时间": [
+    "{} log entries · {} · UTC time",
+    "{} 條日誌 · {} · UTC 時間"
+  ],
+  "{} · {} · {}    Enter 选用此节点": [
+    "{} · {} · {}    Enter Select this node",
+    "{} · {} · {}    Enter 選用此節點"
+  ],
+  "{}\n{} · Enter 设为当前订阅": [
+    "{}\n{} · Enter Set as active profile",
+    "{}\n{} · Enter 設為當前訂閱"
+  ],
+  "{} 份订阅 · {} 条规则": [
+    "{} profiles · {} rules",
+    "{} 份訂閱 · {} 條規則"
+  ],
+  "r 重载": [
+    "r Reload",
+    "r 過載"
+  ],
+  "{vertical}{horizontal}  Enter/双击 操作  ? 帮助  q 退出": [
+    "{vertical}{horizontal}  Enter/double-click Activate  ? Help  q Quit",
+    "{vertical}{horizontal}  Enter/雙擊 操作  ? 幫助  q 退出"
+  ],
+  "搜索页面  / {query}▏": [
+    "Find page  / {query}▏",
+    "搜尋頁面  / {query}▏"
+  ],
+  "{}  · {} 项    / 搜索": [
+    "{}  · {} items    / Search",
+    "{}  · {} 項    / 搜尋"
+  ],
+  "搜索 / {}{}  · {} 项": [
+    "Search / {}{}  · {} items",
+    "搜尋 / {}{}  · {} 項"
+  ],
+  "{} / {}  当前：{}  模式：{}": [
+    "{} / {}  Active: {}  Mode: {}",
+    "{} / {}  當前：{}  模式：{}"
+  ],
+  "{} 份订阅    当前：{}": [
+    "{} profiles    Active: {}",
+    "{} 份訂閱    當前：{}"
+  ],
+  "字段 {}/{}    Tab 切换 · Ctrl+U 清空 · {}": [
+    "Field {}/{}    Tab Switch · Ctrl+U Clear · {}",
+    "欄位 {}/{}    Tab 切換 · Ctrl+U 清空 · {}"
+  ],
+  "{} 份订阅 · {}": [
+    "{} profiles · {}",
+    "{} 份訂閱 · {}"
+  ],
+  "累计 {}": [
+    "Total {}",
+    "累計 {}"
+  ],
+  "{} 会话": [
+    "{} sessions",
+    "{} 會話"
+  ],
+  "内存 {}": [
+    "Memory {}",
+    "記憶體 {}"
+  ],
+  "累计  1.82 GiB": [
+    "Total  1.82 GiB",
+    "累計  1.82 GiB"
+  ],
+  "累计  248.6 MiB": [
+    "Total  248.6 MiB",
+    "累計  248.6 MiB"
+  ],
+  "内存  48.2 MiB": [
+    "Memory  48.2 MiB",
+    "記憶體  48.2 MiB"
+  ],
+  "{} / {} GB · 示例配额": [
+    "{} / {} GB · sample quota",
+    "{} / {} GB · 示例配額"
+  ],
+  "CLASH VERGE TUI · v{}\n\n请将终端调整至至少 76 × 24\n建议尺寸 120 × 40\n\nq / Ctrl+C 退出": [
+    "CLASH VERGE TUI · v{}\n\nResize the terminal to at least 76 × 24\nRecommended size 120 × 40\n\nq / Ctrl+C Quit",
+    "CLASH VERGE TUI · v{}\n\n請將終端調整至至少 76 × 24\n建議尺寸 120 × 40\n\nq / Ctrl+C 退出"
+  ],
+  "[ 上移": [
+    "[ Move up",
+    "[ 上移"
+  ],
+  "] 下移": [
+    "] Move down",
+    "] 下移"
+  ],
+  "{} · 需权限服务": [
+    "{} · permission service required",
+    "{} · 需許可權服務"
+  ],
+  "恢复 {}？将覆盖当前演示设置、订阅、增强链与规则。": [
+    "Restore {}? This replaces demo settings, profiles, enhancements, and rules.",
+    "恢復 {}？將覆蓋當前演示設定、訂閱、增強鏈與規則。"
+  ],
+  "删除 {}？": [
+    "Delete {}?",
+    "刪除 {}？"
+  ],
+  "演示：{} → {}": [
+    "Demo: {} → {}",
+    "演示：{} → {}"
+  ],
+  "演示：已选择订阅 {}": [
+    "Demo: selected profile {}",
+    "演示：已選擇訂閱 {}"
+  ],
+  "演示：代理模式切换为 {}": [
+    "Demo: proxy mode changed to {}",
+    "演示：代理模式切換為 {}"
+  ],
+  "演示刷新 #{:03}": [
+    "Demo refresh #{:03}",
+    "演示重新整理 #{:03}"
+  ],
+  "当前版本：v{}\n\n这是界面预览版，未连接更新服务器。\n发布记录请查看项目 CHANGELOG.md。": [
+    "Current version: v{}\n\nDemo mode does not connect to the update server.\nSee CHANGELOG.md for release notes.",
+    "當前版本：v{}\n\n這是介面預覽版，未連線更新伺服器。\n釋出記錄請檢視專案 CHANGELOG.md。"
+  ],
+  "连接 #{}\n\n目标地址    {}\n进程        {}\n网络        {}\n出站链      {}\n命中规则    {}\n下载        {}\n上传        {}\n\n数据来源    本地演示": [
+    "Connection #{}\n\nDestination  {}\nProcess      {}\nNetwork      {}\nChain        {}\nMatched rule {}\nDownload     {}\nUpload       {}\n\nSource       Local demo",
+    "連線 #{}\n\n目標地址    {}\n程序        {}\n網路        {}\n出站鏈      {}\n命中規則    {}\n下載        {}\n上傳        {}\n\n資料來源    本地演示"
+  ],
+  "名称：{}\n来源：HTTP\n状态：本地演示\n\n集合更新入口：r\n实际下载将在 mihomo 接入阶段实现。": [
+    "Name: {}\nSource: HTTP\nStatus: local demo\n\nPress r to update providers.\nDownloads are available in live mode.",
+    "名稱：{}\n來源：HTTP\n狀態：本地演示\n\n集合更新入口：r\n實際下載將在 mihomo 接入階段實現。"
+  ],
+  "Clash Verge TUI v{}\n状态目录：{}\n状态文件：demo-state.json\n数据模式：本地演示\n后端连接：未接入\n备份数量：{}\n\n未读取 Clash Verge 的真实配置、密钥或订阅。\n网络设置仅保存为演示值；实际生效的是主题、导航、\n图表、鼠标、Vim 键位、启动页与刷新间隔。": [
+    "Clash Verge TUI v{}\nState directory: {}\nState file: demo-state.json\nData mode: local demo\nBackend: disconnected\nBackups: {}\n\nClash Verge configuration, secrets, and profiles are not read.\nNetwork settings are demo values. Theme, navigation, graphs,\nmouse input, Vim, start page, and refresh interval are active.",
+    "Clash Verge TUI v{}\n狀態目錄：{}\n狀態檔案：demo-state.json\n資料模式：本地演示\n後端連線：未接入\n備份數量：{}\n\n未讀取 Clash Verge 的真實配置、金鑰或訂閱。\n網路設定僅儲存為演示值；實際生效的是主題、導航、\n圖表、滑鼠、Vim 鍵位、啟動頁與重新整理間隔。"
+  ],
+  "CLASH VERGE / TERMINAL\n\nv{}  ·  DEMO\n\n以 Clash Verge Rev v2.5.2 为参照的 Linux 终端客户端。\nRust + Ratatui + Crossterm\nMIT\n\n当前为显式演示模式，不启动 mihomo。\n无参数启动使用应用自管的 mihomo v{} 和私有工作区。\n\n源码参考：https://github.com/clash-verge-rev/clash-verge-rev\n内核：https://github.com/MetaCubeX/mihomo": [
+    "CLASH VERGE / TERMINAL\n\nv{}  ·  DEMO\n\nIndependent Linux terminal client inspired by Clash Verge Rev v2.5.2.\nRust + Ratatui + Crossterm\nMIT\n\nDemo mode does not start mihomo.\nDefault startup uses managed mihomo v{} and a private workspace.\n\nReference: https://github.com/clash-verge-rev/clash-verge-rev\nCore: https://github.com/MetaCubeX/mihomo",
+    "CLASH VERGE / TERMINAL\n\nv{}  ·  DEMO\n\n以 Clash Verge Rev v2.5.2 為參照的 Linux 終端客戶端。\nRust + Ratatui + Crossterm\nMIT\n\n當前為顯式演示模式，不啟動 mihomo。\n無引數啟動使用應用自管的 mihomo v{} 和私有工作區。\n\n原始碼參考：https://github.com/clash-verge-rev/clash-verge-rev\n核心：https://github.com/MetaCubeX/mihomo"
+  ],
+  "# 基于演示设置生成；复制前请核对实际代理端口\n\n{text}\n\n# 终端可使用 Shift + 鼠标选择文本": [
+    "# Generated from demo settings; check the proxy port before copying\n\n{text}\n\n# Use Shift + mouse to select text in the terminal",
+    "# 基於演示設定生成；複製前請核對實際代理埠\n\n{text}\n\n# 終端可使用 Shift + 滑鼠選擇文字"
+  ],
+  "演示快照 {:03}": [
+    "Demo snapshot {:03}",
+    "演示快照 {:03}"
+  ],
+  "{}：请输入非负整数": [
+    "{}: enter a non-negative integer",
+    "{}：請輸入非負整數"
+  ],
+  "{}：端口超出范围": [
+    "{}: port is out of range",
+    "{}：埠超出範圍"
+  ],
+  "{}：必须大于 0": [
+    "{}: must be greater than 0",
+    "{}：必須大於 0"
+  ],
+  "{}不能为空": [
+    "{} must not be empty",
+    "{}不能為空"
+  ],
+  "[演示] 状态采样 #{} · {} 个连接": [
+    "[Demo] Sample #{} · {} connections",
+    "[演示] 狀態取樣 #{} · {} 個連線"
+  ],
+  "已导入 {proxies} 个节点、{groups} 个策略组；聚焦保存按钮后按 s 保存": [
+    "Imported {proxies} nodes and {groups} groups; Tab to Save, then s",
+    "已匯入 {proxies} 個節點、{groups} 個策略組；聚焦儲存按鈕後按 s 儲存"
+  ],
+  "导入失败：{message}": [
+    "Import failed: {message}",
+    "匯入失敗：{message}"
+  ],
+  "TUN 权限服务安装失败：{error}": [
+    "TUN permission service installation failed: {error}",
+    "TUN 許可權服務安裝失敗：{error}"
+  ],
+  "连接断开，自动重试：{error}": [
+    "Disconnected; retrying: {error}",
+    "連線斷開，自動重試：{error}"
+  ],
+  "操作失败：{error}": [
+    "Operation failed: {error}",
+    "操作失敗：{error}"
+  ],
+  "目标地址：{}\n进程：{}\n网络：{}\n出站链：{}\n规则：{}\n下载：{}\n上传：{}\n\n数据来源：mihomo": [
+    "Destination: {}\nProcess: {}\nNetwork: {}\nChain: {}\nRule: {}\nDownload: {}\nUpload: {}\n\nSource: mihomo",
+    "目標地址：{}\n程序：{}\n網路：{}\n出站鏈：{}\n規則：{}\n下載：{}\n上傳：{}\n\n資料來源：mihomo"
+  ],
+  "Clash Verge TUI v{}\nmihomo {}\n控制器：{}\n日志：{}\n状态目录：{}\n\n节点切换、模式、测速、连接关闭和规则启停已接入。\nMIT": [
+    "Clash Verge TUI v{}\nmihomo {}\nController: {}\nLogs: {}\nState directory: {}\n\nNode selection, modes, delay tests, connection controls, and rules are connected.\nMIT",
+    "Clash Verge TUI v{}\nmihomo {}\n控制器：{}\n日誌：{}\n狀態目錄：{}\n\n節點切換、模式、測速、連線關閉和規則啟停已接入。\nMIT"
+  ],
+  "mihomo v{} 随 Clash Verge TUI 一起更新": [
+    "mihomo v{} updates together with Clash Verge TUI",
+    "mihomo v{} 隨 Clash Verge TUI 一起更新"
+  ],
+  "{} 天": [
+    "{} days",
+    "{} 天"
+  ],
+  "名称：{}\n来源：{}\n节点：{}\n策略组：{}\n用量：{}\n到期剩余：{}": [
+    "Name: {}\nSource: {}\nNodes: {}\nGroups: {}\nUsage: {}\nExpires in: {}",
+    "名稱：{}\n來源：{}\n節點：{}\n策略組：{}\n用量：{}\n到期剩餘：{}"
+  ],
+  "{}需要非负整数": [
+    "{} requires a non-negative integer",
+    "{}需要非負整數"
+  ],
+  "{}不能大于 65535": [
+    "{} cannot exceed 65535",
+    "{}不能大於 65535"
+  ],
+  "已导出到 {}": [
+    "Exported to {}",
+    "已匯出到 {}"
+  ],
+  "mihomo v{} 由应用发行包管理": [
+    "mihomo v{} is managed by the application release",
+    "mihomo v{} 由應用發行包管理"
+  ],
+  "终端适配\n\n桌面导航 → 数字键 1–8 / 鼠标侧栏\n托盘快捷操作 → 首页快捷控制\n全局热键 → 终端内快捷键\n配置编辑器 → 多行表单\n文件选择 → 路径与文本输入\n开发者工具 → 诊断页 / --snapshot\n\n窗口标题栏、托盘图标、字体和 CSS 由终端或桌面管理。\n介面支持简体中文、繁體中文与 English，可在设置中切换。\n真实模式支持 TUN、代理守卫、后台服务、自启动与备份同步。": [
+    "Terminal adaptations\n\nDesktop navigation → Keys 1–8 / mouse sidebar\nTray controls → Home quick controls\nGlobal shortcuts → Terminal shortcuts\nConfiguration editor → Multiline forms\nFile selection → Paths and text input\nDeveloper tools → Diagnostics / --snapshot\n\nThe terminal and desktop manage fonts and window decorations.\nChoose English, Simplified Chinese, or Traditional Chinese in Settings.\nLive mode supports TUN, proxy guard, services, autostart, and backup sync.",
+    "終端適配\n\n桌面導航 → 數字鍵 1–8 / 滑鼠側欄\n托盤快捷操作 → 首頁快捷控制\n全域性熱鍵 → 終端內快捷鍵\n配置編輯器 → 多行表單\n檔案選擇 → 路徑與文字輸入\n開發者工具 → 診斷頁 / --snapshot\n\n視窗標題欄、托盤圖示、字型和 CSS 由終端或桌面管理。\n介面支援簡體中文、繁體中文與 English，可在設定中切換。\n真真實模式支援 TUN、代理守衛、後臺服務、自啟動與備份同步。"
+  ],
+  "导航\n  1–8               切换主页面\n  Tab / Shift+Tab   切换区域或分组\n  ← → / h l         首页左右区域；其他页面切换分组\n  ↑ ↓ / j k         选择条目\n  PgUp / PgDn       快速翻页\n  Enter / Space     执行主操作\n  /                 搜索当前列表\n  :                 页面跳转面板\n  Esc               取消弹窗 / 清除搜索\n  t                 切换深色 / 浅色主题\n  q / Ctrl+C        退出\n\n页面操作（以当前模式工具栏为准）\n  a / e / d         新建 / 编辑 / 删除\n  r                 刷新或检测\n  s                 排序（代理 / 连接）\n  m                 代理模式切换\n  v                 编辑订阅 YAML\n  [ / ]             上移 / 下移订阅或增强链\n  D                 关闭全部连接\n  p / c             暂停 / 清空日志\n  b / R             创建 / 恢复最近备份（设置页）\n\n表单\n  Tab / ↑ ↓         切换字段\n  ← → / Space       切换开关或选项\n  Home / End        文本首尾\n  Ctrl+U            清空当前字段\n  Enter             下一字段；多行字段换行\n  s                 保存（文本编辑时先 Tab 聚焦保存按钮）\n\n鼠标\n  点击侧栏、标签、工具按钮；单击行选择，双击等同 Enter\n  同一行同一位置附近 400 毫秒内双击；备份恢复仍需确认\n  滚轮移动选择；Shift+鼠标使用终端原生文本选择\n\n默认启动使用应用自管内核；--demo 使用独立演示数据。\n详情见 README。": [
+    "Navigation\n  1–8               Switch page\n  Tab / Shift+Tab   Switch focus or section\n  ← → / h l         Home panels; page sections\n  ↑ ↓ / j k         Select item\n  PgUp / PgDn       Scroll quickly\n  Enter / Space     Activate item\n  /                 Search the list\n  :                 Page palette\n  Esc               Cancel dialog / clear search\n  t                 Switch dark / light theme\n  q / Ctrl+C        Quit\n\nPage actions (see the current toolbar)\n  a / e / d         Add / edit / delete\n  r                 Refresh or test\n  s                 Sort proxies / connections\n  m                 Switch proxy mode\n  v                 Edit profile YAML\n  [ / ]             Move profile / enhancement up or down\n  D                 Close all connections\n  p / c             Pause / clear logs\n  b / R             Create / restore backup (Settings)\n\nForms\n  Tab / ↑ ↓         Switch field\n  ← → / Space       Cycle toggle or choice\n  Home / End        Start / end of text\n  Ctrl+U            Clear current field\n  Enter             Next field; newline in multiline editor\n  s                 Save (Tab to the Save button while editing text)\n  s                 Save the Home mixed-port form\n\nMouse\n  Click navigation, tabs, or toolbar buttons\n  Click a row to select; double-click within 400 ms to activate\n  Restoring a backup still requires confirmation\n  Scroll wheel selects; Shift + mouse uses terminal text selection\n\nLanguage: Settings → Interface → Appearance and layout\nChoose Follow system, English, Simplified Chinese, or Traditional Chinese.\nDefault startup uses the managed core; --demo uses isolated data.\nSee README for details.",
+    "導航\n  1–8               切換主頁面\n  Tab / Shift+Tab   切換區域或分組\n  ← → / h l         首頁左右區域；其他頁面切換分組\n  ↑ ↓ / j k         選擇條目\n  PgUp / PgDn       快速翻頁\n  Enter / Space     執行主操作\n  /                 搜尋當前列表\n  :                 頁面跳轉面板\n  Esc               取消彈窗 / 清除搜尋\n  t                 切換深色 / 淺色主題\n  q / Ctrl+C        退出\n\n頁面操作（以當前模式工具欄為準）\n  a / e / d         新建 / 編輯 / 刪除\n  r                 重新整理或檢測\n  s                 排序（代理 / 連線）\n  m                 代理模式切換\n  v                 編輯訂閱 YAML\n  [ / ]             上移 / 下移訂閱或增強鏈\n  D                 關閉全部連線\n  p / c             暫停 / 清空日誌\n  b / R             建立 / 恢復最近備份（設定頁）\n\n表單\n  Tab / ↑ ↓         切換欄位\n  ← → / Space       切換開關或選項\n  Home / End        文字首尾\n  Ctrl+U            清空當前欄位\n  Enter             下一欄位；多行欄位換行\n  s                 儲存（編輯文字時先 Tab 聚焦儲存按鈕）\n\n滑鼠\n  點選側欄、標籤、工具按鈕；單擊行選擇，雙擊等同 Enter\n  同一行同一位置附近 400 毫秒內雙擊；備份恢復仍需確認\n  滾輪移動選擇；Shift+滑鼠使用終端原生文字選擇\n\n預設啟動使用應用自管核心；--demo 使用獨立演示資料。\n詳情見 README。"
+  ],
+  "托盘快捷操作对应首页控制；后台自启不打开窗口。\n字体、窗口装饰、桌面热键由终端和桌面环境管理。\n本客户端面向 Linux，支持简体中文、繁體中文与 English。": [
+    "Tray controls map to Home controls; background autostart opens no window.\nFonts, decorations, and desktop shortcuts belong to the terminal and desktop.\nThis Linux client supports English, Simplified Chinese, and Traditional Chinese.",
+    "托盤快捷操作對應首頁控制；後臺自啟不開啟視窗。\n字型、視窗裝飾、桌面熱鍵由終端和桌面環境管理。\n本客戶端面向 Linux，支援簡體中文、繁體中文與 English。"
+  ],
+  "[✓] 当前": [
+    "[✓] Use",
+    "[✓] 目前"
+  ],
+  "演示 · 尚未刷新": [
+    "Demo · not refreshed",
+    "示範 · 尚未重新整理"
+  ],
+  "控制器地址无效": [
+    "Invalid controller address",
+    "控制器地址無效"
+  ],
+  "Unix socket 地址无效": [
+    "Invalid Unix socket address",
+    "Unix socket 地址無效"
+  ],
+  "Unix socket 需要绝对路径": [
+    "Unix socket requires an absolute path",
+    "Unix socket 需要絕對路徑"
+  ],
+  "控制器地址需为 http(s) URL；密钥请使用文件或环境变量传入": [
+    "Controller requires an HTTP(S) URL; pass the secret through a file or environment variable",
+    "控制器地址需為 http(s) URL；金鑰請使用檔案或環境變數傳入"
+  ],
+  "当前系统不支持 Unix socket": [
+    "Unix sockets are unsupported on this system",
+    "當前系統不支援 Unix socket"
+  ],
+  "控制器请求失败：{}": [
+    "Controller request failed: {}",
+    "控制器請求失敗：{}"
+  ],
+  "控制器 HTTP {}": [
+    "Controller HTTP {}",
+    "控制器 HTTP {}"
+  ],
+  "读取控制器响应失败": [
+    "Failed to read controller response",
+    "讀取控制器響應失敗"
+  ],
+  "控制器返回了无效 JSON": [
+    "Controller returned invalid JSON",
+    "控制器返回了無效 JSON"
+  ],
+  "控制器响应结构不兼容": [
+    "Incompatible controller response",
+    "控制器響應結構不相容"
+  ],
+  "工作区命令必须由后台工作线程处理": [
+    "Workspace commands require the background worker",
+    "工作區命令必須由後臺工作執行緒處理"
+  ],
+  "未知更新类型": [
+    "Unknown update type",
+    "未知更新型別"
+  ],
+  "日志流断开，正在重连": [
+    "Log stream disconnected; reconnecting",
+    "日誌流斷開，正在重連"
+  ],
+  "发现新版本": [
+    "New version available",
+    "發現新版本"
+  ],
+  "不可用": [
+    "Unavailable",
+    "不可用"
+  ],
+  "自动测速已完成": [
+    "Automatic delay tests completed",
+    "自動測速已完成"
+  ],
+  "TUN 权限服务需要自管工作区": [
+    "TUN permission service requires a managed workspace",
+    "TUN 許可權服務需要自管工作區"
+  ],
+  "备份操作需要独立工作区": [
+    "Backup operations require an isolated workspace",
+    "備份操作需要獨立工作區"
+  ],
+  "此操作需要受管理的工作区": [
+    "This action requires a managed workspace",
+    "此操作需要受管理的工作區"
+  ],
+  "定时更新完成": [
+    "Scheduled update completed",
+    "定時更新完成"
+  ],
+  "定时更新失败：{error}": [
+    "Scheduled update failed: {error}",
+    "定時更新失敗：{error}"
+  ],
+  "节点已切换，但关闭连接失败：{e}": [
+    "Node switched, but closing connections failed: {e}",
+    "節點已切換，但關閉連線失敗：{e}"
+  ],
+  "无法启动内核连接线程": [
+    "Failed to start the core connection worker",
+    "無法啟動核心連線執行緒"
+  ],
+  "请求队列已满或连接线程已退出": [
+    "Request queue full or connection worker stopped",
+    "請求佇列已滿或連線執行緒已退出"
+  ],
+  "未知：验证页面": [
+    "Unknown: verification page",
+    "未知：驗證頁面"
+  ],
+  "需要登录": [
+    "Login required",
+    "需要登入"
+  ],
+  "地区受限": [
+    "Region restricted",
+    "地區受限"
+  ],
+  "可用（网页）": [
+    "Available (website)",
+    "可用（網頁）"
+  ],
+  "未知：HTTP 403": [
+    "Unknown: HTTP 403",
+    "未知：HTTP 403"
+  ],
+  "未知：HTTP {status}": [
+    "Unknown: HTTP {status}",
+    "未知：HTTP {status}"
+  ],
+  "代理地址无效": [
+    "Invalid proxy address",
+    "代理地址無效"
+  ],
+  "网络错误 / 超时": [
+    "Network error / timeout",
+    "網路錯誤 / 超時"
+  ],
+  "检查更新失败：{}": [
+    "Update check failed: {}",
+    "檢查更新失敗：{}"
+  ],
+  "更新服务器 HTTP {}": [
+    "Update server HTTP {}",
+    "更新伺服器 HTTP {}"
+  ],
+  "当前版本 v{current}\n已发布最新版本 v{version}\n无需更新。": [
+    "Current version v{current}\nLatest release v{version}\nNo update needed.",
+    "當前版本 v{current}\n已釋出最新版本 v{version}\n無需更新。"
+  ],
+  "未发现已发布版本": [
+    "No published release found",
+    "未發現已釋出版本"
+  ],
+  "不支持的打开方式": [
+    "Unsupported open action",
+    "不支援的開啟方式"
+  ],
+  "路径不存在": [
+    "Path does not exist",
+    "路徑不存在"
+  ],
+  "打开操作需要 xdg-open": [
+    "Opening requires xdg-open",
+    "開啟操作需要 xdg-open"
+  ],
+  "GNOME 设置请求超时": [
+    "GNOME settings request timed out",
+    "GNOME 設定請求超時"
+  ],
+  "系统代理需要 GNOME gsettings": [
+    "System proxy requires GNOME gsettings",
+    "系統代理需要 GNOME gsettings"
+  ],
+  "GNOME 系统代理设置失败": [
+    "GNOME system proxy settings failed",
+    "GNOME 系統代理設定失敗"
+  ],
+  "外部代理": [
+    "External proxy",
+    "外部代理"
+  ],
+  "映射需要 YAML 对象或 key=value 格式": [
+    "Mapping requires a YAML object or key=value format",
+    "對映需要 YAML 物件或 key=value 格式"
+  ],
+  "控制器地址必须为 IP:端口": [
+    "Controller address must be IP:port",
+    "控制器地址必須為 IP:埠"
+  ],
+  "GeoData 地址需要 HTTP(S) URL": [
+    "GeoData requires an HTTP(S) URL",
+    "GeoData 地址需要 HTTP(S) URL"
+  ],
+  "开关值无效": [
+    "Invalid toggle value",
+    "開關值無效"
+  ],
+  "数值格式无效": [
+    "Invalid number",
+    "數值格式無效"
+  ],
+  "端口应在 1–65535，其他端口可用 0 禁用": [
+    "Ports must be within 1–65535; additional ports may use 0 to disable",
+    "埠應在 1–65535，其他埠可用 0 停用"
+  ],
+  "MTU 应在 576–65535": [
+    "MTU must be within 576–65535",
+    "MTU 應在 576–65535"
+  ],
+  "隧道 YAML 无效": [
+    "Invalid tunnel YAML",
+    "隧道 YAML 無效"
+  ],
+  "隧道配置需要 YAML 数组": [
+    "Tunnel configuration requires a YAML array",
+    "隧道配置需要 YAML 陣列"
+  ],
+  "绑定地址必须为本机 IP 或 *": [
+    "Bind address must be a local IP or *",
+    "繫結地址必須為本機 IP 或 *"
+  ],
+  "绑定地址不属于可用的本机接口": [
+    "Bind address does not belong to an available local interface",
+    "繫結地址不屬於可用的本機介面"
+  ],
+  "DNS 监听地址必须为 IP:端口": [
+    "DNS listen address must be IP:port",
+    "DNS 監聽地址必須為 IP:埠"
+  ],
+  "DNS 监听地址或端口不可用": [
+    "DNS listen address or port is unavailable",
+    "DNS 監聽地址或埠不可用"
+  ],
+  "端口 {port} 已被占用": [
+    "Port {port} is already in use",
+    "連接埠 {port} 已被佔用"
+  ],
+  "TUN 网卡名称已被占用，请使用独立名称": [
+    "TUN adapter name is in use; choose a unique name",
+    "TUN 網絡卡名稱已被佔用，請使用獨立名稱"
+  ],
+  "TUN 验证需要 Linux iproute2": [
+    "TUN verification requires Linux iproute2",
+    "TUN 驗證需要 Linux iproute2"
+  ],
+  "不存在": [
+    "Not found",
+    "不存在"
+  ],
+  "TUN 网卡未在 5 秒内{}（当前：{state}）；请检查权限服务和 core.log": [
+    "TUN adapter did not complete {} within 5 seconds (current: {state}); check the permission service and core.log",
+    "TUN 網絡卡未在 5 秒內{}（當前：{state}）；請檢查許可權服務和 core.log"
+  ],
+  "创建": [
+    "Creation",
+    "建立"
+  ],
+  "移除": [
+    "Removal",
+    "移除"
+  ],
+  "{error}，原配置已恢复": [
+    "{error}; the previous configuration was restored",
+    "{error}，原配置已恢復"
+  ],
+  "s 保存": [
+    "s Save",
+    "s 儲存"
+  ],
+  "订阅链接按 Enter 导入；Tab 到保存按钮后按 s 保存": [
+    "Enter imports URL; Tab to Save, then s saves",
+    "訂閱連結按 Enter 匯入；Tab 到儲存按鈕後按 s 儲存"
+  ],
+  "检测到其他活动 TUN 网卡，为避免路由和 DNS 冲突，请先在对应应用中关闭 TUN 后重试": [
+    "Another active TUN adapter was detected. To avoid routing and DNS conflicts, turn off TUN in its app before retrying",
+    "偵測到其他活動 TUN 網卡，為避免路由和 DNS 衝突，請先在對應應用中關閉 TUN 後重試"
+  ],
+  "安装 / 修复 TUN 权限服务": [
+    "Install / repair TUN service",
+    "安裝 / 修復 TUN 權限服務"
+  ],
+  "卸载 TUN 权限服务": [
+    "Uninstall TUN service",
+    "卸載 TUN 權限服務"
+  ],
+  "仅安装当前工作区服务，不开启 TUN": [
+    "Install workspace services without enabling TUN",
+    "僅安裝目前工作區服務，不開啟 TUN"
+  ],
+  "先关闭 TUN，再卸载当前工作区服务": [
+    "Turn off TUN before removing workspace services",
+    "先關閉 TUN，再卸載目前工作區服務"
+  ],
+  "请先关闭当前工作区的 TUN，再卸载权限服务": [
+    "Turn off TUN in this workspace before uninstalling its service",
+    "請先關閉目前工作區的 TUN，再卸載權限服務"
+  ],
+  "仅卸载当前工作区的 TUN 权限和 DNS 服务，保留订阅与配置。": [
+    "Remove only this workspace’s TUN permissions and DNS service. Keep profiles and configuration.",
+    "僅卸載目前工作區的 TUN 權限和 DNS 服務，保留訂閱與設定。"
+  ],
+  "仅安装或修复当前工作区的权限和 DNS 服务，不开启 TUN。": [
+    "Install or repair this workspace’s permission and DNS services without enabling TUN.",
+    "僅安裝或修復目前工作區的權限和 DNS 服務，不開啟 TUN。"
+  ],
+  "TUN 权限服务已安装": [
+    "TUN permission service installed",
+    "TUN 權限服務已安裝"
+  ],
+  "TUN 权限服务已卸载": [
+    "TUN permission service uninstalled",
+    "TUN 權限服務已卸載"
+  ],
+  "TUN 权限服务卸载失败：{error}": [
+    "TUN permission service uninstall failed: {error}",
+    "TUN 權限服務卸載失敗：{error}"
+  ],
+  "无法移除当前内核的 TUN 能力": [
+    "Unable to remove TUN capabilities from the current core",
+    "無法移除目前核心的 TUN 能力"
+  ],
+  "演示模式不安装或卸载系统服务": [
+    "Demo mode does not install or uninstall system services",
+    "演示模式不安裝或卸載系統服務"
+  ],
+  "Enter 卸载服务": [
+    "Enter Uninstall service",
+    "Enter 卸載服務"
+  ]
+}

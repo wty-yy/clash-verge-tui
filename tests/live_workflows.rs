@@ -23,6 +23,8 @@ fn snapshot() -> Snapshot {
 }
 fn app() -> App {
     let mut app = App::new(DemoState::default(), "/tmp/fixture".into());
+    app.state.settings.insert("language".into(), "zh-CN".into());
+    app.sync_language();
     app.live = Some(LiveState::new("http://localhost".into(), vec![], None));
     app.handle_core(CoreEvent::Snapshot(Box::new(snapshot())));
     app
@@ -148,7 +150,7 @@ fn live_preferences_do_not_persist_core_config_credentials_or_connections() {
 fn busy_workspace_preserves_unsaved_form_input() {
     let mut a = app();
     a.navigate(Page::Settings);
-    a.sub = 2;
+    a.sub = 1;
     a.activate();
     let fields = if let Some(clash_verge_tui::app::Modal::Form { fields, .. }) = &a.modal {
         fields.clone()
@@ -158,7 +160,7 @@ fn busy_workspace_preserves_unsaved_form_input() {
     a.live.as_mut().unwrap().pending = true;
     a.save_live_form(&fields, &clash_verge_tui::app::SaveTarget::Settings(0));
     assert!(
-        matches!(&a.modal,Some(clash_verge_tui::app::Modal::Form{error,..}) if error.contains("Ctrl+S"))
+        matches!(&a.modal,Some(clash_verge_tui::app::Modal::Form{error,..}) if error.contains("保存按钮"))
     );
 }
 
@@ -499,4 +501,94 @@ fn completed_tun_settings_request_a_managed_core_restart() {
     app.handle_core(CoreEvent::Completed(Ok(())));
     assert!(app.restart_core);
     assert!(app.status.contains("正在重启"));
+}
+
+#[test]
+fn tun_service_settings_confirm_password_and_preserve_tun_state() {
+    use clash_verge_tui::app::Confirm;
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    for (width, height) in [(76, 24), (120, 40)] {
+        for uninstall in [false, true] {
+            let mut a = app();
+            a.live.as_mut().unwrap().managed = Some(ManagedSettings {
+                controller: "127.0.0.1:9090".into(),
+                secret: String::new(),
+                port: 7890,
+                binary: "/bin/true".into(),
+            });
+            a.state.settings.insert("tun".into(), "关闭".into());
+            a.navigate(Page::Settings);
+            let name = if uninstall {
+                "卸载 TUN 权限服务"
+            } else {
+                "安装 / 修复 TUN 权限服务"
+            };
+            let id = clash_verge_tui::settings::sections()
+                .iter()
+                .position(|s| s.name == name)
+                .unwrap();
+            a.selected = a.rows().iter().position(|r| r.id == id).unwrap();
+            let mut terminal = Terminal::new(TestBackend::new(width, height)).unwrap();
+            terminal.draw(|f| ui::draw(f, &mut a)).unwrap();
+            assert!(a
+                .hits
+                .iter()
+                .any(|(_, action)| matches!(action, Action::Select(i) if *i == a.selected)));
+            a.activate();
+            assert!(matches!(a.modal, Some(Modal::Confirm { .. })));
+            assert!(a.live.as_ref().unwrap().outbox.is_empty());
+            a.key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
+            assert!(a.modal.is_none());
+            a.activate();
+            assert!(
+                matches!(&a.modal, Some(Modal::Confirm {target, ..}) if matches!(target, Confirm::UninstallTunService) == uninstall)
+            );
+            a.key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+            let Some(Modal::Form { fields, target, .. }) = &mut a.modal else {
+                panic!("password form missing")
+            };
+            assert!(matches!(target, SaveTarget::UninstallTunServicePassword) == uninstall);
+            assert!(matches!(fields[0].kind, Kind::Secret));
+            fields[0].value = "fixture-password".into();
+            terminal.draw(|f| ui::draw(f, &mut a)).unwrap();
+            let mut screen = String::new();
+            for y in 0..height {
+                let mut x = 0;
+                while x < width {
+                    let symbol = terminal.backend().buffer()[(x, y)].symbol();
+                    screen.push_str(symbol);
+                    x += unicode_width::UnicodeWidthStr::width(symbol).max(1) as u16;
+                }
+                screen.push('\n');
+            }
+            assert!(!screen.contains("fixture-password"));
+            assert!(screen.contains(if uninstall {
+                "Enter 卸载服务"
+            } else {
+                "Enter 安装服务"
+            }));
+            a.key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+            assert!(
+                matches!(
+                    a.live.as_ref().unwrap().outbox.last(),
+                    Some(Command::UninstallTunService { .. })
+                ) == uninstall
+            );
+            assert!(!format!("{:?}", a.live.as_ref().unwrap().outbox).contains("fixture-password"));
+            a.handle_core(if uninstall {
+                CoreEvent::TunServiceUninstalled(Ok(()))
+            } else {
+                CoreEvent::TunServiceInstalled(Ok(()))
+            });
+            assert_eq!(a.live.as_ref().unwrap().tun_capable, !uninstall);
+            assert!(!a.restart_core);
+            assert_eq!(a.state.value("tun"), "关闭");
+            if uninstall {
+                a.state.settings.insert("tun".into(), "开启".into());
+                a.activate();
+                assert!(a.modal.is_none());
+                assert!(a.status.contains("请先关闭"));
+            }
+        }
+    }
 }
