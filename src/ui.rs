@@ -615,7 +615,7 @@ fn toolbar(app: &App) -> Vec<(&'static str, Action)> {
                 ("c 解除固定", Action::Key('c')),
             ],
             Page::Profiles => vec![
-                ("a 新建", Action::Key('a')),
+                ("a 链接导入", Action::Key('a')),
                 ("e 编辑", Action::Key('e')),
                 ("d 删除", Action::Key('d')),
                 ("r 更新", Action::Key('r')),
@@ -672,7 +672,7 @@ fn toolbar(app: &App) -> Vec<(&'static str, Action)> {
         ],
         Page::Profiles => {
             let mut b = vec![
-                ("a 新建", Action::Key('a')),
+                ("a 链接导入", Action::Key('a')),
                 ("e 编辑", Action::Key('e')),
                 ("d 删除", Action::Key('d')),
             ];
@@ -1326,9 +1326,9 @@ fn modal(f: &mut Frame, app: &mut App, area: Rect, p: Palette) {
                         app,
                         Rect::new(input.x + input.width + 1, input.y, 10, 1),
                         if app.profile_import_pending.is_some() {
-                            "导入中"
+                            "[ 导入中 ]"
                         } else {
-                            "导入"
+                            "[ 导入 ]"
                         },
                         Action::ImportProfile,
                         p,

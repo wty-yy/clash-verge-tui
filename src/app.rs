@@ -1311,23 +1311,11 @@ impl App {
             let p = id.map(|i| &self.state.profiles[i]);
             self.form(
                 if id.is_some() {
-                    "编辑订阅"
+                    "编辑订阅 / 链接导入"
                 } else {
-                    "导入订阅"
+                    "添加订阅 / 链接导入"
                 },
                 vec![
-                    Field::new(
-                        "name",
-                        "订阅名称",
-                        p.map(|p| p.name.as_str()).unwrap_or(""),
-                        Kind::Text,
-                    ),
-                    Field::new(
-                        "interval",
-                        "更新间隔 / 分钟",
-                        p.map(|p| p.interval.as_str()).unwrap_or("720"),
-                        Kind::Number,
-                    ),
                     Field::new(
                         "url",
                         "订阅文件链接",
@@ -1339,6 +1327,18 @@ impl App {
                         "订阅配置 YAML",
                         p.map(|p| p.content.as_str()).unwrap_or(""),
                         Kind::Multiline,
+                    ),
+                    Field::new(
+                        "name",
+                        "订阅名称",
+                        p.map(|p| p.name.as_str()).unwrap_or(""),
+                        Kind::Text,
+                    ),
+                    Field::new(
+                        "interval",
+                        "更新间隔 / 分钟",
+                        p.map(|p| p.interval.as_str()).unwrap_or("720"),
+                        Kind::Number,
                     ),
                 ],
                 SaveTarget::Profile(id),

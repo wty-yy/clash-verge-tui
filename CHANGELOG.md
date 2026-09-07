@@ -6,6 +6,16 @@
 
 See the [feature mapping](docs/FEATURES.md) for planned work.
 
+## v1.3.1 · 2026-09-07
+
+### Make profile link import prominent
+
+- Move the profile file URL to the first focused row of create/edit forms, immediately above the full YAML editor.
+- Render a prominent right-side `[ Import ]` button and show `[ Importing ]` while downloading.
+- Rename the Profiles toolbar entry to `a Link import` and keep the same ordering at the 76×24 minimum size.
+- Load existing complete YAML when editing remote profiles for direct before/after review.
+- Retry transient connection and TLS failures in installation and packaging downloads.
+
 ## v1.3.0 · 2026-09-07
 
 ### Home mixed proxy port

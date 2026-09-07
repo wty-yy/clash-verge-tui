@@ -124,7 +124,14 @@ fn filtered_and_sorted_proxy_selection_uses_underlying_node() {
 fn profile_crud_validation_cancel_reorder_and_empty_state() {
     let mut a = app();
     a.navigate(Page::Profiles);
+    assert!(render(&mut a, 120, 40).contains("a 链接导入"));
     a.command('a');
+    if let Some(Modal::Form { fields, .. }) = &a.modal {
+        assert_eq!(fields[0].key, "url");
+        assert_eq!(fields[1].key, "content");
+    } else {
+        panic!("expected profile import form");
+    }
     let form = render(&mut a, 120, 40);
     assert!(form.contains("订阅文件链接"));
     assert!(form.contains("导入"));
@@ -133,7 +140,7 @@ fn profile_crud_validation_cancel_reorder_and_empty_state() {
         .iter()
         .any(|(_, action)| matches!(action, Action::ImportProfile)));
     if let Some(Modal::Form { active, .. }) = &mut a.modal {
-        *active = 2;
+        *active = 0;
     }
     let compact = render(&mut a, 76, 24);
     assert!(compact.contains("订阅文件链接"));
@@ -657,7 +664,7 @@ fn horizontal_keys_cycle_all_tab_groups_and_filter_logs() {
     key(&mut a, KeyCode::Char('h'));
     key(&mut a, KeyCode::Char('l'));
     if let Some(Modal::Form { fields, .. }) = &a.modal {
-        assert_eq!(fields[0].value, "hl");
+        assert!(fields[0].value.ends_with("hl"));
     } else {
         panic!("expected form");
     }

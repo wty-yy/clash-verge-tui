@@ -24,7 +24,7 @@ case "$(uname -m)" in
 esac
 
 if [ -z "$version" ]; then
-    latest_url="$(curl -fsSL -o /dev/null -w '%{url_effective}' "$repository/releases/latest")"
+    latest_url="$(curl -fsSL --connect-timeout 15 --retry 5 --retry-delay 2 --retry-all-errors -o /dev/null -w '%{url_effective}' "$repository/releases/latest")"
     version="${latest_url##*/}"
 fi
 case "$version" in
@@ -44,8 +44,10 @@ cleanup() {
 trap cleanup EXIT HUP INT TERM
 
 printf 'Downloading clash-verge-tui %s for Linux %s...\n' "$version" "$architecture"
-curl -fL --retry 3 -o "$temporary_dir/$asset" "$base_url/$asset"
-curl -fL --retry 3 -o "$temporary_dir/$asset.sha256" "$base_url/$asset.sha256"
+curl -fL --connect-timeout 15 --retry 5 --retry-delay 2 --retry-all-errors \
+    -o "$temporary_dir/$asset" "$base_url/$asset"
+curl -fL --connect-timeout 15 --retry 5 --retry-delay 2 --retry-all-errors \
+    -o "$temporary_dir/$asset.sha256" "$base_url/$asset.sha256"
 (cd "$temporary_dir" && sha256sum -c "$asset.sha256")
 
 mkdir -p "$temporary_dir/package"

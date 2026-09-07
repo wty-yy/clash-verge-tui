@@ -1169,8 +1169,25 @@ impl App {
                 .unwrap_or(720)
                 .to_string();
             self.form(
-                "订阅配置",
+                if index.is_some() {
+                    "编辑订阅 / 链接导入"
+                } else {
+                    "添加订阅 / 链接导入"
+                },
                 vec![
+                    Field::new(
+                        "url",
+                        "订阅文件链接",
+                        p.map(|p| p.url.as_str()).unwrap_or(""),
+                        Kind::Text,
+                    ),
+                    Field::new(
+                        "content",
+                        "订阅配置 YAML",
+                        &p.and_then(|profile| fs::read_to_string(&profile.file).ok())
+                            .unwrap_or_default(),
+                        Kind::Multiline,
+                    ),
                     Field::new(
                         "name",
                         "名称",
@@ -1190,20 +1207,6 @@ impl App {
                         Kind::Number,
                     ),
                     Field::new("local_file", "导入本地文件（可留空）", "", Kind::Text),
-                    Field::new(
-                        "url",
-                        "订阅文件链接（可直接导入）",
-                        p.map(|p| p.url.as_str()).unwrap_or(""),
-                        Kind::Text,
-                    ),
-                    Field::new(
-                        "content",
-                        "订阅配置 YAML",
-                        &p.filter(|p| p.url.is_empty())
-                            .and_then(|p| fs::read_to_string(&p.file).ok())
-                            .unwrap_or_default(),
-                        Kind::Multiline,
-                    ),
                 ],
                 SaveTarget::Profile(index),
             );

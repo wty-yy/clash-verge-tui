@@ -242,6 +242,38 @@ fn invalid_profile_link_stays_in_the_form_without_queuing_a_request() {
 }
 
 #[test]
+fn live_profile_form_opens_with_the_link_and_import_button_above_yaml() {
+    let mut app = app();
+    app.live.as_mut().unwrap().managed = Some(ManagedSettings {
+        controller: "127.0.0.1:9090".into(),
+        secret: String::new(),
+        port: 7890,
+        binary: "/bin/true".into(),
+    });
+    app.navigate(Page::Profiles);
+    app.command('a');
+    let Modal::Form {
+        title,
+        fields,
+        active,
+        ..
+    } = app.modal.as_ref().unwrap()
+    else {
+        panic!("expected live profile form")
+    };
+    assert!(title.contains("链接导入"));
+    assert_eq!(*active, 0);
+    assert_eq!(fields[0].key, "url");
+    assert_eq!(fields[1].key, "content");
+    let mut terminal = Terminal::new(TestBackend::new(76, 24)).unwrap();
+    terminal.draw(|frame| ui::draw(frame, &mut app)).unwrap();
+    assert!(app
+        .hits
+        .iter()
+        .any(|(_, action)| matches!(action, Action::ImportProfile)));
+}
+
+#[test]
 fn live_home_port_form_applies_with_plain_s_and_tun_requests_privilege_setup() {
     let mut app = app();
     app.live.as_mut().unwrap().managed = Some(ManagedSettings {

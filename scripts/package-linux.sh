@@ -39,7 +39,8 @@ install -m 0644 LICENSE "$staging/share/licenses/clash-verge-tui/LICENSE"
 install -m 0644 docs/LICENSE-GPL-3.0 "$staging/share/licenses/mihomo/LICENSE"
 
 core_archive="dist/$core_asset"
-curl -fL --retry 3 -o "$core_archive" "https://github.com/MetaCubeX/mihomo/releases/download/v${core_version}/${core_asset}"
+curl -fL --connect-timeout 15 --retry 5 --retry-delay 2 --retry-all-errors \
+    -o "$core_archive" "https://github.com/MetaCubeX/mihomo/releases/download/v${core_version}/${core_asset}"
 printf '%s  %s\n' "$core_sha256" "$core_archive" | sha256sum -c -
 gzip -dc "$core_archive" > "$staging/lib/clash-verge-tui/mihomo"
 chmod 0755 "$staging/lib/clash-verge-tui/mihomo"
