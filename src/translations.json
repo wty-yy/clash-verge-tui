@@ -2542,5 +2542,17 @@
   "Enter 卸载服务": [
     "Enter Uninstall service",
     "Enter 卸載服務"
+  ],
+  "GeoSite.dat 必须为普通文件": [
+    "GeoSite.dat must be a regular file",
+    "GeoSite.dat 必須為普通檔案"
+  ],
+  "随包 GeoSite.dat 必须为普通文件": [
+    "Bundled GeoSite.dat must be a regular file",
+    "隨包 GeoSite.dat 必須為普通檔案"
+  ],
+  "随包 GeoSite.dat SHA-256 校验失败；请重新安装发行包": [
+    "Bundled GeoSite.dat SHA-256 verification failed; reinstall the release bundle",
+    "隨包 GeoSite.dat SHA-256 校驗失敗；請重新安裝發行包"
   ]
 }

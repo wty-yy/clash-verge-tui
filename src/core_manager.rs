@@ -13,6 +13,8 @@ use std::{
 pub const MIHOMO_VERSION: &str = "1.19.29";
 const RELEASE_ROOT: &str = "https://github.com/MetaCubeX/mihomo/releases/download/v1.19.29";
 const MAX_ARCHIVE_SIZE: usize = 32 * 1024 * 1024;
+pub const GEOSITE_FILE: &str = "GeoSite.dat";
+pub const GEOSITE_SHA256: &str = "c5fe9448d979391192f5bd553b5e28c39efdc9bd857b7c879a7d995fded0c3fe";
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Asset {
@@ -116,6 +118,58 @@ fn bundled_candidates() -> Vec<PathBuf> {
     paths
 }
 
+pub fn prepare_geosite(dir: &Path, binary: &Path) -> Result<()> {
+    let mut paths = binary
+        .parent()
+        .filter(|parent| *parent != dir)
+        .map(|parent| vec![parent.join(GEOSITE_FILE)])
+        .unwrap_or_default();
+    if let Ok(executable) = std::env::current_exe() {
+        if let Some(bin) = executable.parent() {
+            paths.push(bin.join(format!("../lib/clash-verge-tui/{GEOSITE_FILE}")));
+            paths.push(bin.join(format!("../libexec/clash-verge-tui/{GEOSITE_FILE}")));
+        }
+    }
+    paths.push(install_root().join(GEOSITE_FILE));
+    seed_geosite(dir, &paths)
+}
+
+fn seed_geosite(dir: &Path, candidates: &[PathBuf]) -> Result<()> {
+    fs::create_dir_all(dir)?;
+    // Mihomo accepts case-insensitive names; preserve locally updated data too.
+    for entry in fs::read_dir(dir)? {
+        let entry = entry?;
+        if entry
+            .file_name()
+            .to_string_lossy()
+            .eq_ignore_ascii_case(GEOSITE_FILE)
+        {
+            if !entry.file_type()?.is_file() {
+                bail!("GeoSite.dat 必须为普通文件");
+            }
+            if entry.metadata()?.len() > 0 {
+                return Ok(());
+            }
+        }
+    }
+    for source in candidates {
+        let Ok(metadata) = fs::symlink_metadata(source) else {
+            continue;
+        };
+        if !metadata.is_file() {
+            bail!("随包 GeoSite.dat 必须为普通文件");
+        }
+        let bytes = fs::read(source)?;
+        if format!("{:x}", Sha256::digest(&bytes)) != GEOSITE_SHA256 {
+            bail!("随包 GeoSite.dat SHA-256 校验失败；请重新安装发行包");
+        }
+        crate::subscriptions::private_write(&dir.join(GEOSITE_FILE), &bytes)?;
+        return Ok(());
+    }
+    // Source-only installations may not have a release data bundle.
+    Ok(())
+}
+
 pub async fn ensure(workspace: &Path, override_path: Option<&Path>) -> Result<PathBuf> {
     if let Some(path) = override_path {
         return verify(path);
@@ -207,6 +261,23 @@ mod tests {
         assert!(asset.name.contains(MIHOMO_VERSION));
         assert_eq!(asset.sha256.len(), 64);
         assert_eq!(asset.binary_sha256.len(), 64);
+    }
+
+    #[test]
+    fn geosite_preserves_existing_data_and_rejects_corrupt_bundle() {
+        let dir = tempfile::tempdir().unwrap();
+        let bundle = dir.path().join("bundle.dat");
+        fs::write(&bundle, b"truncated download").unwrap();
+        let workspace = dir.path().join("workspace");
+        assert!(seed_geosite(&workspace, std::slice::from_ref(&bundle)).is_err());
+        assert!(!workspace.join(GEOSITE_FILE).exists());
+        fs::write(workspace.join("geosite.dat"), b"locally updated data").unwrap();
+        seed_geosite(&workspace, &[bundle]).unwrap();
+        assert_eq!(
+            fs::read(workspace.join("geosite.dat")).unwrap(),
+            b"locally updated data"
+        );
+        assert!(!workspace.join(GEOSITE_FILE).exists());
     }
 
     #[test]

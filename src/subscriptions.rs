@@ -529,6 +529,7 @@ pub fn prepare_binary(binary: &Path, dir: &Path) -> Result<PathBuf> {
             "managed": true
         }))?,
     )?;
+    crate::core_manager::prepare_geosite(dir, &source)?;
     Ok(owned)
 }
 pub fn ensure_secret(dir: &Path, configured: Option<&str>) -> Result<String> {

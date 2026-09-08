@@ -4,6 +4,12 @@
 
 See the [feature mapping](docs/FEATURES.md) for planned work.
 
+## v1.4.2 · 2026-09-08
+
+1. Bundle a pinned `GeoSite.dat` snapshot in Linux release archives
+2. Install GeoSite data with the application and seed it into new workspaces before Mihomo validation
+3. Verify the bundled GeoSite SHA-256 and preserve existing workspace GeoData updates
+
 ## v1.4.1 · 2026-09-08
 
 1. Build static musl release bundles for Linux x86_64/aarch64 without system glibc dependencies

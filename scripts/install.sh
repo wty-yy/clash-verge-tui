@@ -93,19 +93,25 @@ mkdir -p "$temporary_dir/package"
 tar -xzf "$temporary_dir/$asset" -C "$temporary_dir/package" --no-same-owner
 app="$temporary_dir/package/bin/clash-verge-tui"
 core="$temporary_dir/package/lib/clash-verge-tui/mihomo"
+geosite="$temporary_dir/package/lib/clash-verge-tui/GeoSite.dat"
 [ -f "$app" ] && [ ! -L "$app" ] || fail "release does not contain a regular TUI binary"
 [ -f "$core" ] && [ ! -L "$core" ] || fail "release does not contain a regular mihomo binary"
+[ -f "$geosite" ] && [ -s "$geosite" ] && [ ! -L "$geosite" ] || fail "release does not contain GeoSite.dat"
+[ -f "$temporary_dir/package/share/licenses/meta-rules-dat/LICENSE" ] || fail "release does not contain the GeoSite license"
 "$app" --version | grep -F "$numeric_version" >/dev/null || fail "TUI version verification failed"
 "$core" -v | grep -F 'v1.19.29' >/dev/null || fail "mihomo version verification failed"
 
 mkdir -p "$install_dir" "$core_dir"
 install -m 0755 "$app" "$install_dir/clash-verge-tui.new"
 install -m 0755 "$core" "$core_dir/mihomo.new"
+install -m 0644 "$geosite" "$library_dir/GeoSite.dat.new"
 mv -f "$core_dir/mihomo.new" "$core_dir/mihomo"
+mv -f "$library_dir/GeoSite.dat.new" "$library_dir/GeoSite.dat"
 mv -f "$install_dir/clash-verge-tui.new" "$install_dir/clash-verge-tui"
 install -m 0644 "$temporary_dir/package/lib/clash-verge-tui/release.json" "$library_dir/release.json"
 install -m 0644 "$temporary_dir/package/share/licenses/clash-verge-tui/LICENSE" "$library_dir/LICENSE"
 install -m 0644 "$temporary_dir/package/share/licenses/mihomo/LICENSE" "$library_dir/MIHOMO-LICENSE"
+install -m 0644 "$temporary_dir/package/share/licenses/meta-rules-dat/LICENSE" "$library_dir/GEOSITE-LICENSE"
 
 # Older releases predate the musl bundle.
 if [ -f "$temporary_dir/package/share/licenses/musl/LICENSE" ]; then

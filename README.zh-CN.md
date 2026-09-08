@@ -8,7 +8,7 @@
 
 该项目为个人使用而制作，使用 ChatGPT 辅助开发，界面与功能映射参考 Clash Verge Rev v2.5.2。该项目非 Clash Verge / Clash Verge Rev 官方制作，与其开发团队无隶属关系。
 
-`v1.4.1` 默认启动自管工作区和随应用固定的 mihomo v1.19.29。Linux x86_64/aarch64 发行包包含 musl 静态链接 TUI 与固定内核，不依赖系统 glibc；安装脚本兼容 Ubuntu 20.04 的 curl 7.68 等旧版本。仅复制程序二进制时，首次启动也会从 Mihomo 官方 Release 下载并校验对应内核。首页快捷控制显示并可修改当前混合代理端口，默认监听 `127.0.0.1:7890`。
+`v1.4.2` 默认启动自管工作区和随应用固定的 mihomo v1.19.29。Linux x86_64/aarch64 发行包包含 musl 静态链接 TUI、固定内核和固定版本的 `GeoSite.dat`，不依赖系统 glibc；安装脚本兼容 Ubuntu 20.04 的 curl 7.68 等旧版本。首页快捷控制显示并可修改当前混合代理端口，默认监听 `127.0.0.1:7890`。
 
 ## 安装与启动
 
@@ -42,10 +42,14 @@ clash-verge-tui --demo
 | `~/.local/lib/clash-verge-tui/core/v1.19.29/mihomo` | 与当前发行版配套的版本化内核 |
 | `~/.local/lib/clash-verge-tui/release.json` | 应用、内核、架构和上游校验信息 |
 | `~/.local/lib/clash-verge-tui/MIHOMO-LICENSE` | 随包 Mihomo 的 GPL-3.0 许可文本 |
+| `~/.local/lib/clash-verge-tui/GeoSite.dat` | 随包固定版本的 Mihomo GeoSite 数据 |
+| `~/.local/lib/clash-verge-tui/GEOSITE-LICENSE` | GeoSite 数据的 GPL-3.0 许可文本 |
 
-Gitee 仓库同步不包含发行版附件。镜像需创建同版本标签的发行版，并上传两个 Linux 组合包、对应 `.sha256` 和 `install.sh`，见[版本维护](docs/RELEASING.md)。Gitee 发行版或附件缺失时停止安装，不切换到 GitHub。可在 `sh` 命令前设置 `CLASH_VERGE_TUI_VERSION=v1.4.1` 选择已发布版本；`CLASH_VERGE_TUI_REPOSITORY` 可指定自定义仓库，显式 `--source` 优先。
+Gitee 仓库同步不包含发行版附件。镜像需创建同版本标签的发行版，并上传两个 Linux 组合包、对应 `.sha256` 和 `install.sh`，见[版本维护](docs/RELEASING.md)。Gitee 发行版或附件缺失时停止安装，不切换到 GitHub。可在 `sh` 命令前设置 `CLASH_VERGE_TUI_VERSION=v1.4.2` 选择已发布版本；`CLASH_VERGE_TUI_REPOSITORY` 可指定自定义仓库，显式 `--source` 优先。
 
 源码构建同样可用。找不到发行包内核时，程序会将 Mihomo 官方 v1.19.29 下载到 `${XDG_DATA_HOME:-$HOME/.local/share}/clash-verge-tui/core/`，校验压缩包与解压后二进制，再复制到当前工作区。工作区内核损坏、被替换或被独立升级后，会在下次启动恢复为应用固定版本。
+
+发行包安装会在首次配置校验前将随包 `GeoSite.dat` 复制到每个工作区，校验 SHA-256 并设置 `0600` 权限，保留工作区内已有数据。仅从源码构建，以及另外配置的 GeoIP 或规则集合下载，仍需要相应数据文件或网络访问。
 
 ```bash
 # 从源码构建；Rust 1.88+
@@ -228,3 +232,5 @@ clash-verge-tui --snapshot home --output home.svg
 Clash Verge Rev 仅作为界面与功能参考，上游采用 GPL-3.0。可选 JavaScript 增强运行时 [Node.js](https://github.com/nodejs/node/blob/main/LICENSE) 采用 MIT，并包含按各自许可分发的第三方组件。
 
 静态发行包附带 [musl 许可及版权声明](docs/LICENSE-MUSL)，原文来自 [musl v1.2.5](https://git.musl-libc.org/cgit/musl/tree/COPYRIGHT?h=v1.2.5)。
+
+随包 GeoSite 数据来自 [MetaCubeX/meta-rules-dat](https://github.com/MetaCubeX/meta-rules-dat)，采用 GPL-3.0；`release.json` 记录快照地址与 SHA-256，归档附带许可文本。

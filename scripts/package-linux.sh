@@ -5,6 +5,9 @@ target="${TARGET:?TARGET is required}"
 architecture="${ARCHITECTURE:?ARCHITECTURE is required}"
 version="${APP_VERSION:?APP_VERSION is required}"
 core_version="1.19.29"
+geosite_revision="464ce81256c01af2ea0d464e0481fe4726519dcf"
+geosite_url="https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/$geosite_revision/geosite.dat"
+geosite_sha256="c5fe9448d979391192f5bd553b5e28c39efdc9bd857b7c879a7d995fded0c3fe"
 
 case "$architecture" in
     x86_64)
@@ -23,7 +26,7 @@ case "$architecture" in
         ;;
 esac
 
-app="target/$target/release/clash-verge-tui"
+app="${CARGO_TARGET_DIR:-target}/$target/release/clash-verge-tui"
 [ -x "$app" ] || {
     printf 'Missing release binary: %s\n' "$app" >&2
     exit 1
@@ -41,6 +44,8 @@ install -m 0755 "$app" "$staging/bin/clash-verge-tui"
 install -m 0644 LICENSE "$staging/share/licenses/clash-verge-tui/LICENSE"
 install -m 0644 docs/LICENSE-MUSL "$staging/share/licenses/musl/LICENSE"
 install -m 0644 docs/LICENSE-GPL-3.0 "$staging/share/licenses/mihomo/LICENSE"
+mkdir -p "$staging/share/licenses/meta-rules-dat"
+install -m 0644 docs/LICENSE-GPL-3.0 "$staging/share/licenses/meta-rules-dat/LICENSE"
 
 core_archive="dist/$core_asset"
 curl -fL --connect-timeout 15 --retry 5 --retry-delay 2 --retry-all-errors \
@@ -49,6 +54,12 @@ printf '%s  %s\n' "$core_sha256" "$core_archive" | sha256sum -c -
 gzip -dc "$core_archive" > "$staging/lib/clash-verge-tui/mihomo"
 chmod 0755 "$staging/lib/clash-verge-tui/mihomo"
 printf '%s  %s\n' "$core_binary_sha256" "$staging/lib/clash-verge-tui/mihomo" | sha256sum -c -
+
+geosite="dist/geosite.dat"
+curl -fL --connect-timeout 15 --retry 5 --retry-delay 2 --retry-all-errors \
+    -o "$geosite" "$geosite_url"
+printf '%s  %s\n' "$geosite_sha256" "$geosite" | sha256sum -c -
+install -m 0644 "$geosite" "$staging/lib/clash-verge-tui/GeoSite.dat"
 
 sh scripts/check-static.sh "$staging/lib/clash-verge-tui/mihomo"
 
@@ -62,6 +73,10 @@ cat > "$staging/lib/clash-verge-tui/release.json" <<EOF
   "mihomo_asset": "$core_asset",
   "mihomo_archive_sha256": "$core_sha256",
   "mihomo_binary_sha256": "$core_binary_sha256",
+  "geosite_file": "GeoSite.dat",
+  "geosite_sha256": "$geosite_sha256",
+  "geosite_url": "$geosite_url",
+  "geosite_source": "https://github.com/MetaCubeX/meta-rules-dat/tree/$geosite_revision",
   "mihomo_source": "https://github.com/MetaCubeX/mihomo/tree/v$core_version"
 }
 EOF
