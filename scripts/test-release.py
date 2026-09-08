@@ -65,6 +65,13 @@ with tempfile.TemporaryDirectory(prefix='cvt-release-test-') as directory:
         validation_log = (workspace / 'core/validation.log').read_text()
         assert 'start download' not in validation_log.lower(), validation_log
         assert (workspace / 'workspace-state.json').stat().st_mode & 0o777 == 0o600
+        saved = json.loads((workspace / 'workspace-state.json').read_text())
+        assert saved['state']['overrides']['mode'] == 'rule'
+        dns = saved['state']['overrides']['dns']
+        assert dns['enable'] is True and dns['enhanced-mode'] == 'fake-ip'
+        assert dns['nameserver'] == ['https://223.5.5.5/dns-query', 'https://1.12.12.12/dns-query']
+        assert dns['proxy-server-nameserver'] == ['https://223.5.5.5/dns-query']
+        assert dns['fallback-filter']['geoip'] is False
         for private in workspace.rglob('*'):
             if private.is_file() and (private.suffix in ['.yaml', '.json'] or private.name.endswith('.secret')):
                 assert private.stat().st_mode & 0o777 == 0o600, private.name

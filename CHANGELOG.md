@@ -4,6 +4,12 @@
 
 See the [feature mapping](docs/FEATURES.md) for planned work.
 
+## v1.4.3 · 2026-09-09
+
+1. Enable client DNS overwrite by default with fake-IP and stable resolver endpoints
+2. Migrate legacy workspaces from global mode and disabled DNS to client-owned `rule` mode and DNS overrides
+3. Disable default fallback GeoIP bootstrap so initial TUN startup does not download an MMDB
+
 ## v1.4.2 · 2026-09-08
 
 1. Bundle a pinned `GeoSite.dat` snapshot in Linux release archives

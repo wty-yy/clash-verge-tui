@@ -17,6 +17,30 @@ pub const TUN_SETTING_KEYS: &[&str] = &[
     "exclude_route",
 ];
 
+pub const RUNTIME_DEFAULTS_VERSION: &str = "1";
+
+/// Client-owned defaults applied after a subscription is parsed.
+pub fn default_runtime_fields() -> BTreeMap<String, String> {
+    BTreeMap::from([
+        ("mode".into(), "rule".into()),
+        ("dns".into(), "开启".into()),
+        ("dns_mode".into(), "fake-ip".into()),
+        ("default_dns".into(), "223.5.5.5".into()),
+        (
+            "nameserver".into(),
+            "https://223.5.5.5/dns-query,https://1.12.12.12/dns-query".into(),
+        ),
+        ("fallback".into(), "https://1.1.1.1/dns-query".into()),
+        ("proxy_dns".into(), "https://223.5.5.5/dns-query".into()),
+        ("direct_dns".into(), "https://223.5.5.5/dns-query".into()),
+        ("respect_rules".into(), "关闭".into()),
+        ("use_hosts".into(), "开启".into()),
+        ("system_hosts".into(), "开启".into()),
+        // A default fallback must not bootstrap a separate GeoIP database download.
+        ("geo_filter".into(), "关闭".into()),
+    ])
+}
+
 fn set(map: &mut Mapping, path: &[&str], value: Value) {
     if path.len() == 1 {
         map.insert(path[0].into(), value);

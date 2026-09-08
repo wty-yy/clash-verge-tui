@@ -2,6 +2,37 @@
 use clash_verge_tui::{network, platform::SystemProxy};
 use std::collections::BTreeMap;
 #[test]
+fn runtime_dns_defaults_match_the_settings_form() {
+    let fields = network::default_runtime_fields();
+    let settings = clash_verge_tui::settings::defaults();
+    for (key, value) in &fields {
+        if key != "mode" {
+            assert_eq!(settings.get(key), Some(value), "{key}");
+        }
+    }
+    let mut overrides = serde_yaml_ng::Mapping::new();
+    network::apply(&mut overrides, &fields).unwrap();
+    let config = serde_yaml_ng::Value::Mapping(overrides);
+    assert_eq!(config["mode"], "rule");
+    assert_eq!(config["dns"]["enable"], true);
+    assert_eq!(config["dns"]["enhanced-mode"], "fake-ip");
+    assert_eq!(config["dns"]["respect-rules"], false);
+    assert_eq!(config["dns"]["fallback-filter"]["geoip"], false);
+    assert_eq!(
+        config["dns"]["nameserver"][0],
+        "https://223.5.5.5/dns-query"
+    );
+    assert_eq!(
+        config["dns"]["nameserver"][1],
+        "https://1.12.12.12/dns-query"
+    );
+    assert_eq!(
+        config["dns"]["proxy-server-nameserver"][0],
+        "https://223.5.5.5/dns-query"
+    );
+}
+
+#[test]
 fn network_values_produce_typed_nested_config_and_validate_ports() {
     let mut patch = serde_yaml_ng::Mapping::new();
     network::apply(

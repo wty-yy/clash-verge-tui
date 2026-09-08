@@ -36,6 +36,8 @@ fn initialization_creates_the_authoritative_private_manifest() {
     let dir = tempfile::tempdir().unwrap();
     let state = workspace::initialize(dir.path()).unwrap();
     assert!(state.profiles.is_empty());
+    assert_eq!(state.state.overrides["mode"], "rule");
+    assert_eq!(state.state.overrides["dns"]["enable"], true);
     let manifest = dir.path().join("workspace-state.json");
     assert!(manifest.is_file());
     #[cfg(unix)]
@@ -46,6 +48,72 @@ fn initialization_creates_the_authoritative_private_manifest() {
             0o600
         );
     }
+}
+
+#[tokio::test]
+async fn legacy_runtime_defaults_migrate_once_without_changing_subscriptions() {
+    let dir = tempfile::tempdir().unwrap();
+    let server = support::Server::new(|_| (200, "{}".into()));
+    let ctx = context(dir.path());
+    let client = CoreClient::new(&server.url, String::new()).unwrap();
+    let mut state = workspace::execute(&ctx, &client, local(None, "fixture"))
+        .await
+        .unwrap();
+    let profile = state.profiles[0].file.clone();
+    let original = std::fs::read(&profile).unwrap();
+    state.state.preferences.remove("runtime_defaults_version");
+    state.state.preferences.insert("dns".into(), "关闭".into());
+    state
+        .state
+        .preferences
+        .insert("mode".into(), "global".into());
+    state
+        .state
+        .preferences
+        .insert("language".into(), "en".into());
+    state.state.overrides.insert("mode".into(), "global".into());
+    state
+        .state
+        .overrides
+        .insert("mixed-port".into(), 17897.into());
+    state.state.overrides.insert(
+        "dns".into(),
+        serde_yaml_ng::from_str("enable: false\nnameserver: [192.0.2.1]").unwrap(),
+    );
+    let manifest = dir.path().join("workspace-state.json");
+    clash_verge_tui::subscriptions::private_write(&manifest, &serde_json::to_vec(&state).unwrap())
+        .unwrap();
+    let migrated = workspace::initialize(dir.path()).unwrap();
+    assert_eq!(migrated.state.overrides["mode"], "rule");
+    assert_eq!(migrated.state.preferences["mode"], "rule");
+    assert_eq!(migrated.state.preferences["dns"], "开启");
+    assert_eq!(migrated.state.preferences["language"], "en");
+    assert_eq!(migrated.state.overrides["mixed-port"], 17897);
+    let runtime: serde_yaml_ng::Value =
+        serde_yaml_ng::from_str(&workspace::compose(&migrated, &ctx).await.unwrap()).unwrap();
+    assert_eq!(runtime["mode"], "rule");
+    assert_eq!(runtime["dns"]["enable"], true);
+    assert_eq!(runtime["dns"]["enhanced-mode"], "fake-ip");
+    assert_eq!(
+        runtime["dns"]["nameserver"][1],
+        "https://1.12.12.12/dns-query"
+    );
+    assert_eq!(std::fs::read(&profile).unwrap(), original);
+
+    let changed = workspace::execute(
+        &ctx,
+        &client,
+        W::Settings(BTreeMap::from([
+            ("mode".into(), "global".into()),
+            ("dns".into(), "关闭".into()),
+        ])),
+    )
+    .await
+    .unwrap();
+    let reloaded = workspace::initialize(dir.path()).unwrap();
+    assert_eq!(reloaded.state.overrides, changed.state.overrides);
+    assert_eq!(reloaded.state.preferences["dns"], "关闭");
+    assert_eq!(std::fs::read(&profile).unwrap(), original);
 }
 #[tokio::test]
 async fn workspace_profile_lifecycle_tracks_active_file_and_transaction_failure() {
@@ -134,7 +202,7 @@ async fn yaml_and_javascript_enhancements_apply_in_order_and_reject_timeouts() {
                 name: "yaml".into(),
                 kind: "YAML".into(),
                 enabled: true,
-                content: "mode: global\ndns:\n  enable: true\n".into(),
+                content: "mode: global\nlog-level: debug\ndns:\n  enable: true\n".into(),
             },
         },
     )
@@ -149,7 +217,7 @@ async fn yaml_and_javascript_enhancements_apply_in_order_and_reject_timeouts() {
                 name: "script".into(),
                 kind: "JavaScript".into(),
                 enabled: true,
-                content: "function main(config) { config.mode='direct'; return config; }".into(),
+                content: "function main(config) { config.mode='direct'; config['log-level']='warning'; return config; }".into(),
             },
         },
     )
@@ -157,7 +225,8 @@ async fn yaml_and_javascript_enhancements_apply_in_order_and_reject_timeouts() {
     .unwrap();
     let cfg: serde_yaml_ng::Value =
         serde_yaml_ng::from_str(&workspace::compose(&state, &ctx).await.unwrap()).unwrap();
-    assert_eq!(cfg["mode"].as_str(), Some("direct"));
+    assert_eq!(cfg["mode"].as_str(), Some("rule"));
+    assert_eq!(cfg["log-level"].as_str(), Some("warning"));
     assert_eq!(cfg["dns"]["enable"].as_bool(), Some(true));
     let before = std::fs::read(dir.path().join("workspace-state.json")).unwrap();
     assert!(workspace::execute(
@@ -184,7 +253,8 @@ async fn yaml_and_javascript_enhancements_apply_in_order_and_reject_timeouts() {
         .unwrap();
     let cfg: serde_yaml_ng::Value =
         serde_yaml_ng::from_str(&workspace::compose(&state, &ctx).await.unwrap()).unwrap();
-    assert_eq!(cfg["mode"].as_str(), Some("global"));
+    assert_eq!(cfg["mode"].as_str(), Some("rule"));
+    assert_eq!(cfg["log-level"].as_str(), Some("debug"));
 }
 #[tokio::test]
 async fn scheduled_updates_back_off_and_workspace_lock_excludes_writers() {

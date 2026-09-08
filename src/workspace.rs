@@ -114,20 +114,42 @@ impl Drop for Lock {
 }
 pub fn load(dir: &Path) -> Result<WorkspaceSnapshot> {
     let manifest = dir.join("workspace-state.json");
-    if manifest.exists() {
-        return serde_json::from_slice(&fs::read(manifest)?)
-            .map_err(|_| anyhow!("工作区清单损坏，原文件已保留"));
+    let mut snapshot = if manifest.exists() {
+        serde_json::from_slice(&fs::read(manifest)?)
+            .map_err(|_| anyhow!("工作区清单损坏，原文件已保留"))
+    } else {
+        let profiles = subscriptions::load_profiles(&dir.join("profiles"))?;
+        let active = fs::read_to_string(dir.join("profiles/active.json"))
+            .ok()
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(0);
+        Ok(WorkspaceSnapshot {
+            active: active.min(profiles.len().saturating_sub(1)),
+            profiles,
+            state: WorkspaceState::default(),
+        })
+    }?;
+    apply_runtime_defaults(&mut snapshot)?;
+    Ok(snapshot)
+}
+
+fn apply_runtime_defaults(snapshot: &mut WorkspaceSnapshot) -> Result<()> {
+    if snapshot
+        .state
+        .preferences
+        .get("runtime_defaults_version")
+        .map(String::as_str)
+        != Some(crate::network::RUNTIME_DEFAULTS_VERSION)
+    {
+        let fields = crate::network::default_runtime_fields();
+        crate::network::apply(&mut snapshot.state.overrides, &fields)?;
+        snapshot.state.preferences.extend(fields);
+        snapshot.state.preferences.insert(
+            "runtime_defaults_version".into(),
+            crate::network::RUNTIME_DEFAULTS_VERSION.into(),
+        );
     }
-    let profiles = subscriptions::load_profiles(&dir.join("profiles"))?;
-    let active = fs::read_to_string(dir.join("profiles/active.json"))
-        .ok()
-        .and_then(|s| s.parse().ok())
-        .unwrap_or(0);
-    Ok(WorkspaceSnapshot {
-        active: active.min(profiles.len().saturating_sub(1)),
-        profiles,
-        state: WorkspaceState::default(),
-    })
+    Ok(())
 }
 pub fn initialize(dir: &Path) -> Result<WorkspaceSnapshot> {
     let _lock = Lock::acquire(dir)?;
@@ -253,7 +275,7 @@ pub async fn compose(snapshot: &WorkspaceSnapshot, context: &WorkspaceContext) -
     let source = if let Some(profile) = snapshot.profiles.get(snapshot.active) {
         fs::read_to_string(&profile.file).context("无法读取订阅配置")?
     } else {
-        "mode: direct\nproxies: []\nproxy-groups: [{name: Default, type: select, proxies: [DIRECT]}]\nrules: ['MATCH,DIRECT']\n".into()
+        "mode: rule\nproxies: []\nproxy-groups: [{name: Default, type: select, proxies: [DIRECT]}]\nrules: ['MATCH,DIRECT']\n".into()
     };
     let mut config = subscriptions::parse_config(&source)?;
     for enhancement in snapshot.state.enhancements.iter().filter(|e| e.enabled) {

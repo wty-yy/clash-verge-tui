@@ -41,7 +41,7 @@ GitHub Actions 在推送和 Pull Request 时执行格式、Clippy、测试与构
 
 ```bash
 # 本地检查 x86_64 发行包；VERSION 不带 v
-VERSION=1.4.2
+VERSION=1.4.3
 # 安装 musl-tools 后构建静态发行包
 rustup target add x86_64-unknown-linux-musl
 RUSTFLAGS="-C target-feature=+crt-static -C linker=musl-gcc" cargo build --locked --release --target x86_64-unknown-linux-musl
@@ -74,7 +74,7 @@ Linux 组合包同时包含固定 GeoSite 快照。更新快照时，同步 `src
 curl -fsSL https://gitee.com/wty-yy/clash-verge-tui/raw/master/scripts/install.sh | sh -s -- --source gitee
 
 # 指定已经发布到 Gitee 的版本；环境变量放在 sh 前
-curl -fsSL https://gitee.com/wty-yy/clash-verge-tui/raw/master/scripts/install.sh | CLASH_VERGE_TUI_VERSION=v1.4.2 sh -s -- --source gitee
+curl -fsSL https://gitee.com/wty-yy/clash-verge-tui/raw/master/scripts/install.sh | CLASH_VERGE_TUI_VERSION=v1.4.3 sh -s -- --source gitee
 clash-verge-tui --check
 ```
 
