@@ -18,11 +18,8 @@
 # 一键安装最新发行版到 ~/.local/bin，并同步安装 mihomo v1.19.29
 curl -fsSL https://github.com/wty-yy/clash-verge-tui/releases/latest/download/install.sh | sh
 
-# 通过已测试的国内 GitHub 代理安装
+# 使用中国内 GitHub 镜像下载方案
 curl -fsSL https://github.com/wty-yy/clash-verge-tui/releases/latest/download/install.sh | sh -s -- --source proxy
-
-# 需要时切换备用代理
-curl -fsSL https://github.com/wty-yy/clash-verge-tui/releases/latest/download/install.sh | sh -s -- --github-proxy https://ghfast.top
 
 # ~/.local/bin 不在 PATH 时添加一次
 export PATH="$HOME/.local/bin:$PATH"
@@ -37,7 +34,7 @@ clash-verge-tui --check
 clash-verge-tui --demo
 ```
 
-安装脚本默认使用 GitHub。`--source proxy` 通过已测试的 `gh-proxy.com` 下载固定版本，不直接访问 GitHub；需要时使用 `--github-proxy https://ghfast.top` 切换备用代理。安装前会校验归档和 SHA-256 文件：
+安装脚本默认使用 GitHub。`--source proxy` 通过已测试的 `gh-proxy.com` 下载固定版本，不直接访问 GitHub。安装前会校验归档和 SHA-256 文件：
 
 | 路径 | 内容 |
 | --- | --- |

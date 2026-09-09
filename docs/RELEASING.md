@@ -63,14 +63,13 @@ Linux 组合包同时包含固定 GeoSite 快照。更新快照时，同步 `src
 
 ## 国内代理下载
 
-发行版安装脚本支持 `--source proxy`，默认使用 `https://gh-proxy.com`；`--github-proxy https://ghfast.top` 可切换备用入口。代理仅转发 GitHub Release，安装脚本仍校验归档和 SHA-256 文件。
+发行版安装脚本支持 `--source proxy`，默认使用 `https://gh-proxy.com`。代理仅转发 GitHub Release，安装脚本仍校验归档和 SHA-256 文件。
 
 
 ```bash
 # 通过国内代理安装
 curl -fsSL https://github.com/wty-yy/clash-verge-tui/releases/latest/download/install.sh | sh -s -- --source proxy
 
-# 使用备用代理
-curl -fsSL https://github.com/wty-yy/clash-verge-tui/releases/latest/download/install.sh | sh -s -- --github-proxy https://ghfast.top
+# 检查安装结果
 clash-verge-tui --check
 ```

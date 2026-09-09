@@ -18,11 +18,8 @@ Linux x86_64 and aarch64 are supported. Use a UTF-8 terminal; `120 × 40` is rec
 # Install the latest release to ~/.local/bin with its pinned mihomo v1.19.29
 curl -fsSL https://github.com/wty-yy/clash-verge-tui/releases/latest/download/install.sh | sh
 
-# Install through the tested domestic GitHub proxy
+# Install through the China GitHub mirror
 curl -fsSL https://github.com/wty-yy/clash-verge-tui/releases/latest/download/install.sh | sh -s -- --source proxy
-
-# Use the alternate proxy when needed
-curl -fsSL https://github.com/wty-yy/clash-verge-tui/releases/latest/download/install.sh | sh -s -- --github-proxy https://ghfast.top
 
 # Add ~/.local/bin to PATH once if necessary
 export PATH="$HOME/.local/bin:$PATH"
@@ -37,7 +34,7 @@ clash-verge-tui --check
 clash-verge-tui --demo
 ```
 
-The installer defaults to GitHub. `--source proxy` downloads the pinned release through `gh-proxy.com` without querying GitHub directly; use `--github-proxy https://ghfast.top` for the alternate tested endpoint. The archive and SHA-256 file are verified before installation:
+The installer defaults to GitHub. `--source proxy` downloads the pinned release through `gh-proxy.com` without querying GitHub directly. The archive and SHA-256 file are verified before installation:
 
 | Path | Contents |
 | --- | --- |
