@@ -41,7 +41,7 @@ GitHub Actions 在推送和 Pull Request 时执行格式、Clippy、测试与构
 
 ```bash
 # 本地检查 x86_64 发行包；VERSION 不带 v
-VERSION=1.4.4
+VERSION=1.4.5
 # 安装 musl-tools 后构建静态发行包
 rustup target add x86_64-unknown-linux-musl
 RUSTFLAGS="-C target-feature=+crt-static -C linker=musl-gcc" cargo build --locked --release --target x86_64-unknown-linux-musl

@@ -4,6 +4,11 @@
 
 See the [feature mapping](docs/FEATURES.md) for planned work.
 
+## v1.4.5 · 2026-09-09
+
+1. Stabilize the Home traffic chart scale against isolated rate spikes
+2. Keep sustained throughput changes visible while capping anomalous samples
+
 ## v1.4.4 · 2026-09-09
 
 1. Replace unavailable Gitee release downloads with tested domestic GitHub proxy downloads

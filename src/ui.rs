@@ -353,6 +353,19 @@ fn resample(history: &[u64], width: usize) -> Vec<u64> {
         .collect()
 }
 
+fn traffic_graph_max(history: &[u64]) -> u64 {
+    if history.is_empty() {
+        return 1;
+    }
+    let mut sorted = history.to_vec();
+    sorted.sort_unstable();
+    let index = ((sorted.len() - 1) * 90) / 100;
+    sorted[index]
+        .max(1)
+        .checked_next_power_of_two()
+        .unwrap_or(u64::MAX)
+}
+
 fn home(f: &mut Frame, app: &mut App, r: Rect, p: Palette) {
     let parts = Layout::vertical([
         Constraint::Length(1),
@@ -462,15 +475,17 @@ fn home(f: &mut Frame, app: &mut App, r: Rect, p: Palette) {
                 .collect()
         };
         // Preserve the same history interval at every terminal width.
-        let data = resample(&history, lines[0].width as usize);
+        let max = if app.live.is_some() {
+            traffic_graph_max(&history)
+        } else {
+            90
+        };
+        let visible: Vec<u64> = history.iter().map(|value| (*value).min(max)).collect();
+        let data = resample(&visible, lines[0].width as usize);
         f.render_widget(
             Sparkline::default()
                 .data(&data)
-                .max(if app.live.is_some() {
-                    history.iter().copied().max().unwrap_or(1).max(1)
-                } else {
-                    90
-                })
+                .max(max)
                 .style(Style::default().fg(p.green)),
             lines[0],
         );
@@ -1654,4 +1669,22 @@ fn fit_input(value: &str, width: usize, focused: bool) -> String {
         out = next;
     }
     out
+}
+
+#[cfg(test)]
+mod traffic_tests {
+    use super::traffic_graph_max;
+
+    #[test]
+    fn traffic_scale_ignores_a_single_spike() {
+        let mut history = vec![100; 59];
+        history.push(100_000_000);
+        assert_eq!(traffic_graph_max(&history), 128);
+    }
+
+    #[test]
+    fn traffic_scale_tracks_sustained_throughput() {
+        let history = vec![8_000; 60];
+        assert_eq!(traffic_graph_max(&history), 8_192);
+    }
 }
