@@ -4,6 +4,10 @@
 
 See the [feature mapping](docs/FEATURES.md) for planned work.
 
+## v1.4.6 · 2026-09-09
+
+1. Cap short-lived traffic spikes against the median throughput
+
 ## v1.4.5 · 2026-09-09
 
 1. Stabilize the Home traffic chart scale against isolated rate spikes

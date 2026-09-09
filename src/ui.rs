@@ -360,7 +360,9 @@ fn traffic_graph_max(history: &[u64]) -> u64 {
     let mut sorted = history.to_vec();
     sorted.sort_unstable();
     let index = ((sorted.len() - 1) * 90) / 100;
-    sorted[index]
+    let median = sorted[(sorted.len() - 1) / 2].max(1);
+    let robust_max = sorted[index].min(median.saturating_mul(8).max(1));
+    robust_max
         .max(1)
         .checked_next_power_of_two()
         .unwrap_or(u64::MAX)
@@ -1686,5 +1688,12 @@ mod traffic_tests {
     fn traffic_scale_tracks_sustained_throughput() {
         let history = vec![8_000; 60];
         assert_eq!(traffic_graph_max(&history), 8_192);
+    }
+
+    #[test]
+    fn traffic_scale_caps_repeated_but_short_lived_spikes() {
+        let mut history = vec![100; 50];
+        history.extend([100_000_000; 10]);
+        assert_eq!(traffic_graph_max(&history), 1_024);
     }
 }
