@@ -1,6 +1,9 @@
 #!/bin/sh
 set -eu
 
+release_version="v1.4.4"
+source="github"
+github_proxy="${CLASH_VERGE_TUI_GITHUB_PROXY:-https://gh-proxy.com}"
 repository="${CLASH_VERGE_TUI_REPOSITORY:-https://github.com/wty-yy/clash-verge-tui}"
 install_dir="${CLASH_VERGE_TUI_INSTALL_DIR:-${HOME}/.local/bin}"
 library_dir="$(dirname "$install_dir")/lib/clash-verge-tui"
@@ -15,17 +18,22 @@ fail() {
 while [ "$#" -gt 0 ]; do
     case "$1" in
         --source)
-            [ "$#" -ge 2 ] || fail "--source requires github or gitee"
+            [ "$#" -ge 2 ] || fail "--source requires github or proxy"
             case "$2" in
-                github) repository="https://github.com/wty-yy/clash-verge-tui" ;;
-                gitee) repository="https://gitee.com/wty-yy/clash-verge-tui" ;;
-                *) fail "unsupported source: $2 (use github or gitee)" ;;
+                github|proxy) source="$2"; repository="https://github.com/wty-yy/clash-verge-tui" ;;
+                *) fail "unsupported source: $2 (use github or proxy)" ;;
             esac
             shift 2
             ;;
+        --github-proxy)
+            [ "$#" -ge 2 ] || fail "--github-proxy requires an HTTPS prefix"
+            github_proxy="$2"
+            source="proxy"
+            shift 2
+            ;;
         -h | --help)
-            printf 'Usage: sh install.sh [--source github|gitee]\n'
-            printf 'Optional environment: CLASH_VERGE_TUI_VERSION, CLASH_VERGE_TUI_REPOSITORY, CLASH_VERGE_TUI_INSTALL_DIR, CLASH_VERGE_TUI_ASSET_BASE_URL\n'
+            printf 'Usage: sh install.sh [--source github|proxy] [--github-proxy https://ghfast.top]\n'
+            printf 'Optional environment: CLASH_VERGE_TUI_VERSION, CLASH_VERGE_TUI_REPOSITORY, CLASH_VERGE_TUI_INSTALL_DIR, CLASH_VERGE_TUI_ASSET_BASE_URL, CLASH_VERGE_TUI_GITHUB_PROXY\n'
             exit 0
             ;;
         *) fail "unknown argument: $1" ;;
@@ -33,6 +41,16 @@ while [ "$#" -gt 0 ]; do
 done
 repository="${repository%/}"
 repository="${repository%.git}"
+github_proxy="${github_proxy%/}"
+if [ "$source" = proxy ]; then
+    case "$github_proxy" in
+        https://?*) ;;
+        *) fail "GitHub proxy must be an HTTPS prefix" ;;
+    esac
+    case "$github_proxy" in
+        *[[:space:]]*|*\?*|*\#*|*\@*) fail "invalid GitHub proxy prefix" ;;
+    esac
+fi
 
 command -v curl >/dev/null 2>&1 || fail "curl is required"
 # Older distributions ship curl without --retry-all-errors (added in 7.71.0).
@@ -52,27 +70,22 @@ case "$(uname -m)" in
 esac
 
 if [ -z "$version" ]; then
-    case "$repository" in
-        https://gitee.com/*)
-            repository_path="${repository#https://gitee.com/}"
-            release="$(curl -fsSL --connect-timeout 15 --retry 5 --retry-delay 2 ${retry_all_errors} \
-                "https://gitee.com/api/v5/repos/$repository_path/releases/latest")" || \
-                fail "cannot find a Gitee release; publish the release bundles and checksums at $repository/releases first"
-            # Extract only a stable version tag; do not evaluate API response content.
-            version="$(printf '%s\n' "$release" | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\(v[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\)".*/\1/p' | head -1)"
-            [ -n "$version" ] || fail "Gitee release has no stable version tag; check $repository/releases"
-            ;;
-        *)
-            latest_url="$(curl -fsSL --connect-timeout 15 --retry 5 --retry-delay 2 ${retry_all_errors} -o /dev/null -w '%{url_effective}' "$repository/releases/latest")"
-            version="${latest_url##*/}"
-            ;;
-    esac
+    if [ "$source" = proxy ]; then
+        # Release scripts pin their own version, avoiding direct GitHub/API discovery.
+        version="$release_version"
+    else
+        latest_url="$(curl -fsSL --connect-timeout 15 --max-time 60 --retry 3 --retry-delay 2 ${retry_all_errors} -o /dev/null -w '%{url_effective}' "$repository/releases/latest")"
+        version="${latest_url##*/}"
+    fi
 fi
 printf '%s\n' "$version" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$' || fail "invalid release version: $version"
 numeric_version="${version#v}"
 
 asset="clash-verge-tui-${version}-linux-${architecture}.tar.gz"
 base_url="${CLASH_VERGE_TUI_ASSET_BASE_URL:-$repository/releases/download/$version}"
+if [ "$source" = proxy ] && [ -z "${CLASH_VERGE_TUI_ASSET_BASE_URL:-}" ]; then
+    base_url="$github_proxy/$base_url"
+fi
 temporary_dir="$(mktemp -d)"
 cleanup() {
     find "$temporary_dir" -type f -delete 2>/dev/null || true
@@ -83,9 +96,9 @@ trap cleanup EXIT HUP INT TERM
 
 printf 'Downloading clash-verge-tui %s for Linux %s...\n' "$version" "$architecture"
 printf 'Source: %s\n' "$base_url"
-curl -fL --connect-timeout 15 --retry 5 --retry-delay 2 ${retry_all_errors} \
-    -o "$temporary_dir/$asset" "$base_url/$asset" || fail "release bundle unavailable at $base_url; repository sync alone does not copy release attachments"
-curl -fL --connect-timeout 15 --retry 5 --retry-delay 2 ${retry_all_errors} \
+curl -fL --connect-timeout 15 --max-time 300 --speed-limit 1024 --speed-time 30 --retry 3 --retry-delay 2 ${retry_all_errors} \
+    -o "$temporary_dir/$asset" "$base_url/$asset" || fail "release bundle unavailable at $base_url; try --github-proxy https://ghfast.top or --source github"
+curl -fL --connect-timeout 15 --max-time 60 --retry 3 --retry-delay 2 ${retry_all_errors} \
     -o "$temporary_dir/$asset.sha256" "$base_url/$asset.sha256" || fail "release checksum unavailable at $base_url; refusing to install"
 (cd "$temporary_dir" && sha256sum -c "$asset.sha256")
 

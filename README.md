@@ -8,7 +8,7 @@
 
 Created for personal use with development assistance from ChatGPT. The interface and feature mapping follow Clash Verge Rev v2.5.2. This is an unofficial project, independently developed and unaffiliated with the Clash Verge / Clash Verge Rev teams.
 
-`v1.4.3` starts a self-managed workspace and the application-pinned mihomo v1.19.29 by default. Release archives contain the statically linked musl TUI, pinned core, and a pinned `GeoSite.dat` snapshot for Linux x86_64/aarch64, without a system glibc dependency. The installer supports older curl versions, including Ubuntu 20.04’s curl 7.68. Home quick controls show and edit the current mixed proxy port, which defaults to `127.0.0.1:7890`.
+`v1.4.4` starts a self-managed workspace and the application-pinned mihomo v1.19.29 by default. Release archives contain the statically linked musl TUI, pinned core, and a pinned `GeoSite.dat` snapshot for Linux x86_64/aarch64, without a system glibc dependency. The installer supports older curl versions, including Ubuntu 20.04’s curl 7.68. Home quick controls show and edit the current mixed proxy port, which defaults to `127.0.0.1:7890`.
 
 ## Install and run
 
@@ -18,8 +18,11 @@ Linux x86_64 and aarch64 are supported. Use a UTF-8 terminal; `120 × 40` is rec
 # Install the latest release to ~/.local/bin with its pinned mihomo v1.19.29
 curl -fsSL https://github.com/wty-yy/clash-verge-tui/releases/latest/download/install.sh | sh
 
-# Install from Gitee (the mirror must include release bundles and checksums)
-curl -fsSL https://gitee.com/wty-yy/clash-verge-tui/raw/master/scripts/install.sh | sh -s -- --source gitee
+# Install through the tested domestic GitHub proxy
+curl -fsSL https://github.com/wty-yy/clash-verge-tui/releases/latest/download/install.sh | sh -s -- --source proxy
+
+# Use the alternate proxy when needed
+curl -fsSL https://github.com/wty-yy/clash-verge-tui/releases/latest/download/install.sh | sh -s -- --github-proxy https://ghfast.top
 
 # Add ~/.local/bin to PATH once if necessary
 export PATH="$HOME/.local/bin:$PATH"
@@ -34,7 +37,7 @@ clash-verge-tui --check
 clash-verge-tui --demo
 ```
 
-The installer defaults to GitHub; `--source gitee` queries the Gitee release API and downloads the application/core bundle and SHA-256 file from Gitee. Both sources verify the archive before installing:
+The installer defaults to GitHub. `--source proxy` downloads the pinned release through `gh-proxy.com` without querying GitHub directly; use `--github-proxy https://ghfast.top` for the alternate tested endpoint. The archive and SHA-256 file are verified before installation:
 
 | Path | Contents |
 | --- | --- |
@@ -45,7 +48,7 @@ The installer defaults to GitHub; `--source gitee` queries the Gitee release API
 | `~/.local/lib/clash-verge-tui/GeoSite.dat` | Pinned Mihomo GeoSite data shipped with the release |
 | `~/.local/lib/clash-verge-tui/GEOSITE-LICENSE` | GPL-3.0 license text for the GeoSite data |
 
-Gitee repository synchronization does not copy release attachments. The mirror needs a release with the same version tag, both Linux bundles, their `.sha256` files, and `install.sh`; see [release maintenance](docs/RELEASING.md). A missing Gitee release or asset stops installation without switching to GitHub. Set `CLASH_VERGE_TUI_VERSION=v1.4.3` on the `sh` command to select a published version; `CLASH_VERGE_TUI_REPOSITORY` selects a custom repository, while an explicit `--source` takes precedence.
+The proxy service is third-party infrastructure. It only transports the GitHub release; the installer still verifies the published SHA-256 checksum. Set `CLASH_VERGE_TUI_VERSION=v1.4.4` to select a published version; `CLASH_VERGE_TUI_ASSET_BASE_URL` can point to a compatible mirror for testing.
 
 Source builds work as well. If no bundled core is found, the program downloads official Mihomo v1.19.29 into `${XDG_DATA_HOME:-$HOME/.local/share}/clash-verge-tui/core/`, verifies both the archive and extracted binary, and copies it into the active workspace. A damaged, replaced, or independently upgraded workspace core is restored to the application-pinned version on the next launch.
 

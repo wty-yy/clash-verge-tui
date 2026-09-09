@@ -41,7 +41,7 @@ GitHub Actions 在推送和 Pull Request 时执行格式、Clippy、测试与构
 
 ```bash
 # 本地检查 x86_64 发行包；VERSION 不带 v
-VERSION=1.4.3
+VERSION=1.4.4
 # 安装 musl-tools 后构建静态发行包
 rustup target add x86_64-unknown-linux-musl
 RUSTFLAGS="-C target-feature=+crt-static -C linker=musl-gcc" cargo build --locked --release --target x86_64-unknown-linux-musl
@@ -61,21 +61,16 @@ clash-verge-tui --check
 
 Linux 组合包同时包含固定 GeoSite 快照。更新快照时，同步 `src/core_manager.rs` 与 `scripts/package-linux.sh` 的 SHA-256，以及打包脚本中的上游提交地址；保留数据许可。`scripts/test-release.py` 在禁止 GeoSite 下载的配置下验证首次启动与数据补齐。
 
-## Gitee 镜像发行
+## 国内代理下载
 
-镜像仓库为 `https://gitee.com/wty-yy/clash-verge-tui`。Git 同步只复制源码和标签，不复制 Release 附件；当前 Release 工作流只发布 GitHub。
+发行版安装脚本支持 `--source proxy`，默认使用 `https://gh-proxy.com`；`--github-proxy https://ghfast.top` 可切换备用入口。代理仅转发 GitHub Release，安装脚本仍校验归档和 SHA-256 文件。
 
-1. 同步包含新版 `scripts/install.sh` 的 `master` 分支及版本标签
-2. 在 Gitee 创建同标签的发行版，上传 GitHub Release 中同一份 x86_64 / aarch64 `.tar.gz`、各自 `.tar.gz.sha256` 和 `install.sh`
-3. 核对两个来源归档的 SHA-256 一致，再执行 Gitee 一键安装和 `--check`
 
 ```bash
-# 从 Gitee 脚本与 Gitee Release 安装
-curl -fsSL https://gitee.com/wty-yy/clash-verge-tui/raw/master/scripts/install.sh | sh -s -- --source gitee
+# 通过国内代理安装
+curl -fsSL https://github.com/wty-yy/clash-verge-tui/releases/latest/download/install.sh | sh -s -- --source proxy
 
-# 指定已经发布到 Gitee 的版本；环境变量放在 sh 前
-curl -fsSL https://gitee.com/wty-yy/clash-verge-tui/raw/master/scripts/install.sh | CLASH_VERGE_TUI_VERSION=v1.4.3 sh -s -- --source gitee
+# 使用备用代理
+curl -fsSL https://github.com/wty-yy/clash-verge-tui/releases/latest/download/install.sh | sh -s -- --github-proxy https://ghfast.top
 clash-verge-tui --check
 ```
-
-Gitee 版本发现使用 `/api/v5/repos/{owner}/{repo}/releases/latest`，附件使用 `/releases/download/{tag}/{filename}`。源码同步后若发行版或附件尚未上传，安装脚本明确报错，不回退至 GitHub。

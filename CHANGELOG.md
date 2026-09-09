@@ -4,6 +4,12 @@
 
 See the [feature mapping](docs/FEATURES.md) for planned work.
 
+## v1.4.4 · 2026-09-09
+
+1. Replace unavailable Gitee release downloads with tested domestic GitHub proxy downloads
+2. Add `--source proxy` and `--github-proxy` installer modes with pinned release version and checksum verification
+3. Bound proxy download stalls and keep GitHub direct installation available
+
 ## v1.4.3 · 2026-09-09
 
 1. Enable client DNS overwrite by default with fake-IP and stable resolver endpoints
