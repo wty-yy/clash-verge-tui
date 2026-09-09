@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-release_version="v1.4.6"
+release_version="v1.4.7"
 source="github"
 github_proxy="${CLASH_VERGE_TUI_GITHUB_PROXY:-https://gh-proxy.com}"
 repository="${CLASH_VERGE_TUI_REPOSITORY:-https://github.com/wty-yy/clash-verge-tui}"

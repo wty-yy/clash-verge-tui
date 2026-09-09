@@ -353,20 +353,7 @@ fn resample(history: &[u64], width: usize) -> Vec<u64> {
         .collect()
 }
 
-fn traffic_graph_max(history: &[u64]) -> u64 {
-    if history.is_empty() {
-        return 1;
-    }
-    let mut sorted = history.to_vec();
-    sorted.sort_unstable();
-    let index = ((sorted.len() - 1) * 90) / 100;
-    let median = sorted[(sorted.len() - 1) / 2].max(1);
-    let robust_max = sorted[index].min(median.saturating_mul(8).max(1));
-    robust_max
-        .max(1)
-        .checked_next_power_of_two()
-        .unwrap_or(u64::MAX)
-}
+const TRAFFIC_GRAPH_MAX: u64 = 100 * 1024 * 1024;
 
 fn home(f: &mut Frame, app: &mut App, r: Rect, p: Palette) {
     let parts = Layout::vertical([
@@ -478,7 +465,7 @@ fn home(f: &mut Frame, app: &mut App, r: Rect, p: Palette) {
         };
         // Preserve the same history interval at every terminal width.
         let max = if app.live.is_some() {
-            traffic_graph_max(&history)
+            TRAFFIC_GRAPH_MAX
         } else {
             90
         };
@@ -1675,25 +1662,10 @@ fn fit_input(value: &str, width: usize, focused: bool) -> String {
 
 #[cfg(test)]
 mod traffic_tests {
-    use super::traffic_graph_max;
+    use super::TRAFFIC_GRAPH_MAX;
 
     #[test]
-    fn traffic_scale_ignores_a_single_spike() {
-        let mut history = vec![100; 59];
-        history.push(100_000_000);
-        assert_eq!(traffic_graph_max(&history), 128);
-    }
-
-    #[test]
-    fn traffic_scale_tracks_sustained_throughput() {
-        let history = vec![8_000; 60];
-        assert_eq!(traffic_graph_max(&history), 8_192);
-    }
-
-    #[test]
-    fn traffic_scale_caps_repeated_but_short_lived_spikes() {
-        let mut history = vec![100; 50];
-        history.extend([100_000_000; 10]);
-        assert_eq!(traffic_graph_max(&history), 1_024);
+    fn traffic_scale_is_fixed_for_small_and_large_rates() {
+        assert_eq!(TRAFFIC_GRAPH_MAX, 100 * 1024 * 1024);
     }
 }

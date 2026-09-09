@@ -4,6 +4,10 @@
 
 See the [feature mapping](docs/FEATURES.md) for planned work.
 
+## v1.4.7 · 2026-09-09
+
+1. Use a fixed `0–100 MiB/s` Home traffic chart scale so tiny rates remain near zero
+
 ## v1.4.6 · 2026-09-09
 
 1. Cap short-lived traffic spikes against the median throughput
