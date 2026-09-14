@@ -106,7 +106,19 @@ impl Drop for TerminalGuard {
         );
     }
 }
-fn main() -> Result<()> {
+fn main() {
+    if let Err(error) = run() {
+        eprintln!(
+            "Error: {}",
+            clash_verge_tui::locale::error_chain(
+                &error,
+                clash_verge_tui::locale::Language::English
+            )
+        );
+        std::process::exit(1);
+    }
+}
+fn run() -> Result<()> {
     let args = Args::parse();
     if let Some(ref page) = args.snapshot {
         return snapshot(&args, page);
@@ -119,7 +131,7 @@ fn main() -> Result<()> {
         && args.tun_helper.is_none()
         && (!io::stdin().is_terminal() || !io::stdout().is_terminal())
     {
-        bail!("交互界面需要终端；静态预览使用 --snapshot home，内核诊断使用 --check");
+        bail!("The interactive interface requires a terminal; use --snapshot home for a static preview or --check for core diagnostics");
     }
     let dir = args.data_dir.clone().unwrap_or_else(storage::default_dir);
     let dir = if dir.is_absolute() {
@@ -141,7 +153,8 @@ fn main() -> Result<()> {
         clash_verge_tui::service::tun_helper(
             action,
             &dir,
-            args.tun_uid.context("TUN 权限助手缺少用户 ID")?,
+            args.tun_uid
+                .context("TUN permission helper is missing the user ID")?,
         )?;
         return Ok(());
     }
@@ -188,20 +201,27 @@ fn main() -> Result<()> {
         for (i, result) in results.iter().enumerate() {
             match &result.result {
                 Ok(profile) => eprintln!(
-                    "订阅 {}：已导入 {} 个节点、{} 个策略组",
+                    "Profile {}: imported {} proxies and {} groups",
                     i + 1,
                     profile.proxies,
                     profile.groups
                 ),
                 Err(error) => {
                     failed += 1;
-                    eprintln!("订阅 {}：{}", i + 1, error);
+                    eprintln!(
+                        "Profile {}: {}",
+                        i + 1,
+                        clash_verge_tui::locale::translate(
+                            error,
+                            clash_verge_tui::locale::Language::English
+                        )
+                    );
                 }
             }
         }
         if args.import_only {
             if failed > 0 {
-                bail!("{failed} 个订阅导入失败；成功下载的订阅已保留");
+                bail!("{failed} profile(s) failed to import; successful downloads were kept");
             }
             return Ok(());
         }
@@ -212,7 +232,7 @@ fn main() -> Result<()> {
         App::new(storage::load(&dir)?, dir)
     } else {
         if args.profile == Some(0) {
-            bail!("订阅编号从 1 开始");
+            bail!("Profile numbers start at 1");
         }
         let source = runtime.block_on(core_manager::ensure(&dir, args.core.as_deref()))?;
         let running = runtime.block_on(clash_verge_tui::service::open(

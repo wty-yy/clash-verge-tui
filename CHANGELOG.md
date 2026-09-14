@@ -4,6 +4,12 @@
 
 See the [feature mapping](docs/FEATURES.md) for planned work.
 
+## v1.4.9 · 2026-09-14
+
+1. Fall back to the next free local port at startup when the saved mixed or controller port is in use, and persist the resolved port
+2. Print command-line errors, startup notices, and installer progress in English regardless of the system locale
+3. Translate the full application error catalog for English and Traditional Chinese
+
 ## v1.4.8 · 2026-09-09
 
 1. Keep the Home traffic axis fixed at `0–100 MiB/s` so tiny rates remain near zero

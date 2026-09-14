@@ -8,7 +8,7 @@
 
 Created for personal use with development assistance from ChatGPT. The interface and feature mapping follow Clash Verge Rev v2.5.2. This is an unofficial project, independently developed and unaffiliated with the Clash Verge / Clash Verge Rev teams.
 
-`v1.4.8` starts a self-managed workspace and the application-pinned mihomo v1.19.29 by default. Release archives contain the statically linked musl TUI, pinned core, and a pinned `GeoSite.dat` snapshot for Linux x86_64/aarch64, without a system glibc dependency. The installer supports older curl versions, including Ubuntu 20.04’s curl 7.68. Home quick controls show and edit the current mixed proxy port, which defaults to `127.0.0.1:7890`.
+`v1.4.9` starts a self-managed workspace and the application-pinned mihomo v1.19.29 by default. Release archives contain the statically linked musl TUI, pinned core, and a pinned `GeoSite.dat` snapshot for Linux x86_64/aarch64, without a system glibc dependency. The installer supports older curl versions, including Ubuntu 20.04’s curl 7.68. Home quick controls show and edit the current mixed proxy port, which defaults to `127.0.0.1:7890`.
 
 ## Install and run
 
@@ -45,7 +45,7 @@ The installer defaults to GitHub. `--source proxy` downloads the pinned release 
 | `~/.local/lib/clash-verge-tui/GeoSite.dat` | Pinned Mihomo GeoSite data shipped with the release |
 | `~/.local/lib/clash-verge-tui/GEOSITE-LICENSE` | GPL-3.0 license text for the GeoSite data |
 
-The proxy service is third-party infrastructure. It only transports the GitHub release; the installer still verifies the published SHA-256 checksum. Set `CLASH_VERGE_TUI_VERSION=v1.4.8` to select a published version; `CLASH_VERGE_TUI_ASSET_BASE_URL` can point to a compatible mirror for testing.
+The proxy service is third-party infrastructure. It only transports the GitHub release; the installer still verifies the published SHA-256 checksum. Set `CLASH_VERGE_TUI_VERSION=v1.4.9` to select a published version; `CLASH_VERGE_TUI_ASSET_BASE_URL` can point to a compatible mirror for testing.
 
 Source builds work as well. If no bundled core is found, the program downloads official Mihomo v1.19.29 into `${XDG_DATA_HOME:-$HOME/.local/share}/clash-verge-tui/core/`, verifies both the archive and extracted binary, and copies it into the active workspace. A damaged, replaced, or independently upgraded workspace core is restored to the application-pinned version on the next launch.
 
@@ -109,7 +109,7 @@ clash-verge-tui --import-only --subscriptions-file ~/.config/clash-verge-tui/sou
 clash-verge-tui --profile 1
 ```
 
-The mixed proxy defaults to `127.0.0.1:7890`; internal control uses a private Unix socket. Home → Quick controls shows the active mixed port; press `Enter` or double-click to edit it. `--mixed-port` can also override the first-start port. A controller secret is generated automatically. Listener addresses, TUN, external controller settings, and provider paths from subscriptions are replaced by workspace-owned settings. System proxy is off by default and must be enabled explicitly in Settings.
+The mixed proxy defaults to `127.0.0.1:7890`; internal control uses a private Unix socket. Home → Quick controls shows the active mixed port; press `Enter` or double-click to edit it. `--mixed-port` can also override the first-start port. If the port is busy at startup, the app moves to the next free port and saves it for the workspace. A controller secret is generated automatically. Listener addresses, TUN, external controller settings, and provider paths from subscriptions are replaced by workspace-owned settings. System proxy is off by default and must be enabled explicitly in Settings.
 
 The Profiles page supports CRUD, ordering, remote updates, usage and expiry details, YAML editing, and scheduled refresh. Enhancements apply ordered YAML overrides and JavaScript `main(config)` functions. A separate mihomo process validates each composed configuration before it replaces the running one. JavaScript enhancements require Node.js 18+.
 

@@ -154,6 +154,15 @@ pub fn tr(source: &str) -> String {
     translate(source, current())
 }
 
+/// Render an error chain in one language for terminal diagnostics.
+pub fn error_chain(error: &anyhow::Error, language: Language) -> String {
+    error
+        .chain()
+        .map(|cause| translate(&cause.to_string(), language))
+        .collect::<Vec<_>>()
+        .join(": ")
+}
+
 pub fn choice_label(value: &str) -> String {
     match value {
         "auto" => match current() {

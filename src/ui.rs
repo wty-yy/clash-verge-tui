@@ -917,7 +917,7 @@ fn page(f: &mut Frame, app: &mut App, r: Rect, p: Palette) {
             &[
                 app.query.to_string(),
                 (if app.searching { "▏" } else { "" }).to_string(),
-                format!("{}", count),
+                format!("{count}"),
             ],
         )
     } else {
@@ -925,7 +925,7 @@ fn page(f: &mut Frame, app: &mut App, r: Rect, p: Palette) {
             "{}  · {} 项    / 搜索",
             &[
                 app.page.localized_title(app.language).to_string(),
-                format!("{}", count),
+                format!("{count}"),
             ],
         )
     };

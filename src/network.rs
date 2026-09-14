@@ -289,6 +289,19 @@ pub async fn preflight(
     Ok(())
 }
 
+/// Test whether a loopback TCP port can be bound right now.
+pub fn port_is_free(port: u16) -> bool {
+    port != 0 && std::net::TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, port)).is_ok()
+}
+
+/// Return a free loopback port at or above `preferred`, skipping `reserved`.
+pub fn available_port(preferred: u16, reserved: &[u16]) -> Option<u16> {
+    let start = preferred.max(1);
+    (start..=u16::MAX)
+        .chain(1..start)
+        .find(|port| !reserved.contains(port) && port_is_free(*port))
+}
+
 /// Reject competing TUN routing before changing configuration or starting a core.
 pub fn check_tun_conflicts(candidate: &Value, owned_device: Option<&str>) -> Result<()> {
     check_tun_interfaces(
@@ -381,6 +394,28 @@ pub async fn verify_tun(fields: &BTreeMap<String, String>, candidate: &Value) ->
 #[cfg(test)]
 mod tun_conflict_tests {
     use super::*;
+
+    #[test]
+    fn occupied_port_falls_back_to_a_free_one() {
+        let listener = std::net::TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0)).unwrap();
+        let occupied = listener.local_addr().unwrap().port();
+        assert!(!port_is_free(occupied));
+        let free = available_port(occupied, &[]).unwrap();
+        assert_ne!(free, occupied);
+        assert!(port_is_free(free));
+    }
+
+    #[test]
+    fn reserved_port_is_skipped_when_picking_a_fallback() {
+        let first = std::net::TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0)).unwrap();
+        let occupied = first.local_addr().unwrap().port();
+        let reserved = available_port(occupied, &[]).unwrap();
+        let _second =
+            std::net::TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, reserved)).unwrap();
+        let next = available_port(occupied, &[reserved]).unwrap();
+        assert_ne!(next, occupied);
+        assert_ne!(next, reserved);
+    }
 
     #[test]
     fn competing_tun_is_rejected_before_start_but_owned_and_disabled_are_allowed() {

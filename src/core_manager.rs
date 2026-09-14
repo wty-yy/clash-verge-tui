@@ -194,7 +194,7 @@ pub async fn ensure(workspace: &Path, override_path: Option<&Path>) -> Result<Pa
 async fn download(destination: &Path) -> Result<()> {
     let asset = asset()?;
     let url = format!("{RELEASE_ROOT}/{}", asset.name);
-    eprintln!("正在安装 mihomo v{MIHOMO_VERSION} ({})…", asset.arch);
+    eprintln!("Installing mihomo v{MIHOMO_VERSION} ({})…", asset.arch);
     let response = reqwest::Client::builder()
         .connect_timeout(Duration::from_secs(10))
         .timeout(Duration::from_secs(120))

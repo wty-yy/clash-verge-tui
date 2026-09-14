@@ -6,14 +6,14 @@
 
 - 目标：使用 mihomo 内核，逐步提供与 Clash Verge Rev 功能对应的终端客户端。
 - 参考基线：Clash Verge Rev `v2.5.2` / `28f2efc`。参考仓库位于 `upstream/clash-verge-rev`，由 Git 忽略，不纳入本项目提交。
-- 当前为 `v1.4.x` Linux 可分发版本：默认启动应用自管工作区，发行包同步携带 Mihomo v1.19.29，保留显式演示模式。具体范围见 `docs/FEATURES.md`。
+- 当前为 `v1.4.x` Linux 可分发版本，版本号以 `Cargo.toml` 为准（写作时 `1.4.9`）：默认启动应用自管工作区，发行包同步携带 Mihomo v1.19.29 与固定 GeoSite.dat 快照，保留显式演示模式。范围见 `docs/FEATURES.md`，历史见 `CHANGELOG.md`。
 - 演示数据必须明确标识；不能将模拟测速、订阅刷新、解锁检测或系统代理状态描述为真实网络结果。
 - 演示状态与实际 Clash Verge 配置分离。界面开发和测试使用独立目录，不启动或修改用户正在使用的代理配置来验证演示交互。
 
 ## 设计思路与代码边界
 
 - Rust + Ratatui + Crossterm 实现 TUI。mihomo 作为应用拥有的独立进程，终端界面和普通命令行操作复用业务逻辑。无参数默认打开真实 TUI；`--demo` 才进入演示。后台使用 systemd 用户服务和无界面的 daemon，不把另一内核或外部控制器作为默认运行依赖。
-- `src/core_manager.rs`：固定 Mihomo 版本与官方资产哈希，发现发行包内核、自动下载、双重校验和工作区修复。当前基线为 v1.19.29，应用版本、发行包、systemd 与工作区副本必须同步；更新版本时同时更新两种架构的压缩包及解压后二进制 SHA-256。
+- `src/core_manager.rs`：固定 Mihomo 版本与官方资产哈希，发现发行包内核、自动下载、双重校验和工作区修复。当前基线为 v1.19.29，应用版本、发行包、systemd 与工作区副本必须同步；更新版本时同时更新两种架构的压缩包及解压后二进制 SHA-256。GeoSite.dat 的 SHA-256 在 `src/core_manager.rs` 与 `scripts/package-linux.sh` 各存一份，更新快照时两处同步。
 - `src/workspace.rs`：权威清单、事务、订阅更新、增强链和独立校验目录；避免运行内核与校验进程共享缓存锁。
 - `src/platform.rs`、`src/service.rs`：系统代理、状态恢复、自管用户服务和生命周期；服务单元只启动当前应用和数据目录，由应用解析配套内核。
 - `src/backup.rs`、`src/extras.rs`：加密备份、WebDAV、网页检测和维护任务。
@@ -26,6 +26,8 @@
 - `src/locale.rs`、`src/translations.json`：简体、繁体与英文界面文案；仅翻译应用文案，配置、用户命名和内核日志保留原文。语言使用 `auto` / `en` / `zh-CN` / `zh-TW` 稳定值持久化；默认按系统识别，设置页即时切换，`--language en` 可用于录制。
 - `src/settings.rs`：集中定义设置分类和表单字段。
 - `src/storage.rs`：默认工作区位置、演示状态加载和原子保存；保留读取失败的原文件。真实配置由 `workspace-state.json` 作为权威提交点，首次启动即创建，敏感文件保持 `0600`。
+- `src/network.rs`：客户端运行时默认值（`rule` 模式、fake-IP DNS 等）与旧工作区迁移；默认值同时被设置表单和 `tests/network_platform.rs` 约束。
+- `src/resolver_service.rs`：TUN DNS 受限 root 服务的服务端与客户端协议，只接受 domain/default-route/dns/revert 四种请求。
 - `src/main.rs`：命令行入口、终端生命周期、事件循环和快照导出。
 - 新能力优先扩展清晰的状态与动作边界；真实 mihomo API、配置处理和系统服务应与渲染逻辑分离。
 - 订阅 URL、节点凭据、控制器密钥与真实配置只放在未跟踪的私有目录，不写入示例、测试夹具、日志摘要或 Git 历史。
@@ -33,8 +35,8 @@
 - 公开发行物使用 musl 静态构建，TUI 与内核不得含动态加载器、共享库依赖或 GLIBC 符号；附带 musl 原文许可，双架构均在 Ubuntu 20.04 验证安装，安装脚本按 curl 能力选择重试参数。
 - 公开发行物支持 Linux x86_64/aarch64，归档必须同时包含 TUI、固定内核、许可和版本清单。安装脚本先校验归档，再先替换内核、最后替换应用二进制，应用二进制作为版本切换提交点。
 - 主页面：1 首页、2 代理、3 订阅、4 连接、5 规则、6 日志、7 解锁检测、8 设置。
-- 新工作区的混合代理端口统一默认为 `7890`；首页快捷控制显示当前值，Enter / 双击打开编辑表单。已有工作区的已保存端口不得被版本升级重置。
-- 首页混合代理端口的单字段表单使用 `s` 保存并应用；含自由文本的其他表单保留 `Ctrl+S`，不能牺牲字母 `s` 输入。
+- 新工作区的混合代理端口统一默认为 `7890`；首页快捷控制显示当前值，Enter / 双击打开编辑表单。已有工作区的已保存端口不得被版本升级重置。启动时若已保存端口被占用，自动选用下一个可用端口并持久化，同时向 stderr 输出英文提示；用户在表单中显式输入被占用端口时仍报错。
+- 首页混合代理端口的单字段表单使用 `s` 保存并应用；所有编辑表单都显示 `s 保存`，文本字段中字母 `s` 始终是普通输入，需 Tab / Shift+Tab 聚焦保存按钮后按 `s` / `Enter` 或点击保存，`Ctrl+S` 仅作兼容快捷键；数字 / 选项 / 开关字段可直接按 `s` 保存。
 - TUN 首次开启缺少能力时，在 TUI 内使用 Secret 字段输入系统密码，通过标准输入交给 `sudo -S`，安装按 UID 与工作区隔离的 systemd 权限监视服务；不使用图形 PolicyKit 弹窗。授权后重启自管内核，再继续用户原先的 TUN 设置。
 - TUN 开关或 TUN 参数变化不能依赖 mihomo 热重载；先校验并暂存工作区，再停止旧内核、启动新配置并验证网卡创建/移除。启动或网卡验证失败时恢复完整旧工作区并重新启动旧配置。
 - 系统密码不得写入命令参数、环境变量、状态文件、日志、测试、文档或 Git；命令类型的 Debug 输出必须去敏，使用完毕后尽量清零内存。
@@ -84,7 +86,7 @@
 - 新增/编辑订阅时，第一行默认聚焦订阅文件链接，输入行右侧显示醒目的 `[ 导入 ]`；第二块紧接完整 YAML 配置编辑区，其他元数据字段排在后面。
 - 点击“导入”或在链接字段按 Enter 都会异步下载完整配置；下载期间 TUI 保持响应并显示进度。
 - `[ 导入 ]` 的可点击区域覆盖链接字段右侧两行，在最低 76×24 窗口也必须能直接点击；订阅下载使用独立状态，不能被前一个 mihomo 操作的完成事件误取消。
-- 下载完成后先校验 URL、8 MiB 上限、UTF-8 和 Clash YAML，再填入配置编辑区；用户按 `Ctrl+S` 前不得保存或应用。
+- 下载完成后先校验 URL、8 MiB 上限、UTF-8 和 Clash YAML，再填入配置编辑区；用户保存（`s 保存` 按钮或 `Ctrl+S`）前不得保存或应用。
 - 名称为空时依次使用订阅标题、附件文件名、配置名称或来源域名自动填写，IP 来源使用通用名称；不得覆盖用户已经输入的名称。
 - 下载失败在当前表单内提示并保留输入；链接已修改、表单已关闭或请求已过期时丢弃返回内容。
 
@@ -93,11 +95,12 @@
 - 仓库：`https://github.com/wty-yy/clash-verge-tui.git`；主分支及远端默认分支：`master`。
 - 每次提交说明必须以版本号开头，摘要使用英文：`v0.1.5: Compact content lists and settings forms`。
 - 不使用 `feat:`、`fix:`、`docs:` 等作为提交开头；不要使用中文提交摘要。同一版本内允许多个提交共用版本号。
-- 版本从 `v0.1.0` 起迭代，使用语义化版本和带注释的 Git 标签。
+- 版本从 `v0.1.0` 起迭代，使用语义化版本和带注释的 Git 标签；已发布至 `v1.4.9`，新版本按用户明确要求迭代。
 - 版本更新同步 `Cargo.toml`、`Cargo.lock`、英文 CHANGELOG 和必要的 README 内容；涉及界面时更新预览图。
 - 已发布标签不移动，不为整理提交信息而擅自重写已推送历史。用户明确要求重写时，先保留可恢复的 Git 历史备份。
 - 合并远端已有内容时保留其提交历史；不要用强制推送覆盖远端初始化内容。
 - 详细流程见 `docs/RELEASING.md`。推送正式版本标签后由 Release 工作流创建 GitHub Release；不得发布缺少任一架构、校验文件或 `install.sh` 的版本。
+- 安装脚本默认从 GitHub 安装；`--source proxy` / `--github-proxy` 只替换传输路径，仍校验归档 SHA-256，改动下载逻辑时保留该保证。
 
 ## 文档与许可
 
@@ -105,7 +108,6 @@
 - 同步维护 `README.md`（英文）和 `README.zh-CN.md`（中文），顶部互相链接，章节顺序、命令、路径、默认行为与限制一致。
 - 同步维护 英文 `CHANGELOG.md`，使用简短的版本摘要；历史记录不冒充当前功能状态。
 - README 使用居中双语标题，注明个人使用、ChatGPT 辅助制作与非 Clash Verge 官方项目；末尾列出 MIT 及第三方组件许可。
-- 演示视频已交付；用户已授权发布 v1.4.0，按发布检查与双架构资产完整性要求执行。
 - 根目录 `LICENSE` 保留用户在 GitHub 创建的 MIT 许可文本与版权信息。
 - GPL 文本原样保存于 `docs/LICENSE-GPL-3.0`，不删除、不覆盖；Linux 组合包将其作为 Mihomo 许可一同分发，并在清单中记录对应上游源码。TUI 自身许可字段和关于页面与根目录 MIT LICENSE 一致。
 - 后续新增实际依赖或引入上游实现时，核对其来源与许可，保留必要的归属信息。
@@ -117,13 +119,15 @@
 - 代码发布前执行：
 
 ```bash
+sh -n scripts/install.sh
+python3 scripts/test-install.py
 cargo fmt --check
 cargo clippy --locked --all-targets -- -D warnings
 cargo test --locked
 cargo build --locked --release
 ```
 
-- Linux 发行变更还需在临时 HOME 中运行 `scripts/package-linux.sh` 和 `scripts/install.sh`，再用已安装二进制执行 `--check`，确认内核版本、配置权限、退出清理和错误内核自动修复。
+- Linux 发行变更还需在临时 HOME 中运行 `scripts/package-linux.sh` 和 `scripts/install.sh`，再用已安装二进制执行 `--check`，确认内核版本、配置权限、退出清理和错误内核自动修复。`package-linux.sh` 会调用 `scripts/check-static.sh` 拒绝含动态加载器、共享库或 GLIBC 符号的二进制。
 
 - 快照来自实际 Ratatui 缓冲区；使用 `--snapshot` 导出页面，验证过程中不得读取或保存用户状态。
 - 界面更新检查标准窗口和最小窗口；事件处理更新必要时在真实 PTY 中验证输入和退出后的终端恢复。
@@ -131,13 +135,11 @@ cargo build --locked --release
 - 交付说明包含完成内容、当前版本、必要限制与验证结果；正式版本按要求推送分支和标签，并等待自动 GitHub Release 完成。
 - 完成后不执行关机命令；只有用户在后续任务中重新明确要求时才能关机。
 
-## 本地测试阶段补充
+## 测试环境与自动化
 
-- 当前版本号为 `1.4.1`；用户已授权本次提交、推送与发布，后续版本按用户要求迭代。
-- 订阅表单显示 `s 保存`；文本字段保留字母 `s` 输入，通过 Tab / Shift+Tab 聚焦保存按钮后按 s / Enter，鼠标可直接保存；Ctrl+S 作为兼容快捷键保留。
-- TUN DNS 使用按 UID/工作区隔离的受限 root 服务，只允许 domain/default-route/dns/revert 四种操作，校验 socket 对端 UID、参数与工作区网卡；不得给系统 /usr/bin/resolvectl 全局加能力或使用宽泛的 PolicyKit 免认证规则。
+- 工具链 Rust 1.88+；`cargo test --locked` 需要系统 `gsettings`（Debian/Ubuntu 安装 `libglib2.0-bin`、`gsettings-desktop-schemas`）和 Node.js（CI 使用 24）来运行 GNOME 系统代理与 JavaScript 增强用例。
+- 测试使用本地 TCP 夹具（`tests/support/`），不需要真实内核或网络；单独运行某个集成测试：`cargo test --locked --test workflows <test_name>`。
+- TUN DNS 使用按 UID/工作区隔离的受限 root 服务，只允许 domain/default-route/dns/revert 四种操作，校验 socket 对端 UID、参数与工作区网卡；不得给系统 `/usr/bin/resolvectl` 全局加能力或使用宽泛的 PolicyKit 免认证规则。
 - 不操作用户正在使用的桌面 Clash Verge 服务、内核或 TUN；网络验证使用独立环境。检测到其他活动 TUN 网卡时，自动路由开启必须在修改网络前拒绝并提示用户自行切换。
 - 启动时已保存 TUN 但权限服务缺失/过旧，先以 TUN 关闭启动临时运行配置，保留权威工作区，并在 TUI 内请求升级；daemon 则给出明确升级错误。
-- 英文错误必须递归翻译应用错误链，但不替换订阅或节点等用户命名。真实端口占用仍应报错，不得为消除提示强制结束其他代理。
-
-- 首页快捷控制提供界面语言单字段表单，左右选择后按 s 保存；所有普通编辑表单显示 s 保存。文本编辑时 Tab / Shift+Tab 聚焦保存按钮后按 s / Enter，鼠标直接保存；选项、开关、数字字段可直接按 s，Ctrl+S 兼容保留。
+- 英文错误必须递归翻译应用错误链，但不替换订阅或节点等用户命名；命令行 `Error:`、启动提示与安装进度固定英文输出，TUI 文案按界面语言显示。真实端口占用仍应报错（启动自动回退除外），不得为消除提示强制结束其他代理。

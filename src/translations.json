@@ -2554,5 +2554,549 @@
   "随包 GeoSite.dat SHA-256 校验失败；请重新安装发行包": [
     "Bundled GeoSite.dat SHA-256 verification failed; reinstall the release bundle",
     "隨包 GeoSite.dat SHA-256 校驗失敗；請重新安裝發行包"
+  ],
+  "JavaScript main 必须返回配置对象": [
+    "JavaScript main must return a configuration object",
+    "JavaScript main 必須傳回設定物件"
+  ],
+  "JavaScript 增强执行失败或结果过大": [
+    "JavaScript enhancement failed or produced too much data",
+    "JavaScript 增強執行失敗或結果過大"
+  ],
+  "JavaScript 增强执行超时": [
+    "JavaScript enhancement timed out",
+    "JavaScript 增強執行逾時"
+  ],
+  "JavaScript 增强需要已安装 Node.js": [
+    "JavaScript enhancements require Node.js",
+    "JavaScript 增強需要已安裝 Node.js"
+  ],
+  "PAC 文件路径无效": [
+    "Invalid PAC file path",
+    "PAC 檔案路徑無效"
+  ],
+  "TUN 内核不是当前应用固定的官方版本": [
+    "TUN core is not the official version pinned by this application",
+    "TUN 核心不是目前應用程式固定的官方版本"
+  ],
+  "TUN 内核必须为普通文件": [
+    "TUN core must be a regular file",
+    "TUN 核心必須為一般檔案"
+  ],
+  "TUN 内核所有者或权限不安全": [
+    "TUN core owner or permissions are unsafe",
+    "TUN 核心擁有者或權限不安全"
+  ],
+  "TUN 工作区不属于请求用户": [
+    "TUN workspace does not belong to the requesting user",
+    "TUN 工作區不屬於請求使用者"
+  ],
+  "TUN 服务路径必须为不含换行的绝对路径": [
+    "TUN service paths must be absolute paths without newlines",
+    "TUN 服務路徑必須為不含換行的絕對路徑"
+  ],
+  "TUN 权限助手必须以 root 运行": [
+    "TUN permission helper must run as root",
+    "TUN 許可權助手必須以 root 執行"
+  ],
+  "TUN 权限助手必须通过 sudo 运行": [
+    "TUN permission helper must run through sudo",
+    "TUN 許可權助手必須透過 sudo 執行"
+  ],
+  "TUN 权限服务只支持 Linux": [
+    "The TUN permission service only supports Linux",
+    "TUN 許可權服務僅支援 Linux"
+  ],
+  "TUN 权限服务已返回，但内核能力校验失败": [
+    "The TUN permission service exited but core capability verification failed",
+    "TUN 許可權服務已傳回，但核心能力校驗失敗"
+  ],
+  "TUN 权限未安装；请从首页启用 TUN 并按提示安装权限服务": [
+    "TUN permission is not installed; enable TUN on Home and install the permission service when prompted",
+    "TUN 許可權未安裝；請從首頁啟用 TUN 並依提示安裝許可權服務"
+  ],
+  "TUN 重启缺少真实内核状态": [
+    "TUN restart is missing live core state",
+    "TUN 重啟缺少真實核心狀態"
+  ],
+  "sudo 或 TUN 权限助手执行失败": [
+    "sudo or the TUN permission helper failed",
+    "sudo 或 TUN 許可權助手執行失敗"
+  ],
+  "sudo 授权超时": [
+    "sudo authorization timed out",
+    "sudo 授權逾時"
+  ],
+  "systemd TUN 权限服务操作失败": [
+    "systemd TUN permission service operation failed",
+    "systemd TUN 許可權服務操作失敗"
+  ],
+  "无法为 mihomo 安装 TUN 所需能力": [
+    "Unable to grant mihomo the capabilities required by TUN",
+    "無法為 mihomo 安裝 TUN 所需能力"
+  ],
+  "无法启动 sudo": [
+    "Unable to start sudo",
+    "無法啟動 sudo"
+  ],
+  "无法连接 sudo 输入": [
+    "Unable to connect to sudo input",
+    "無法連線 sudo 輸入"
+  ],
+  "未知 TUN 权限助手操作": [
+    "Unknown TUN permission helper operation",
+    "未知 TUN 許可權助手操作"
+  ],
+  "未知服务操作": [
+    "Unknown service operation",
+    "未知服務操作"
+  ],
+  "用户服务操作失败，请检查 systemctl --user 状态": [
+    "User service operation failed; check systemctl --user status",
+    "使用者服務操作失敗，請檢查 systemctl --user 狀態"
+  ],
+  "用户服务请求超时": [
+    "User service request timed out",
+    "使用者服務請求逾時"
+  ],
+  "系统密码授权超时": [
+    "System password authorization timed out",
+    "系統密碼授權逾時"
+  ],
+  "系统密码验证失败，请重新输入": [
+    "System password verification failed; enter it again",
+    "系統密碼驗證失敗，請重新輸入"
+  ],
+  "系统文件路径无效": [
+    "Invalid system file path",
+    "系統檔案路徑無效"
+  ],
+  "系统缺少 /dev/net/tun，请先启用 Linux TUN 设备": [
+    "System is missing /dev/net/tun; enable the Linux TUN device first",
+    "系統缺少 /dev/net/tun，請先啟用 Linux TUN 裝置"
+  ],
+  "系统缺少 setcap；Debian/Ubuntu 请安装 libcap2-bin": [
+    "System is missing setcap; on Debian/Ubuntu install libcap2-bin",
+    "系統缺少 setcap；Debian/Ubuntu 請安裝 libcap2-bin"
+  ],
+  "系统缺少 sudo": [
+    "System is missing sudo",
+    "系統缺少 sudo"
+  ],
+  "系统缺少 systemctl": [
+    "System is missing systemctl",
+    "系統缺少 systemctl"
+  ],
+  "自管服务重启后内核未就绪": [
+    "The core is not ready after the managed service restart",
+    "自管服務重啟後核心未就緒"
+  ],
+  "订阅编号不存在": [
+    "Profile number does not exist",
+    "訂閱編號不存在"
+  ],
+  "服务路径必须为不含换行的绝对路径": [
+    "Service paths must be absolute paths without newlines",
+    "服務路徑必須為不含換行的絕對路徑"
+  ],
+  "已有内核正在运行，停止服务后再更改启动端口": [
+    "A core is already running; stop the service before changing the startup port",
+    "已有核心正在執行，停止服務後再變更啟動埠"
+  ],
+  "拒绝删除非本工具管理的 TUN 服务文件": [
+    "Refusing to remove TUN service files not managed by this tool",
+    "拒絕刪除非本工具管理的 TUN 服務檔案"
+  ],
+  "拒绝删除非本工具管理的服务文件": [
+    "Refusing to remove service files not managed by this tool",
+    "拒絕刪除非本工具管理的服務檔案"
+  ],
+  "启动脚本失败，详情见私有 startup.log": [
+    "Startup script failed; see the private startup.log",
+    "啟動指令碼失敗，詳見私有 startup.log"
+  ],
+  "启动脚本超时；可设置 CLASH_VERGE_SKIP_STARTUP=1 恢复启动": [
+    "Startup script timed out; set CLASH_VERGE_SKIP_STARTUP=1 to recover",
+    "啟動指令碼逾時；可設定 CLASH_VERGE_SKIP_STARTUP=1 恢復啟動"
+  ],
+  "代理端口和控制器端口必须为不同的非零端口": [
+    "Proxy and controller ports must be different nonzero ports",
+    "代理埠與控制器埠必須為不同的非零埠"
+  ],
+  "代理主机无效": [
+    "Invalid proxy host",
+    "代理主機無效"
+  ],
+  "代理端口不能为 0": [
+    "Proxy port cannot be 0",
+    "代理埠不能為 0"
+  ],
+  "本地端口 {p} 已占用": [
+    "Local port {p} is already in use",
+    "本機連接埠 {p} 已被佔用"
+  ],
+  "没有可用的本地代理端口": [
+    "No local proxy port is available",
+    "沒有可用的本機代理埠"
+  ],
+  "没有可用的控制器端口": [
+    "No controller port is available",
+    "沒有可用的控制器埠"
+  ],
+  "系统代理恢复记录损坏": [
+    "System proxy restore record is corrupt",
+    "系統代理還原記錄損壞"
+  ],
+  "mihomo 下载中断": [
+    "mihomo download interrupted",
+    "mihomo 下載中斷"
+  ],
+  "mihomo 下载失败：HTTP {status}": [
+    "mihomo download failed: HTTP {status}",
+    "mihomo 下載失敗：HTTP {status}"
+  ],
+  "mihomo 下载失败：{error}": [
+    "mihomo download failed: {error}",
+    "mihomo 下載失敗：{error}"
+  ],
+  "mihomo 内核必须为 v{version}：{path}": [
+    "mihomo core must be v{version}: {path}",
+    "mihomo 核心必須為 v{version}：{path}"
+  ],
+  "mihomo 压缩包无法解压": [
+    "Unable to decompress the mihomo archive",
+    "mihomo 壓縮包無法解壓縮"
+  ],
+  "mihomo 压缩包校验失败": [
+    "mihomo archive checksum failed",
+    "mihomo 壓縮包校驗失敗"
+  ],
+  "mihomo 压缩包超过 32 MiB 限制": [
+    "mihomo archive exceeds the 32 MiB limit",
+    "mihomo 壓縮包超過 32 MiB 限制"
+  ],
+  "mihomo 安装目录无效": [
+    "Invalid mihomo installation directory",
+    "mihomo 安裝目錄無效"
+  ],
+  "mihomo 解压后大小异常": [
+    "Decompressed mihomo size is invalid",
+    "mihomo 解壓後大小異常"
+  ],
+  "mihomo 启动超时；详情保存在独立 core.log 中": [
+    "mihomo startup timed out; details are in the separate core.log",
+    "mihomo 啟動逾時；詳情儲存在獨立 core.log 中"
+  ],
+  "mihomo 提前退出（{status}）；详情保存在独立 core.log 中": [
+    "mihomo exited early ({status}); details are in the separate core.log",
+    "mihomo 提前結束（{status}）；詳情儲存在獨立 core.log 中"
+  ],
+  "暂不支持 {arch}；Linux 发行包支持 x86_64 与 aarch64": [
+    "Unsupported architecture {arch}; Linux release bundles support x86_64 and aarch64",
+    "暫不支援 {arch}；Linux 發行包支援 x86_64 與 aarch64"
+  ],
+  "无法读取 mihomo 内核：{path}": [
+    "Unable to read the mihomo core: {path}",
+    "無法讀取 mihomo 核心：{path}"
+  ],
+  "YAML 增强必须为对象": [
+    "YAML enhancement must be an object",
+    "YAML 增強必須為物件"
+  ],
+  "YAML 增强格式无效": [
+    "Invalid YAML enhancement",
+    "YAML 增強格式無效"
+  ],
+  "mihomo 拒绝配置；原配置保持不变，详情见 core/validation.log": [
+    "mihomo rejected the configuration; the previous configuration is unchanged, see core/validation.log",
+    "mihomo 拒絕設定；原設定保持不變，詳見 core/validation.log"
+  ],
+  "mihomo 配置校验超时": [
+    "mihomo configuration validation timed out",
+    "mihomo 設定校驗逾時"
+  ],
+  "另一个工作区操作正在运行，请稍后重试": [
+    "Another workspace operation is running; try again shortly",
+    "另一個工作區操作正在執行，請稍後重試"
+  ],
+  "备份中的活动订阅无效": [
+    "The backup's active profile is invalid",
+    "備份中的活動訂閱無效"
+  ],
+  "备份包含不支持的配置路径": [
+    "The backup contains an unsupported configuration path",
+    "備份包含不支援的設定路徑"
+  ],
+  "备份缺少配置内容": [
+    "The backup is missing configuration content",
+    "備份缺少設定內容"
+  ],
+  "备份配置名无效": [
+    "Invalid backup configuration name",
+    "備份設定名無效"
+  ],
+  "工作区清单损坏，原文件已保留": [
+    "Workspace manifest is corrupt; the original file was kept",
+    "工作區清單損壞，原檔案已保留"
+  ],
+  "未知增强类型": [
+    "Unknown enhancement type",
+    "未知增強類型"
+  ],
+  "条目已变化，请刷新后重试": [
+    "The entry changed; refresh and try again",
+    "條目已變更，請重新整理後重試"
+  ],
+  "本地配置无需下载": [
+    "Local configurations do not need downloading",
+    "本機設定無需下載"
+  ],
+  "无法读取订阅配置": [
+    "Unable to read the profile configuration",
+    "無法讀取訂閱設定"
+  ],
+  "无法运行 mihomo 配置校验": [
+    "Unable to run mihomo configuration validation",
+    "無法執行 mihomo 設定校驗"
+  ],
+  "配置无法转换为脚本对象": [
+    "Configuration cannot be converted to a script object",
+    "設定無法轉換為指令碼物件"
+  ],
+  "订阅名称不能为空": [
+    "Profile name cannot be empty",
+    "訂閱名稱不能為空"
+  ],
+  "网页目录必须位于工作区 ui 下": [
+    "Web directory must be inside the workspace ui directory",
+    "網頁目錄必須位於工作區 ui 下"
+  ],
+  "WebDAV 仅支持 HTTP(S)": [
+    "WebDAV only supports HTTP(S)",
+    "WebDAV 僅支援 HTTP(S)"
+  ],
+  "WebDAV 传输中断": [
+    "WebDAV transfer interrupted",
+    "WebDAV 傳輸中斷"
+  ],
+  "WebDAV 列表 XML 无效": [
+    "Invalid WebDAV listing XML",
+    "WebDAV 清單 XML 無效"
+  ],
+  "WebDAV 列表编码无效": [
+    "Invalid WebDAV listing encoding",
+    "WebDAV 清單編碼無效"
+  ],
+  "WebDAV 响应过大": [
+    "WebDAV response is too large",
+    "WebDAV 回應過大"
+  ],
+  "WebDAV 请求失败：{error}": [
+    "WebDAV request failed: {error}",
+    "WebDAV 請求失敗：{error}"
+  ],
+  "WebDAV 路径无效": [
+    "Invalid WebDAV path",
+    "WebDAV 路徑無效"
+  ],
+  "不支持的备份版本": [
+    "Unsupported backup version",
+    "不支援的備份版本"
+  ],
+  "备份内容无效": [
+    "Invalid backup content",
+    "備份內容無效"
+  ],
+  "备份内容超过 32 MiB": [
+    "Backup content exceeds 32 MiB",
+    "備份內容超過 32 MiB"
+  ],
+  "备份加密参数无效": [
+    "Invalid backup encryption parameters",
+    "備份加密引數無效"
+  ],
+  "备份加密失败": [
+    "Backup encryption failed",
+    "備份加密失敗"
+  ],
+  "备份密码不正确或文件已损坏": [
+    "Incorrect backup password or corrupt file",
+    "備份密碼不正確或檔案已損壞"
+  ],
+  "备份文件名无效": [
+    "Invalid backup file name",
+    "備份檔案名稱無效"
+  ],
+  "备份文件过大": [
+    "Backup file is too large",
+    "備份檔案過大"
+  ],
+  "备份格式无效": [
+    "Invalid backup format",
+    "備份格式無效"
+  ],
+  "备份盐值无效": [
+    "Invalid backup salt",
+    "備份鹽值無效"
+  ],
+  "备份编码无效": [
+    "Invalid backup encoding",
+    "備份編碼無效"
+  ],
+  "备份随机值无效": [
+    "Invalid backup random value",
+    "備份隨機值無效"
+  ],
+  "无法生成备份密钥": [
+    "Unable to generate the backup key",
+    "無法產生備份金鑰"
+  ],
+  "请先设置 WebDAV 地址": [
+    "Set the WebDAV address first",
+    "請先設定 WebDAV 位址"
+  ],
+  "配置文件名无效": [
+    "Invalid profile file name",
+    "設定檔名無效"
+  ],
+  "随机数生成失败": [
+    "Random number generation failed",
+    "隨機數產生失敗"
+  ],
+  "备份操作已完成": [
+    "Backup operation completed",
+    "備份操作已完成"
+  ],
+  "订阅下载中断": [
+    "Profile download interrupted",
+    "訂閱下載中斷"
+  ],
+  "订阅下载代理地址无效": [
+    "Invalid profile download proxy address",
+    "訂閱下載代理位址無效"
+  ],
+  "订阅不包含代理节点或代理集合": [
+    "Profile contains no proxies or proxy providers",
+    "訂閱不包含代理節點或代理集合"
+  ],
+  "订阅不是 UTF-8 文本": [
+    "Profile is not UTF-8 text",
+    "訂閱不是 UTF-8 文字"
+  ],
+  "订阅不是有效的 Clash YAML 配置": [
+    "Profile is not a valid Clash YAML configuration",
+    "訂閱不是有效的 Clash YAML 設定"
+  ],
+  "订阅仅支持 HTTP(S)": [
+    "Profiles only support HTTP(S)",
+    "訂閱僅支援 HTTP(S)"
+  ],
+  "订阅地址无效": [
+    "Invalid profile URL",
+    "訂閱位址無效"
+  ],
+  "订阅服务器 HTTP {status}": [
+    "Profile server HTTP {status}",
+    "訂閱伺服器 HTTP {status}"
+  ],
+  "订阅清单为空": [
+    "Profile manifest is empty",
+    "訂閱清單為空"
+  ],
+  "订阅清单格式无效，应为 name/url 对象数组": [
+    "Invalid profile manifest; expected an array of name/url objects",
+    "訂閱清單格式無效，應為 name/url 物件陣列"
+  ],
+  "订阅索引损坏；请保留原文件并检查": [
+    "Profile index is corrupt; keep the original file and inspect it",
+    "訂閱索引損壞；請保留原檔案並檢查"
+  ],
+  "订阅超过 8 MiB 限制": [
+    "Profile exceeds the 8 MiB limit",
+    "訂閱超過 8 MiB 限制"
+  ],
+  "订阅需要 Clash YAML 对象，暂不支持 Base64 / URI 列表": [
+    "Profiles require a Clash YAML object; Base64 / URI lists are not supported",
+    "訂閱需要 Clash YAML 物件，暫不支援 Base64 / URI 清單"
+  ],
+  "独立内核文件不能是符号链接": [
+    "The standalone core file cannot be a symbolic link",
+    "獨立核心檔案不能是符號連結"
+  ],
+  "生成控制器密钥失败": [
+    "Failed to generate the controller secret",
+    "產生控制器金鑰失敗"
+  ],
+  "找不到 mihomo 可执行文件": [
+    "mihomo executable not found",
+    "找不到 mihomo 可執行檔"
+  ],
+  "无法启动指定的 mihomo 可执行文件": [
+    "Unable to start the specified mihomo executable",
+    "無法啟動指定的 mihomo 可執行檔"
+  ],
+  "数据目录过长，请使用较短路径以创建 Unix socket": [
+    "Data directory path is too long; use a shorter path for the Unix socket",
+    "資料目錄過長，請使用較短路徑以建立 Unix socket"
+  ],
+  "下载失败：{error}": [
+    "Download failed: {error}",
+    "下載失敗：{error}"
+  ],
+  "保存演示状态失败": [
+    "Failed to save the demo state",
+    "儲存演示狀態失敗"
+  ],
+  "保存界面偏好失败": [
+    "Failed to save interface preferences",
+    "儲存介面偏好失敗"
+  ],
+  "恢复 TUN 原配置失败": [
+    "Failed to restore the previous TUN configuration",
+    "還原 TUN 原設定失敗"
+  ],
+  "新 TUN 配置启动失败，已恢复原配置：{error}": [
+    "New TUN configuration failed to start; the previous configuration was restored: {error}",
+    "新 TUN 設定啟動失敗，已還原原設定：{error}"
+  ],
+  "新 TUN 配置启动失败，恢复原配置后仍无法启动：{restore_error}": [
+    "New TUN configuration failed to start and the restored configuration still will not start: {restore_error}",
+    "新 TUN 設定啟動失敗，還原原設定後仍無法啟動：{restore_error}"
+  ],
+  "TUN 配置重启失败：{error}": [
+    "TUN configuration restart failed: {error}",
+    "TUN 設定重啟失敗：{error}"
+  ],
+  "不支持的演示状态版本：{version}": [
+    "Unsupported demo state version: {version}",
+    "不支援的演示狀態版本：{version}"
+  ],
+  "演示状态缺少代理组或节点": [
+    "Demo state is missing proxy groups or nodes",
+    "演示狀態缺少代理群組或節點"
+  ],
+  "无法读取 {path}；请备份后修复，或使用 --data-dir 指定新目录": [
+    "Unable to read {path}; back it up and repair it, or use --data-dir to point at a new directory",
+    "無法讀取 {path}；請備份後修復，或使用 --data-dir 指定新目錄"
+  ],
+  "写入 {path} 失败": [
+    "Failed to write {path}",
+    "寫入 {path} 失敗"
+  ],
+  "控制器密钥已变更，正在重新连接": [
+    "Controller secret changed; reconnecting",
+    "控制器金鑰已變更，正在重新連線"
+  ],
+  "界面演示已就绪；尚未连接 mihomo": [
+    "Demo interface ready; mihomo is not connected",
+    "介面演示已就緒；尚未連線 mihomo"
+  ],
+  "可用": [
+    "Available",
+    "可用"
+  ],
+  "运行中的内核不是 v{version}；请执行 clash-verge-tui --service restart": [
+    "Running core is not v{version}; run clash-verge-tui --service restart",
+    "執行中的核心不是 v{version}；請執行 clash-verge-tui --service restart"
   ]
 }

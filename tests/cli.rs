@@ -16,7 +16,9 @@ fn version_matches_package_and_non_terminal_start_is_actionable() {
     assert!(!help.contains("--core"));
     let out = binary().output().unwrap();
     assert!(!out.status.success());
-    assert!(String::from_utf8_lossy(&out.stderr).contains("--snapshot home"));
+    let error = String::from_utf8_lossy(&out.stderr);
+    assert!(error.contains("requires a terminal"));
+    assert!(error.contains("--snapshot home"));
 }
 #[test]
 fn snapshots_are_deterministic_and_do_not_touch_existing_state() {
@@ -130,5 +132,6 @@ fn tun_uninstall_rejects_active_configuration_before_sudo() {
         .output()
         .unwrap();
     assert!(!output.status.success());
-    assert!(String::from_utf8_lossy(&output.stderr).contains("请先关闭当前工作区的 TUN"));
+    assert!(String::from_utf8_lossy(&output.stderr)
+        .contains("Turn off TUN in this workspace before uninstalling its service"));
 }

@@ -362,7 +362,7 @@ pub async fn open(
             state.active = active;
         }
     }
-    let port = port
+    let requested_port = port
         .or_else(|| {
             state
                 .state
@@ -377,9 +377,33 @@ pub async fn open(
         .preferences
         .get("controller_addr")
         .and_then(|s| s.parse::<std::net::SocketAddr>().ok());
-    let controller_port = controller_port
+    let requested_controller_port = controller_port
         .or(configured.map(|a| a.port()))
         .unwrap_or(19097);
+    // A busy loopback port must not prevent the core from starting. Resolve both
+    // listeners up front so the composed configuration and runtime state agree.
+    let port = if crate::network::port_is_free(requested_port) {
+        requested_port
+    } else {
+        crate::network::available_port(requested_port, &[requested_controller_port])
+            .context("没有可用的本地代理端口")?
+    };
+    let controller_port = if requested_controller_port != port
+        && crate::network::port_is_free(requested_controller_port)
+    {
+        requested_controller_port
+    } else {
+        crate::network::available_port(requested_controller_port, &[port])
+            .context("没有可用的控制器端口")?
+    };
+    if port != requested_port {
+        eprintln!("notice: mixed port {requested_port} is in use; using {port} instead");
+    }
+    if controller_port != requested_controller_port {
+        eprintln!(
+            "notice: controller port {requested_controller_port} is in use; using {controller_port}"
+        );
+    }
     let controller = if state
         .state
         .preferences
@@ -396,6 +420,9 @@ pub async fn open(
         )
         .to_string()
     };
+    if port != requested_port || controller_port != requested_controller_port {
+        workspace::save_startup_port(&dir, port, Some(controller.as_str()))?;
+    }
     let secret = subscriptions::ensure_secret(
         &dir.join("core"),
         state.state.preferences.get("secret").map(String::as_str),

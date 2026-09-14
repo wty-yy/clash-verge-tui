@@ -157,6 +157,28 @@ pub fn initialize(dir: &Path) -> Result<WorkspaceSnapshot> {
     save(dir, &snapshot)?;
     Ok(snapshot)
 }
+
+/// Persist a startup-resolved listener port so later status checks agree with
+/// the running core. Only used when the configured port was unavailable.
+pub fn save_startup_port(dir: &Path, port: u16, controller_addr: Option<&str>) -> Result<()> {
+    let _lock = Lock::acquire(dir)?;
+    let mut snapshot = load(dir)?;
+    snapshot
+        .state
+        .overrides
+        .insert(Value::from("mixed-port"), port.into());
+    snapshot
+        .state
+        .preferences
+        .insert("mixed_port".into(), port.to_string());
+    if let Some(address) = controller_addr.filter(|address| !address.is_empty()) {
+        snapshot
+            .state
+            .preferences
+            .insert("controller_addr".into(), address.to_string());
+    }
+    save(dir, &snapshot)
+}
 fn save(dir: &Path, snapshot: &WorkspaceSnapshot) -> Result<()> {
     // The complete manifest is the single authoritative commit point.
     subscriptions::private_write(

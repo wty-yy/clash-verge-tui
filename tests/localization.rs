@@ -258,6 +258,21 @@ fn nested_errors_are_translated_without_replacing_user_names() {
 }
 
 #[test]
+fn terminal_error_chains_render_in_english() {
+    let error =
+        anyhow::anyhow!("本地端口 7890 已占用").context("另一个工作区操作正在运行，请稍后重试");
+    assert_eq!(
+        locale::error_chain(&error, Language::English),
+        "Another workspace operation is running; try again shortly: Local port 7890 is already in use"
+    );
+    let error = anyhow::anyhow!("mihomo 压缩包校验失败");
+    assert_eq!(
+        locale::error_chain(&error, Language::English),
+        "mihomo archive checksum failed"
+    );
+}
+
+#[test]
 fn profiles_save_with_s_from_the_button_and_keep_s_in_text() {
     let mut app = app("en");
     app.navigate(Page::Profiles);
