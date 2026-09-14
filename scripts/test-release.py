@@ -54,7 +54,12 @@ with tempfile.TemporaryDirectory(prefix='cvt-release-test-') as directory:
                 'geo-auto-update': False}}}
             (workspace / 'workspace-state.json').write_text(json.dumps(manifest))
             (workspace / 'workspace-state.json').chmod(0o600)
-        result = subprocess.run(command, env=env, check=True, capture_output=True, text=True, timeout=90)
+        try:
+            result = subprocess.run(command, env=env, check=True, capture_output=True, text=True, timeout=90)
+        except subprocess.CalledProcessError as error:
+            print('stdout:', error.stdout, flush=True)
+            print('stderr:', error.stderr, flush=True)
+            raise
         status = json.loads(result.stdout)
         assert status['app_version'] == version[1:], status
         assert status['expected_core'] == 'v1.19.29', status
