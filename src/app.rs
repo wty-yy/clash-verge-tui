@@ -35,6 +35,8 @@ pub enum Action {
     ImportProfile,
     Submit,
     Cancel,
+    QuitBackground,
+    QuitStop,
 }
 #[derive(Clone, Debug)]
 pub enum SaveTarget {
@@ -270,6 +272,9 @@ pub enum Modal {
         query: String,
         selected: usize,
     },
+    Quit {
+        selected: usize,
+    },
 }
 const DOUBLE_CLICK_INTERVAL: Duration = Duration::from_millis(400);
 
@@ -314,6 +319,8 @@ pub struct App {
     pub sort: bool,
     pub dirty: bool,
     pub quit: bool,
+    pub owns_core: bool,
+    pub background_on_exit: bool,
     pub data_dir: PathBuf,
     pub hits: Vec<(Rect, Action)>,
     pub table_offset: usize,
@@ -351,6 +358,8 @@ impl App {
             sort: false,
             dirty: false,
             quit: false,
+            owns_core: false,
+            background_on_exit: false,
             data_dir,
             hits: vec![],
             table_offset: 0,
@@ -804,6 +813,17 @@ impl App {
             target,
         });
     }
+    fn quit_choice(&mut self, choice: usize) {
+        self.modal = None;
+        match choice {
+            0 => {
+                self.background_on_exit = true;
+                self.quit = true;
+            }
+            1 => self.quit = true,
+            _ => {}
+        }
+    }
     pub fn palette_entries(query: &str) -> Vec<Page> {
         Page::ALL
             .into_iter()
@@ -862,7 +882,13 @@ impl App {
         }
         match key.code {
             KeyCode::Char(c @ '1'..='8') => self.navigate(Page::ALL[c as usize - '1' as usize]),
-            KeyCode::Char('q') => self.quit = true,
+            KeyCode::Char('q') => {
+                if self.owns_core {
+                    self.modal = Some(Modal::Quit { selected: 0 });
+                } else {
+                    self.quit = true;
+                }
+            }
             KeyCode::Char('?') => self.help(),
             KeyCode::Char(':') => {
                 self.modal = Some(Modal::Palette {
@@ -1034,6 +1060,8 @@ impl App {
             Action::Submit => {
                 self.modal_key(KeyEvent::new(KeyCode::Char('s'), KeyModifiers::CONTROL))
             }
+            Action::QuitBackground => self.quit_choice(0),
+            Action::QuitStop => self.quit_choice(1),
             Action::Cancel => {
                 if matches!(
                     &self.modal,
@@ -1070,6 +1098,23 @@ impl App {
                 self.tun_after_restart = None;
             }
             self.modal = None;
+            return;
+        }
+        if let Some(Modal::Quit { selected }) = self.modal.clone() {
+            match key.code {
+                KeyCode::Up | KeyCode::Char('k') => {
+                    self.modal = Some(Modal::Quit {
+                        selected: selected.saturating_sub(1),
+                    })
+                }
+                KeyCode::Down | KeyCode::Char('j') => {
+                    self.modal = Some(Modal::Quit {
+                        selected: (selected + 1).min(1),
+                    })
+                }
+                KeyCode::Enter => self.quit_choice(selected),
+                _ => {}
+            }
             return;
         }
         if let Some(Modal::Backups { selected }) = self.modal.clone() {
@@ -1181,6 +1226,7 @@ impl App {
         let mut import_profile = false;
         match self.modal.as_mut().unwrap() {
             Modal::Backups { .. } => unreachable!("backup input handled above"),
+            Modal::Quit { .. } => unreachable!("quit input handled above"),
             Modal::Form { fields, active, .. } => match key.code {
                 KeyCode::Up | KeyCode::Down if matches!(fields[*active].kind, Kind::Multiline) => {
                     fields[*active].key(key)

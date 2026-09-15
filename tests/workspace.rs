@@ -342,3 +342,13 @@ async fn tun_changes_are_staged_for_restart_without_hot_reload_and_can_rollback(
         original.state.overrides
     );
 }
+#[test]
+fn background_service_preference_is_persisted_in_the_manifest() {
+    let dir = tempfile::tempdir().unwrap();
+    workspace::initialize(dir.path()).unwrap();
+    workspace::save_service_preference(dir.path(), "运行中").unwrap();
+    assert_eq!(
+        workspace::load(dir.path()).unwrap().state.preferences["service"],
+        "运行中"
+    );
+}

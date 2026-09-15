@@ -8,7 +8,7 @@
 
 该项目为个人使用而制作，使用 ChatGPT 辅助开发，界面与功能映射参考 Clash Verge Rev v2.5.2。该项目非 Clash Verge / Clash Verge Rev 官方制作，与其开发团队无隶属关系。
 
-`v1.4.9` 默认启动自管工作区和随应用固定的 mihomo v1.19.29。Linux x86_64/aarch64 发行包包含 musl 静态链接 TUI、固定内核和固定版本的 `GeoSite.dat`，不依赖系统 glibc；安装脚本兼容 Ubuntu 20.04 的 curl 7.68 等旧版本。首页快捷控制显示并可修改当前混合代理端口，默认监听 `127.0.0.1:7890`。
+`v1.4.10` 默认启动自管工作区和随应用固定的 mihomo v1.19.29。Linux x86_64/aarch64 发行包包含 musl 静态链接 TUI、固定内核和固定版本的 `GeoSite.dat`，不依赖系统 glibc；安装脚本兼容 Ubuntu 20.04 的 curl 7.68 等旧版本。首页快捷控制显示并可修改当前混合代理端口，默认监听 `127.0.0.1:7890`。
 
 ## 安装与启动
 
@@ -45,7 +45,7 @@ clash-verge-tui --demo
 | `~/.local/lib/clash-verge-tui/GeoSite.dat` | 随包固定版本的 Mihomo GeoSite 数据 |
 | `~/.local/lib/clash-verge-tui/GEOSITE-LICENSE` | GeoSite 数据的 GPL-3.0 许可文本 |
 
-代理服务由第三方运营，只负责传输 GitHub 发行包；安装脚本仍会校验官方发布的 SHA-256。可设置 `CLASH_VERGE_TUI_VERSION=v1.4.9` 选择已发布版本；`CLASH_VERGE_TUI_ASSET_BASE_URL` 可用于测试兼容镜像。
+代理服务由第三方运营，只负责传输 GitHub 发行包；安装脚本仍会校验官方发布的 SHA-256。可设置 `CLASH_VERGE_TUI_VERSION=v1.4.10` 选择已发布版本；`CLASH_VERGE_TUI_ASSET_BASE_URL` 可用于测试兼容镜像。
 
 源码构建同样可用。找不到发行包内核时，程序会将 Mihomo 官方 v1.19.29 下载到 `${XDG_DATA_HOME:-$HOME/.local/share}/clash-verge-tui/core/`，校验压缩包与解压后二进制，再复制到当前工作区。工作区内核损坏、被替换或被独立升级后，会在下次启动恢复为应用固定版本。
 
@@ -163,11 +163,13 @@ clash-verge-tui --tun-service uninstall
 | `s`、`Ctrl+U` | 保存表单、清空字段；文本编辑时先用 Tab / Shift+Tab 聚焦保存按钮，再按 s / Enter，或点击保存；Ctrl+S 兼容保留 |
 | `s` | 在首页混合代理端口表单中保存并立即应用 |
 | `:`、`?`、`t` | 页面跳转、帮助、主题切换 |
-| `q` / `Ctrl+C` | 退出 |
+| `q` / `Ctrl+C` | 退出；界面自管内核时 `q` 可选择转入后台 |
 
 普通列表单击只选择，400 毫秒内双击同一条目等同 `Enter`。首页“进入订阅管理”第一次点击只聚焦，再点击进入。多行表单中 `Enter` 换行，Vim 字母作为普通输入。
 
-“设置 → 系统”提供“安装 / 修复 TUN 权限服务”和“卸载 TUN 权限服务”，均经过确认与遮罩密码表单。安装不会开启 TUN；卸载前需关闭 TUN，并保留订阅与配置。
+前台 TUI 自管内核时，`q` 弹出退出选择：**后台运行**会安装或启动当前工作区的 systemd 用户服务，保持内核与系统代理运行后退出；**退出并停止内核**会停止内核；`Esc` 取消。`Ctrl+C` 始终停止内核。已附加到运行中的服务时，`q` 只关闭界面，并在终端打印服务名及 `systemctl --user status` / `stop` 提示。
+
+“设置 → 系统”提供“安装 / 修复 TUN 权限服务”和“卸载 TUN 权限服务”，均经过确认与遮罩密码表单。安装不会开启 TUN；卸载前需关闭 TUN，并保留订阅与配置。主机的多条默认路由存在时，自管内核会在运行配置中按最低 metric 绑定出口网卡；显式的“设置 → 基础网络 → 出口接口”始终优先。
 
 系统代理支持 GNOME 手动/PAC 模式、原设置恢复和守卫。TUN 首次开启在 TUI 内显示遮罩密码框，密码只通过标准输入交给 `sudo -S`，不进入命令参数、配置或日志；授权后先为当前内核设置能力，再安装按用户和工作区隔离的 systemd 路径服务。该服务验证官方内核并维护 `CAP_NET_ADMIN` / `CAP_NET_BIND_SERVICE`，通过按用户和工作区隔离的 socket，将四种 TUN DNS 操作交给受限 root 服务，系统 `resolvectl` 保持不变；旧服务首次使用需在 TUI 内输入一次密码升级，内核替换后自动重新授权；sudo 或 systemd 失败会在 TUI 中显示具体原因。检测到其他活动 TUN 网卡时阻止开启自动路由，需要先在对应应用中关闭 TUN。TUN 开关与参数变化通过受控重启生效，重启或网卡验证失败时恢复原工作区。Debian/Ubuntu 需要 `sudo`、systemd 和 `libcap2-bin`。备份支持最近 10 份、本地恢复、可选加密和 WebDAV。
 

@@ -188,6 +188,9 @@ pub async fn status(dir: &Path) -> String {
         .await
         .unwrap_or("not-installed".into())
 }
+pub fn installed(dir: &Path) -> bool {
+    path(dir).is_file()
+}
 pub async fn wait_ready(dir: &Path) -> Result<()> {
     let endpoint = format!("unix://{}", dir.join("core/controller.sock").display());
     let secret = std::fs::read_to_string(dir.join("core/controller.secret"))?;
@@ -455,6 +458,22 @@ pub async fn open(
             &mut boot_state.state.overrides,
             &BTreeMap::from([("tun".into(), "关闭".into())]),
         )?;
+    } else if tun_enabled {
+        // Multi-homed hosts need an explicit egress: mihomo's interface monitor
+        // can select a default route whose uplink has no internet.
+        if let Some(routes) = crate::network::default_routes().await {
+            if let Some(interface) =
+                crate::network::pin_tun_egress(&boot_state.state.overrides, &routes)
+            {
+                eprintln!(
+                    "notice: multiple default routes detected; binding the core to egress interface {interface}"
+                );
+                boot_state.state.overrides.insert(
+                    serde_yaml_ng::Value::from("interface-name"),
+                    interface.into(),
+                );
+            }
+        }
     }
     let payload = workspace::compose(&boot_state, &context).await?;
     workspace::validate(&payload, &context).await?;

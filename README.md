@@ -8,7 +8,7 @@
 
 Created for personal use with development assistance from ChatGPT. The interface and feature mapping follow Clash Verge Rev v2.5.2. This is an unofficial project, independently developed and unaffiliated with the Clash Verge / Clash Verge Rev teams.
 
-`v1.4.9` starts a self-managed workspace and the application-pinned mihomo v1.19.29 by default. Release archives contain the statically linked musl TUI, pinned core, and a pinned `GeoSite.dat` snapshot for Linux x86_64/aarch64, without a system glibc dependency. The installer supports older curl versions, including Ubuntu 20.04’s curl 7.68. Home quick controls show and edit the current mixed proxy port, which defaults to `127.0.0.1:7890`.
+`v1.4.10` starts a self-managed workspace and the application-pinned mihomo v1.19.29 by default. Release archives contain the statically linked musl TUI, pinned core, and a pinned `GeoSite.dat` snapshot for Linux x86_64/aarch64, without a system glibc dependency. The installer supports older curl versions, including Ubuntu 20.04’s curl 7.68. Home quick controls show and edit the current mixed proxy port, which defaults to `127.0.0.1:7890`.
 
 ## Install and run
 
@@ -45,7 +45,7 @@ The installer defaults to GitHub. `--source proxy` downloads the pinned release 
 | `~/.local/lib/clash-verge-tui/GeoSite.dat` | Pinned Mihomo GeoSite data shipped with the release |
 | `~/.local/lib/clash-verge-tui/GEOSITE-LICENSE` | GPL-3.0 license text for the GeoSite data |
 
-The proxy service is third-party infrastructure. It only transports the GitHub release; the installer still verifies the published SHA-256 checksum. Set `CLASH_VERGE_TUI_VERSION=v1.4.9` to select a published version; `CLASH_VERGE_TUI_ASSET_BASE_URL` can point to a compatible mirror for testing.
+The proxy service is third-party infrastructure. It only transports the GitHub release; the installer still verifies the published SHA-256 checksum. Set `CLASH_VERGE_TUI_VERSION=v1.4.10` to select a published version; `CLASH_VERGE_TUI_ASSET_BASE_URL` can point to a compatible mirror for testing.
 
 Source builds work as well. If no bundled core is found, the program downloads official Mihomo v1.19.29 into `${XDG_DATA_HOME:-$HOME/.local/share}/clash-verge-tui/core/`, verifies both the archive and extracted binary, and copies it into the active workspace. A damaged, replaced, or independently upgraded workspace core is restored to the application-pinned version on the next launch.
 
@@ -163,11 +163,13 @@ clash-verge-tui --tun-service uninstall
 | `s`, `Ctrl+U` | Save a form / clear a field; while editing text, Tab / Shift+Tab to Save then press s / Enter, or click Save; Ctrl+S remains supported |
 | `s` | Save and immediately apply the Home mixed-port form |
 | `:`, `?`, `t` | Page palette, help, theme switch |
-| `q` / `Ctrl+C` | Quit |
+| `q` / `Ctrl+C` | Quit; `q` offers background handoff when the TUI owns the core |
 
 A single click selects an ordinary row. A second click on the same row within 400 ms acts as `Enter`. The Home profile-management button takes focus on the first click and opens on a later click. `Enter` inserts a newline in multiline forms, where Vim letters remain normal text.
 
-Settings → System provides **Install / repair TUN service** and **Uninstall TUN service**. Both use a confirmation and masked password form. Installation does not enable TUN; uninstall requires TUN to be off and keeps profiles and configuration.
+While the foreground TUI owns the core, `q` opens a quit dialog: **Keep in background** installs or starts the workspace systemd user service and exits with the core and system proxy still running, **Quit and stop the core** stops it, and `Esc` cancels. `Ctrl+C` always stops the core. When the TUI is attached to a running service, `q` closes the interface, leaves the service untouched, and prints the service name with the `systemctl --user status` / `stop` commands.
+
+Settings → System provides **Install / repair TUN service** and **Uninstall TUN service**. Both use a confirmation and masked password form. Installation does not enable TUN; uninstall requires TUN to be off and keeps profiles and configuration. On hosts with several default routes the managed core pins the lowest-metric egress interface in its runtime configuration; an explicit **Settings → Basic network → Outbound interface** value always wins.
 
 System proxy integration supports GNOME manual/PAC modes, restoration, and a guard. The first TUN enable opens a masked password form inside the TUI. The password is sent only to `sudo -S` over standard input and never enters arguments, configuration, or logs. Authorization first grants the current core its capabilities, then installs a systemd path service scoped to the user and workspace. The service verifies the official core and maintains `CAP_NET_ADMIN` / `CAP_NET_BIND_SERVICE` after replacement. A root DNS service accepts only the four TUN DNS operations through a socket scoped to the user and workspace; the system `resolvectl` remains unchanged. Automatic TUN routing is blocked while another active TUN adapter exists; disable TUN in the other app before enabling it here. Existing installations need one password entry in the TUI to upgrade the service; sudo or systemd failures are shown with their specific cause in the TUI. TUN toggles and parameter changes use a controlled core restart, restoring the previous workspace if startup or interface verification fails. Debian/Ubuntu needs `sudo`, systemd, and `libcap2-bin`. Backups support retention, optional encryption, and WebDAV.
 

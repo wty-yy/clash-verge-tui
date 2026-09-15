@@ -1171,6 +1171,18 @@
     "Quit",
     "退出"
   ],
+  "关闭界面后是否保持后台运行？": [
+    "Keep the core and system proxy running in the background?",
+    "關閉介面後是否保持背景執行？"
+  ],
+  "后台运行": [
+    "Keep in background",
+    "背景執行"
+  ],
+  "退出并停止内核": [
+    "Quit and stop the core",
+    "結束並停止核心"
+  ],
   "Enter/双击 操作": [
     "Enter/double-click Activate",
     "Enter/雙擊 操作"

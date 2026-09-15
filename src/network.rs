@@ -391,6 +391,131 @@ pub async fn verify_tun(fields: &BTreeMap<String, String>, candidate: &Value) ->
         .map_err(|error| anyhow!("{error}，原配置已恢复"))
 }
 
+/// Mihomo's TUN interface monitor takes the first default route from the
+/// netlink dump, so a host with several default routes can bind the core to an
+/// uplink without internet. Choose the lowest-metric route like the kernel, and
+/// only when the choice is real; single-uplink hosts keep the built-in monitor
+/// so interface changes stay automatic.
+pub fn pick_egress(routes: &str, exclude: &str) -> Option<String> {
+    let routes: Vec<serde_json::Value> = serde_json::from_str(routes).ok()?;
+    let mut candidates: Vec<(u64, &str)> = Vec::new();
+    for route in &routes {
+        if route["dst"].as_str() != Some("default") {
+            continue;
+        }
+        let link_down = route["flags"]
+            .as_array()
+            .is_some_and(|flags| flags.iter().any(|flag| flag.as_str() == Some("linkdown")));
+        let Some(device) = route["dev"].as_str().filter(|device| !device.is_empty()) else {
+            continue;
+        };
+        if link_down || device == exclude {
+            continue;
+        }
+        candidates.push((route["metric"].as_u64().unwrap_or(0), device));
+    }
+    candidates.sort_unstable();
+    let (_, first) = *candidates.first()?;
+    candidates
+        .iter()
+        .any(|(_, device)| *device != first)
+        .then(|| first.to_string())
+}
+
+/// Decide whether an enabled TUN needs an explicit egress interface. A saved
+/// `interface-name` (设置 → 基础网络 → 出口接口) always wins; otherwise the
+/// lowest-metric default route is pinned, which matches what the kernel picks.
+pub fn pin_tun_egress(overrides: &Mapping, routes: &str) -> Option<String> {
+    let tun_enabled = overrides
+        .get(Value::from("tun"))
+        .and_then(|tun| tun.get("enable"))
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    if !tun_enabled {
+        return None;
+    }
+    let explicit = overrides
+        .get(Value::from("interface-name"))
+        .and_then(Value::as_str)
+        .is_some_and(|interface| !interface.trim().is_empty());
+    if explicit {
+        return None;
+    }
+    let device = overrides
+        .get(Value::from("tun"))
+        .and_then(|tun| tun.get("device"))
+        .and_then(Value::as_str)
+        .unwrap_or("Meta");
+    pick_egress(routes, device)
+}
+
+pub async fn default_routes() -> Option<String> {
+    let output = tokio::process::Command::new("ip")
+        .args(["-j", "route", "show", "default"])
+        .stdin(std::process::Stdio::null())
+        .output()
+        .await
+        .ok()?;
+    output
+        .status
+        .success()
+        .then(|| String::from_utf8_lossy(&output.stdout).into_owned())
+}
+
+#[cfg(test)]
+mod egress_tests {
+    use super::*;
+
+    const MULTI: &str = r#"[{"dst":"default","gateway":"192.168.31.1","dev":"wlan0","protocol":"dhcp","metric":600,"flags":[]},{"dst":"default","gateway":"192.168.123.1","dev":"eth0","protocol":"static","metric":20100,"flags":[]}]"#;
+
+    #[test]
+    fn lowest_metric_wins_when_multiple_default_routes_exist() {
+        assert_eq!(pick_egress(MULTI, "cvtun0").as_deref(), Some("wlan0"));
+        assert_eq!(pick_egress(MULTI, "wlan0"), None);
+        let tie = r#"[{"dst":"default","dev":"eth1","metric":600},{"dst":"default","dev":"eth0","metric":600}]"#;
+        assert_eq!(pick_egress(tie, "").as_deref(), Some("eth0"));
+    }
+
+    #[test]
+    fn single_or_repeated_uplinks_keep_automatic_detection() {
+        let single = r#"[{"dst":"default","dev":"wlan0","metric":600}]"#;
+        assert_eq!(pick_egress(single, ""), None);
+        let repeated = r#"[{"dst":"default","dev":"wlan0","metric":600},{"dst":"default","dev":"wlan0","metric":1000}]"#;
+        assert_eq!(pick_egress(repeated, ""), None);
+    }
+
+    #[test]
+    fn link_down_and_non_default_routes_are_ignored() {
+        let routes = r#"[{"dst":"default","dev":"eth0","metric":100,"flags":["linkdown"]},{"dst":"10.0.0.0/8","dev":"eth1","metric":0},{"dst":"default","dev":"wlan0","metric":600}]"#;
+        assert_eq!(pick_egress(routes, ""), None);
+        let both = r#"[{"dst":"default","dev":"eth0","metric":100,"flags":["linkdown"]},{"dst":"default","dev":"wlan0","metric":600},{"dst":"default","dev":"usb0","metric":20100}]"#;
+        assert_eq!(pick_egress(both, "").as_deref(), Some("wlan0"));
+    }
+
+    #[test]
+    fn invalid_output_never_changes_the_default_behavior() {
+        assert_eq!(pick_egress("not json", ""), None);
+        assert_eq!(pick_egress("[]", ""), None);
+        assert_eq!(pick_egress(r#"[{"dst":"default","metric":10}]"#, ""), None);
+    }
+
+    #[test]
+    fn explicit_egress_and_disabled_tun_skip_the_override() {
+        let mut overrides = Mapping::new();
+        set(&mut overrides, &["tun", "enable"], true.into());
+        set(&mut overrides, &["tun", "device"], "cvtun0".into());
+        assert_eq!(pin_tun_egress(&overrides, MULTI).as_deref(), Some("wlan0"));
+        set(&mut overrides, &["interface-name"], "eth1".into());
+        assert_eq!(pin_tun_egress(&overrides, MULTI), None);
+        set(&mut overrides, &["interface-name"], "".into());
+        assert_eq!(pin_tun_egress(&overrides, MULTI).as_deref(), Some("wlan0"));
+        let mut disabled = Mapping::new();
+        set(&mut disabled, &["tun", "enable"], false.into());
+        assert_eq!(pin_tun_egress(&disabled, MULTI), None);
+        assert_eq!(pin_tun_egress(&Mapping::new(), MULTI), None);
+    }
+}
+
 #[cfg(test)]
 mod tun_conflict_tests {
     use super::*;

@@ -294,6 +294,7 @@ fn run() -> Result<()> {
         )?);
         App::new_live(dir.clone(), endpoint, profiles, active, Some(managed))?
     };
+    app.owns_core = managed_core.is_some();
     if let Some(language) = &args.language {
         app.state
             .settings
@@ -313,7 +314,7 @@ fn run() -> Result<()> {
                 if app.live.as_ref().unwrap().connected {let _=subscriptions::private_write(&app.data_dir.join("daemon.ready"),std::process::id().to_string().as_bytes());}else{let _=std::fs::remove_file(app.data_dir.join("daemon.ready"));}
                 if !app.live.as_ref().unwrap().connected {
                     if managed_core.as_mut().is_some_and(|core|!core.is_running()){managed_core.take();}
-                    if managed_core.is_none(){if let Ok(source)=core_manager::ensure(&app.data_dir,args.core.as_deref()).await{if let Ok(running)=clash_verge_tui::service::open(&app.data_dir,&source,args.mixed_port,args.controller_port,None).await{let context=running.context;worker=Some(Worker::spawn_with_workspace(CoreClient::new(&running.endpoint,context.secret.clone())?,Some(context.clone()))?);app=App::new_live(context.dir.clone(),running.endpoint,running.profiles,running.active,Some(ManagedSettings{controller:context.controller,secret:context.secret,port:context.port,binary:context.binary}))?;managed_core=running.child;}}}
+                    if managed_core.is_none(){if let Ok(source)=core_manager::ensure(&app.data_dir,args.core.as_deref()).await{if let Ok(running)=clash_verge_tui::service::open(&app.data_dir,&source,args.mixed_port,args.controller_port,None).await{let context=running.context;worker=Some(Worker::spawn_with_workspace(CoreClient::new(&running.endpoint,context.secret.clone())?,Some(context.clone()))?);app=App::new_live(context.dir.clone(),running.endpoint,running.profiles,running.active,Some(ManagedSettings{controller:context.controller,secret:context.secret,port:context.port,binary:context.binary}))?;managed_core=running.child;app.owns_core=managed_core.is_some();}}}
                 }
             }
             Ok::<(),anyhow::Error>(())
@@ -459,16 +460,86 @@ fn run() -> Result<()> {
             app.dirty = false;
         }
     }
+    drop(_guard);
     drop(worker);
-    if managed_core.is_some()
-        && runtime.block_on(clash_verge_tui::service::status(&app.data_dir)) != "active"
-    {
+    if managed_core.is_some() && app.background_on_exit {
+        drop(managed_core.take());
+        match promote_background(&runtime, &app.data_dir) {
+            Ok(()) => {
+                print_background_notice(&app.data_dir, true);
+                return Ok(());
+            }
+            Err(error) => {
+                let _ = runtime.block_on(
+                    clash_verge_tui::platform::SystemProxy::new(app.data_dir.clone())
+                        .restore_if_owned(),
+                );
+                return Err(error);
+            }
+        }
+    }
+    let service_active = app.live.is_some()
+        && runtime.block_on(clash_verge_tui::service::status(&app.data_dir)) == "active";
+    if managed_core.is_some() && !service_active {
         let _ = runtime.block_on(
             clash_verge_tui::platform::SystemProxy::new(app.data_dir.clone()).restore_if_owned(),
         );
     }
+    let attached = service_active && managed_core.is_none();
     drop(managed_core);
+    if attached {
+        print_background_notice(&app.data_dir, false);
+    }
     Ok(())
+}
+
+fn print_background_notice(dir: &std::path::Path, started: bool) {
+    let name = clash_verge_tui::service::name(dir);
+    if started {
+        println!("mihomo is now running in the background via {name}");
+    } else {
+        println!("mihomo is still running in the background via {name}");
+    }
+    println!("  check: systemctl --user status {name}");
+    println!("  stop:  systemctl --user stop {name}");
+}
+
+fn promote_background(runtime: &tokio::runtime::Runtime, dir: &std::path::Path) -> Result<()> {
+    runtime.block_on(async {
+        let snapshot = clash_verge_tui::workspace::load(dir)?;
+        let tun_enabled = snapshot
+            .state
+            .overrides
+            .get(serde_yaml_ng::Value::from("tun"))
+            .and_then(|tun| tun.get("enable"))
+            .and_then(serde_yaml_ng::Value::as_bool)
+            .unwrap_or(false);
+        if tun_enabled && !clash_verge_tui::service::tun_ready(&dir.join("core/mihomo")) {
+            bail!(
+                "TUN permission service needs an upgrade; run --tun-service install before keeping the core in the background"
+            );
+        }
+        let status = clash_verge_tui::service::status(dir).await;
+        if status != "active" {
+            if !clash_verge_tui::service::installed(dir) {
+                let enabled = snapshot
+                    .state
+                    .preferences
+                    .get("auto_launch")
+                    .is_some_and(|value| value == "开启");
+                clash_verge_tui::service::install(dir, enabled).await?;
+            }
+            clash_verge_tui::service::action(dir, "start").await?;
+            tokio::time::timeout(
+                Duration::from_secs(20),
+                clash_verge_tui::service::wait_ready(dir),
+            )
+            .await
+            .context("background service did not become ready within 20s")??;
+        }
+        clash_verge_tui::workspace::save_service_preference(dir, "运行中")?;
+        Ok(())
+    })
 }
 
 fn restart_after_tun(
@@ -539,6 +610,7 @@ fn restart_core_once(
             Some(context.clone()),
         )?);
         *managed_core = running.child;
+        app.owns_core = managed_core.is_some();
         let live = app.live.as_mut().context("TUN 重启缺少真实内核状态")?;
         live.endpoint = endpoint;
         live.connected = false;

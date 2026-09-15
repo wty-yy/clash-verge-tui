@@ -592,3 +592,71 @@ fn tun_service_settings_confirm_password_and_preserve_tun_state() {
         }
     }
 }
+#[test]
+fn quit_prompt_defers_owned_cores_until_a_background_choice_is_made() {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    let mut a = app();
+    a.owns_core = true;
+    a.key(KeyEvent::new(KeyCode::Char('q'), KeyModifiers::NONE));
+    assert!(!a.quit);
+    assert!(matches!(&a.modal, Some(Modal::Quit { selected: 0 })));
+    a.key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
+    assert!(!a.quit && a.modal.is_none() && !a.background_on_exit);
+    a.key(KeyEvent::new(KeyCode::Char('q'), KeyModifiers::NONE));
+    a.key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+    assert!(a.quit && a.background_on_exit);
+    let mut b = app();
+    b.owns_core = true;
+    b.key(KeyEvent::new(KeyCode::Char('q'), KeyModifiers::NONE));
+    b.key(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE));
+    b.key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+    assert!(b.quit && !b.background_on_exit);
+    let mut c = app();
+    c.key(KeyEvent::new(KeyCode::Char('q'), KeyModifiers::NONE));
+    assert!(c.quit && c.modal.is_none());
+}
+#[test]
+fn quit_prompt_renders_choices_and_mouse_hits_in_every_language() {
+    for language in ["zh-CN", "zh-TW", "en"] {
+        let mut a = app();
+        a.owns_core = true;
+        a.state.settings.insert("language".into(), language.into());
+        a.sync_language();
+        a.key(crossterm::event::KeyEvent::new(
+            crossterm::event::KeyCode::Char('q'),
+            crossterm::event::KeyModifiers::NONE,
+        ));
+        let mut terminal = Terminal::new(TestBackend::new(76, 24)).unwrap();
+        terminal.draw(|frame| ui::draw(frame, &mut a)).unwrap();
+        let mut screen = String::new();
+        for y in 0..24 {
+            let mut x = 0;
+            while x < 76 {
+                let symbol = terminal.backend().buffer()[(x, y)].symbol();
+                screen.push_str(symbol);
+                x += unicode_width::UnicodeWidthStr::width(symbol).max(1) as u16;
+            }
+            screen.push('\n');
+        }
+        let expected = match language {
+            "en" => [
+                "Keep the core and system proxy running in the background?",
+                "Keep in background",
+                "Quit and stop the core",
+            ],
+            "zh-TW" => ["關閉介面後是否保持背景執行？", "背景執行", "結束並停止核心"],
+            _ => ["关闭界面后是否保持后台运行？", "后台运行", "退出并停止内核"],
+        };
+        for text in expected {
+            assert!(screen.contains(text), "{language}: {text}");
+        }
+        let actions: Vec<_> = a
+            .hits
+            .iter()
+            .map(|(_, action)| format!("{action:?}"))
+            .collect();
+        assert!(actions.contains(&"QuitBackground".to_string()));
+        assert!(actions.contains(&"QuitStop".to_string()));
+        assert!(actions.contains(&"Cancel".to_string()));
+    }
+}

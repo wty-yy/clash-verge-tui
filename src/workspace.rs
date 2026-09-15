@@ -179,6 +179,15 @@ pub fn save_startup_port(dir: &Path, port: u16, controller_addr: Option<&str>) -
     }
     save(dir, &snapshot)
 }
+pub fn save_service_preference(dir: &Path, state: &str) -> Result<()> {
+    let _lock = Lock::acquire(dir)?;
+    let mut snapshot = load(dir)?;
+    snapshot
+        .state
+        .preferences
+        .insert("service".into(), state.into());
+    save(dir, &snapshot)
+}
 fn save(dir: &Path, snapshot: &WorkspaceSnapshot) -> Result<()> {
     // The complete manifest is the single authoritative commit point.
     subscriptions::private_write(

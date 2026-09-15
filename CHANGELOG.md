@@ -4,6 +4,11 @@
 
 See the [feature mapping](docs/FEATURES.md) for planned work.
 
+## v1.4.10 · 2026-09-15
+
+1. Offer a quit choice when the foreground TUI owns the core: keep it running through the workspace systemd user service, stop it, or cancel; sessions attached to a running service print the service name with status and stop commands on exit
+2. Pin the lowest-metric egress interface in the runtime configuration when TUN is enabled on a host with several default routes, so multi-homed machines no longer bind the core to an uplink without internet; explicit outbound interfaces take precedence
+
 ## v1.4.9 · 2026-09-14
 
 1. Fall back to the next free local port at startup when the saved mixed or controller port is in use, and persist the resolved port

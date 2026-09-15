@@ -1545,6 +1545,45 @@ fn modal(f: &mut Frame, app: &mut App, area: Rect, p: Palette) {
                 p.muted,
             );
         }
+        Modal::Quit { selected } => {
+            f.render_widget(
+                block("退出", p).border_style(Style::default().fg(p.yellow)),
+                r,
+            );
+            let inner = inset(r, 3, 2);
+            text(
+                f,
+                line_area(inner, 0, 1),
+                t("关闭界面后是否保持后台运行？"),
+                p.muted,
+            );
+            for (i, (label, action)) in [
+                (t("后台运行"), Action::QuitBackground),
+                (t("退出并停止内核"), Action::QuitStop),
+            ]
+            .into_iter()
+            .enumerate()
+            {
+                button(
+                    f,
+                    app,
+                    line_area(inner, 2 + i as u16, 1),
+                    label,
+                    action,
+                    p,
+                    i == selected,
+                );
+            }
+            button(
+                f,
+                app,
+                Rect::new(inner.x, inner.bottom() - 1, 16, 1),
+                t("Esc 取消"),
+                Action::Cancel,
+                p,
+                false,
+            );
+        }
         Modal::Confirm { title, body, .. } => {
             f.render_widget(
                 block(title.clone(), p).border_style(Style::default().fg(p.yellow)),
