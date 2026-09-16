@@ -273,3 +273,4 @@
 - `clash-verge-tui.wty-yy.top` 镜像实测：`/health` 返回 `ok`；镜像下载的校验文件与 23 MB 完整包 SHA-256 与发布值一致，响应头含 `x-mirror` 与 `x-mirror-cache`
 - 临时 HOME 中运行发行版 `install.sh --source proxy`，经镜像安装 `v1.5.0` 与 mihomo `v1.19.29`；`--check` 返回 `app_version 1.5.0`、`expected_core v1.19.29`、`managed true`
 - 远端 CI 与标签 CI 通过；Release 工作流双架构 musl 构建、Ubuntu 20.04 容器安装验证与 publish 通过（x86_64 首次运行出现一次瞬时控制器响应失败，重跑通过）
+- 镜像域名改为 `clash-verge-tui.wty-yy.top` 后重新生成并替换 Release 的 `install.sh` 资产（标签与二进制未变）；`/install.sh | sh -s -- --source proxy` 经新域名安装与 `--check` 复验通过，GitHub 与镜像提供的脚本内容一致
