@@ -174,7 +174,7 @@ function usage(configuration) {
     `  https://${domain}/v<major>.<minor>.<patch>/<asset>`,
     '',
     'Install clash-verge-tui through this mirror:',
-    `  curl -fsSL ${repository}/releases/latest/download/install.sh | sh -s -- --source proxy`,
+    `  curl -fsSL https://${domain}/install.sh | sh -s -- --source proxy`,
     '',
   ].join('\n');
 }

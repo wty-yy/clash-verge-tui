@@ -147,7 +147,9 @@ test('answers health checks and usage pages', async () => {
   assert.equal(await health.text(), 'ok\n');
   const usage = await worker.fetch(request('/'), {}, ctx);
   assert.equal(usage.status, 200);
-  assert.match(await usage.text(), /--source proxy/);
+  const page = await usage.text();
+  assert.match(page, /--source proxy/);
+  assert.ok(page.includes(`${MIRROR}/install.sh | sh -s -- --source proxy`));
   assert.deepEqual(calls, []);
 });
 
