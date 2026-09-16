@@ -66,6 +66,9 @@ function resolveTarget(pathname, origin) {
     return null;
   }
   const base = `${origin.origin}${origin.pathname}`;
+  if (path === '/install.sh') {
+    return new URL(`${base}/releases/latest/download/install.sh`);
+  }
   if (path.startsWith('/https:/')) {
     return releaseTarget(parseUrl(path.replace(/^\/https:\/*/, 'https://')), origin);
   }
@@ -166,6 +169,7 @@ function usage(configuration) {
     'Supported URLs:',
     `  https://${domain}/${repository}/releases/download/<tag>/<asset>`,
     `  https://${domain}${path}/releases/download/<tag>/<asset>`,
+    `  https://${domain}/install.sh`,
     `  https://${domain}/latest/<asset>`,
     `  https://${domain}/v<major>.<minor>.<patch>/<asset>`,
     '',

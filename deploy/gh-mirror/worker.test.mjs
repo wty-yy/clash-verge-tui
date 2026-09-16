@@ -84,6 +84,15 @@ test('serves clean repository paths', async () => {
   assert.deepEqual(calls, [`https://github.com/${REPOSITORY}/releases/download/${VERSION}/${ASSET}`]);
 });
 
+test('serves the installer from the mirror root', async () => {
+  const { calls, ctx } = environment();
+  const response = await worker.fetch(request('/install.sh'), {}, ctx);
+  assert.equal(response.status, 200);
+  assert.deepEqual(calls, [`https://github.com/${REPOSITORY}/releases/latest/download/install.sh`]);
+  assert.equal(response.headers.get('cache-control'), 'public, max-age=300');
+  assert.equal(await response.text(), `mirror fixture: https://github.com/${REPOSITORY}/releases/latest/download/install.sh`);
+});
+
 test('resolves the latest and version shortcuts', async () => {
   const latest = environment();
   const latestResponse = await worker.fetch(request(`/latest/${ASSET}`), {}, latest.ctx);

@@ -19,6 +19,7 @@ Both variables default to the values above. `wrangler.json` already fills `vars`
 | --- | --- |
 | `/https://github.com/<owner>/<repo>/releases/download/<tag>/<asset>` | Compatible with the gh-proxy prefix convention; `--github-proxy https://gh.wty-yy.top` works directly |
 | `/<owner>/<repo>/releases/download/<tag>/<asset>` | Plain path without the prefix |
+| `/install.sh` | Installer script of the latest release, cached 5 minutes |
 | `/latest/<asset>` | GitHub resolves the latest release; cached 5 minutes |
 | `/v<major>.<minor>.<patch>/<asset>` | Pinned version; cached 1 year |
 
@@ -51,8 +52,8 @@ curl -fsSL https://gh.wty-yy.top/health
 # Download a checksum file (small, suitable for connectivity checks)
 curl -fsSL https://gh.wty-yy.top/v1.5.0/clash-verge-tui-v1.5.0-linux-x86_64.tar.gz.sha256
 
-# Install through the mirror; archives are still verified against the published SHA-256
-curl -fsSL https://github.com/wty-yy/clash-verge-tui/releases/latest/download/install.sh | sh -s -- --source proxy
+# Install through the mirror: script and archives both use it; archives are still verified against the published SHA-256
+curl -fsSL https://gh.wty-yy.top/install.sh | sh -s -- --source proxy
 ```
 
 The release workflow writes the tag version into the published `install.sh` `release_version` during publish.

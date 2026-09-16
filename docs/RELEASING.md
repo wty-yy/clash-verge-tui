@@ -68,8 +68,8 @@ Linux 组合包同时包含固定 GeoSite 快照。更新快照时，同步 `src
 
 
 ```bash
-# 通过镜像安装
-curl -fsSL https://github.com/wty-yy/clash-verge-tui/releases/latest/download/install.sh | sh -s -- --source proxy
+# 通过镜像安装（脚本与归档都走镜像）
+curl -fsSL https://gh.wty-yy.top/install.sh | sh -s -- --source proxy
 
 # 检查安装结果
 clash-verge-tui --check

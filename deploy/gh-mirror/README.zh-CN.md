@@ -19,6 +19,7 @@
 | --- | --- |
 | `/https://github.com/<owner>/<repo>/releases/download/<tag>/<asset>` | 与 gh-proxy 前缀约定兼容，`--github-proxy https://gh.wty-yy.top` 直接可用 |
 | `/<owner>/<repo>/releases/download/<tag>/<asset>` | 去掉前缀的常规路径 |
+| `/install.sh` | 最新版本的安装脚本，缓存 5 分钟 |
 | `/latest/<asset>` | 由 GitHub 解析最新版本，缓存 5 分钟 |
 | `/v<major>.<minor>.<patch>/<asset>` | 指定版本，缓存 1 年 |
 
@@ -51,8 +52,8 @@ curl -fsSL https://gh.wty-yy.top/health
 # 下载校验文件（小文件，适合检查连通性）
 curl -fsSL https://gh.wty-yy.top/v1.5.0/clash-verge-tui-v1.5.0-linux-x86_64.tar.gz.sha256
 
-# 让 install.sh 走镜像下载，归档仍校验发布版 SHA-256
-curl -fsSL https://github.com/wty-yy/clash-verge-tui/releases/latest/download/install.sh | sh -s -- --source proxy
+# 经镜像引导安装：脚本与归档都走镜像，归档仍校验发布版 SHA-256
+curl -fsSL https://gh.wty-yy.top/install.sh | sh -s -- --source proxy
 ```
 
 发行版 `install.sh` 的 `release_version` 由 Release 工作流在 publish 阶段写入标签版本。
