@@ -6,7 +6,7 @@ See the [feature mapping](docs/FEATURES.md) for planned work.
 
 ## v1.5.0 · 2026-09-16
 
-1. Download `--source proxy` installs through the project Cloudflare Worker mirror `https://gh.wty-yy.top`; `--github-proxy` still switches to other prefixes
+1. Download `--source proxy` installs through the project Cloudflare Worker mirror `https://clash-verge-tui.wty-yy.top`; `--github-proxy` still switches to other prefixes
 2. Write the release tag into the published `install.sh` at publish time and check the pinned version in CI, so `--source proxy` installs the current release instead of v1.4.8
 3. Add the `deploy/gh-mirror/` Worker with `MIRROR_DOMAIN` and `ORIGIN` variables, release-asset whitelisting, edge caching, and `node --test` coverage
 

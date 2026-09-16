@@ -3,7 +3,7 @@ set -eu
 
 release_version="v1.5.0"
 source="github"
-github_proxy="${CLASH_VERGE_TUI_GITHUB_PROXY:-https://gh.wty-yy.top}"
+github_proxy="${CLASH_VERGE_TUI_GITHUB_PROXY:-https://clash-verge-tui.wty-yy.top}"
 repository="${CLASH_VERGE_TUI_REPOSITORY:-https://github.com/wty-yy/clash-verge-tui}"
 install_dir="${CLASH_VERGE_TUI_INSTALL_DIR:-${HOME}/.local/bin}"
 library_dir="$(dirname "$install_dir")/lib/clash-verge-tui"

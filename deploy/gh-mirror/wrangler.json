@@ -4,12 +4,12 @@
   "compatibility_date": "2026-09-16",
   "routes": [
     {
-      "pattern": "gh.wty-yy.top",
+      "pattern": "clash-verge-tui.wty-yy.top",
       "custom_domain": true
     }
   ],
   "vars": {
-    "MIRROR_DOMAIN": "gh.wty-yy.top",
+    "MIRROR_DOMAIN": "clash-verge-tui.wty-yy.top",
     "ORIGIN": "https://github.com/wty-yy/clash-verge-tui"
   }
 }

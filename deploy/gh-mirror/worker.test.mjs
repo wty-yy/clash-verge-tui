@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import worker from './worker.js';
 
-const MIRROR = 'https://gh.wty-yy.top';
+const MIRROR = 'https://clash-verge-tui.wty-yy.top';
 const REPOSITORY = 'wty-yy/clash-verge-tui';
 const VERSION = 'v1.4.11';
 const ASSET = 'clash-verge-tui-v1.4.11-linux-x86_64.tar.gz';
@@ -191,7 +191,7 @@ test('rejects an invalid ORIGIN variable', async () => {
 
 test('ships the default deployment configuration', () => {
   const configuration = JSON.parse(readFileSync(new URL('./wrangler.json', import.meta.url), 'utf8'));
-  assert.equal(configuration.vars.MIRROR_DOMAIN, 'gh.wty-yy.top');
+  assert.equal(configuration.vars.MIRROR_DOMAIN, 'clash-verge-tui.wty-yy.top');
   assert.equal(configuration.vars.ORIGIN, 'https://github.com/wty-yy/clash-verge-tui');
   assert.equal(configuration.routes[0].custom_domain, true);
 });

@@ -1,7 +1,7 @@
-// Cloudflare Worker: transparent GitHub release mirror for gh.wty-yy.top.
+// Cloudflare Worker: transparent GitHub release mirror for clash-verge-tui.wty-yy.top.
 //
 // Configured with two variables:
-//   MIRROR_DOMAIN  public mirror hostname, e.g. gh.wty-yy.top
+//   MIRROR_DOMAIN  public mirror hostname, e.g. clash-verge-tui.wty-yy.top
 //   ORIGIN         upstream repository, e.g. https://github.com/wty-yy/clash-verge-tui
 //
 // Accepted URL forms (all resolve to <ORIGIN>/releases/...):
@@ -12,7 +12,7 @@
 //
 // Only release assets of the configured repository are proxied; files are
 // neither stored nor rewritten, responses are cached at the Cloudflare edge.
-const DEFAULT_DOMAIN = 'gh.wty-yy.top';
+const DEFAULT_DOMAIN = 'clash-verge-tui.wty-yy.top';
 const DEFAULT_ORIGIN = 'https://github.com/wty-yy/clash-verge-tui';
 const PINNED_TTL = 31536000;
 const LATEST_TTL = 300;

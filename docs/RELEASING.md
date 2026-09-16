@@ -64,12 +64,12 @@ Linux 组合包同时包含固定 GeoSite 快照。更新快照时，同步 `src
 
 ## 国内代理下载
 
-发行版安装脚本支持 `--source proxy`，默认使用项目维护的 Cloudflare Worker 镜像 `https://gh.wty-yy.top`（源码与部署说明见 `deploy/gh-mirror/`），可用 `--github-proxy https://gh-proxy.com` 切换到社区前缀。代理/镜像仅转发 GitHub Release，安装脚本仍校验归档和 SHA-256 文件。Release 工作流在 publish 阶段把标签版本写入发行版 `install.sh` 的 `release_version`，避免 `--source proxy` 固定到旧版本。
+发行版安装脚本支持 `--source proxy`，默认使用项目维护的 Cloudflare Worker 镜像 `https://clash-verge-tui.wty-yy.top`（源码与部署说明见 `deploy/gh-mirror/`），可用 `--github-proxy https://gh-proxy.com` 切换到社区前缀。代理/镜像仅转发 GitHub Release，安装脚本仍校验归档和 SHA-256 文件。Release 工作流在 publish 阶段把标签版本写入发行版 `install.sh` 的 `release_version`，避免 `--source proxy` 固定到旧版本。
 
 
 ```bash
 # 通过镜像安装（脚本与归档都走镜像）
-curl -fsSL https://gh.wty-yy.top/install.sh | sh -s -- --source proxy
+curl -fsSL https://clash-verge-tui.wty-yy.top/install.sh | sh -s -- --source proxy
 
 # 检查安装结果
 clash-verge-tui --check

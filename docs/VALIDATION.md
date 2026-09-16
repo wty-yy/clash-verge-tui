@@ -270,6 +270,6 @@
 ### v1.5.0 发布验证 · 2026-09-16
 
 - 本地检查通过：`sh -n scripts/install.sh`、13 项安装脚本回归、13 项 `deploy/gh-mirror` Worker 测试、`cargo fmt --check`、Clippy、完整 Rust 测试套件、`cargo build --locked --release`；`--version` 为 `1.5.0`
-- `gh.wty-yy.top` 镜像实测：`/health` 返回 `ok`；镜像下载的校验文件与 23 MB 完整包 SHA-256 与发布值一致，响应头含 `x-mirror` 与 `x-mirror-cache`
+- `clash-verge-tui.wty-yy.top` 镜像实测：`/health` 返回 `ok`；镜像下载的校验文件与 23 MB 完整包 SHA-256 与发布值一致，响应头含 `x-mirror` 与 `x-mirror-cache`
 - 临时 HOME 中运行发行版 `install.sh --source proxy`，经镜像安装 `v1.5.0` 与 mihomo `v1.19.29`；`--check` 返回 `app_version 1.5.0`、`expected_core v1.19.29`、`managed true`
 - 远端 CI 与标签 CI 通过；Release 工作流双架构 musl 构建、Ubuntu 20.04 容器安装验证与 publish 通过（x86_64 首次运行出现一次瞬时控制器响应失败，重跑通过）

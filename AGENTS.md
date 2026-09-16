@@ -109,7 +109,7 @@
 - 已发布标签不移动，不为整理提交信息而擅自重写已推送历史。用户明确要求重写时，先保留可恢复的 Git 历史备份。
 - 合并远端已有内容时保留其提交历史；不要用强制推送覆盖远端初始化内容。
 - 详细流程见 `docs/RELEASING.md`。推送正式版本标签后由 Release 工作流创建 GitHub Release；不得发布缺少任一架构、校验文件或 `install.sh` 的版本。
-- 安装脚本默认从 GitHub 安装；`--source proxy` / `--github-proxy` 只替换传输路径，仍校验归档 SHA-256，改动下载逻辑时保留该保证。`--source proxy` 默认使用项目维护的 Cloudflare Worker 镜像 `https://gh.wty-yy.top`（源码、测试与部署说明见 `deploy/gh-mirror/`，通过 `MIRROR_DOMAIN` 与 `ORIGIN` 两个变量配置，只转发所配置仓库的 release 资产），可用 `--github-proxy` 换成其他前缀；Release 工作流在 publish 阶段把标签版本写入发行版 `install.sh`。镜像同时提供 `/install.sh` 引导入口，直接返回最新版本的安装脚本。
+- 安装脚本默认从 GitHub 安装；`--source proxy` / `--github-proxy` 只替换传输路径，仍校验归档 SHA-256，改动下载逻辑时保留该保证。`--source proxy` 默认使用项目维护的 Cloudflare Worker 镜像 `https://clash-verge-tui.wty-yy.top`（源码、测试与部署说明见 `deploy/gh-mirror/`，通过 `MIRROR_DOMAIN` 与 `ORIGIN` 两个变量配置，只转发所配置仓库的 release 资产），可用 `--github-proxy` 换成其他前缀；Release 工作流在 publish 阶段把标签版本写入发行版 `install.sh`。镜像同时提供 `/install.sh` 引导入口，直接返回最新版本的安装脚本。
 
 ## 文档与许可
 

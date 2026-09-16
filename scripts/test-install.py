@@ -14,7 +14,7 @@ INSTALLER = Path(__file__).resolve().with_name('install.sh')
 PINNED_VERSION = re.search(r'^release_version="(v[0-9]+\.[0-9]+\.[0-9]+)"$', INSTALLER.read_text(), re.MULTILINE).group(1)
 NUMERIC_VERSION = PINNED_VERSION.removeprefix('v')
 REPOSITORY = 'https://github.com/wty-yy/clash-verge-tui'
-MIRROR = 'https://gh.wty-yy.top'
+MIRROR = 'https://clash-verge-tui.wty-yy.top'
 MOCK_CURL = r'''#!/usr/bin/env python3
 import json, os, pathlib, sys
 args = sys.argv[1:]
@@ -157,7 +157,7 @@ class InstallerTests(unittest.TestCase):
         result = self.run_installer('--source', 'proxy')
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertTrue((self.root / 'custom/bin/clash-verge-tui').is_file())
-        self.assertNotIn('gh.wty-yy.top', self.log.read_text())
+        self.assertNotIn('clash-verge-tui.wty-yy.top', self.log.read_text())
 
     def test_missing_release_is_actionable(self):
         result = self.run_installer('--source', 'proxy')
