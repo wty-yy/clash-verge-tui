@@ -8,11 +8,11 @@
 
 该项目为个人使用而制作，使用 ChatGPT 辅助开发，界面与功能映射参考 Clash Verge Rev v2.5.2。该项目非 Clash Verge / Clash Verge Rev 官方制作，与其开发团队无隶属关系。
 
-`v1.4.10` 默认启动自管工作区和随应用固定的 mihomo v1.19.29。Linux x86_64/aarch64 发行包包含 musl 静态链接 TUI、固定内核和固定版本的 `GeoSite.dat`，不依赖系统 glibc；安装脚本兼容 Ubuntu 20.04 的 curl 7.68 等旧版本。首页快捷控制显示并可修改当前混合代理端口，默认监听 `127.0.0.1:7890`。
+`v1.4.11` 默认启动自管工作区和随应用固定的 mihomo v1.19.29。Linux x86_64/aarch64 发行包包含 musl 静态链接 TUI、固定内核和固定版本的 `GeoSite.dat`，不依赖系统 glibc；安装脚本兼容 Ubuntu 20.04 的 curl 7.68 等旧版本。首页快捷控制显示并可修改当前混合代理端口，默认监听 `127.0.0.1:7890`。
 
 ## 安装与启动
 
-支持 Linux x86_64 与 aarch64。需要 UTF-8 终端，推荐尺寸 `120 × 40`，最低 `76 × 24`。
+支持 Linux x86_64 与 aarch64。需要 UTF-8 终端，推荐尺寸 `120 × 40`；小于 `76 × 24` 时左侧导航自动收起，简要信息并入底部提示行，主内容在极小窗口中也能继续使用。
 
 ```bash
 # 一键安装最新发行版到 ~/.local/bin，并同步安装 mihomo v1.19.29
@@ -45,7 +45,7 @@ clash-verge-tui --demo
 | `~/.local/lib/clash-verge-tui/GeoSite.dat` | 随包固定版本的 Mihomo GeoSite 数据 |
 | `~/.local/lib/clash-verge-tui/GEOSITE-LICENSE` | GeoSite 数据的 GPL-3.0 许可文本 |
 
-代理服务由第三方运营，只负责传输 GitHub 发行包；安装脚本仍会校验官方发布的 SHA-256。可设置 `CLASH_VERGE_TUI_VERSION=v1.4.10` 选择已发布版本；`CLASH_VERGE_TUI_ASSET_BASE_URL` 可用于测试兼容镜像。
+代理服务由第三方运营，只负责传输 GitHub 发行包；安装脚本仍会校验官方发布的 SHA-256。可设置 `CLASH_VERGE_TUI_VERSION=v1.4.11` 选择已发布版本；`CLASH_VERGE_TUI_ASSET_BASE_URL` 可用于测试兼容镜像。
 
 源码构建同样可用。找不到发行包内核时，程序会将 Mihomo 官方 v1.19.29 下载到 `${XDG_DATA_HOME:-$HOME/.local/share}/clash-verge-tui/core/`，校验压缩包与解压后二进制，再复制到当前工作区。工作区内核损坏、被替换或被独立升级后，会在下次启动恢复为应用固定版本。
 

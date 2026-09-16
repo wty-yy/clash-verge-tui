@@ -69,7 +69,10 @@ fn block(title: impl Into<String>, p: Palette) -> Block<'static> {
         .style(Style::default().bg(p.panel))
 }
 fn text(f: &mut Frame, r: Rect, s: impl Into<Text<'static>>, color: Color) {
-    f.render_widget(Paragraph::new(s).style(Style::default().fg(color)), r);
+    f.render_widget(
+        Paragraph::new(s).style(Style::default().fg(color)),
+        r.intersection(f.area()),
+    );
 }
 fn inset(r: Rect, x: u16, y: u16) -> Rect {
     r.inner(Margin::new(x, y))
@@ -91,6 +94,7 @@ fn button(
     p: Palette,
     primary: bool,
 ) {
+    let r = r.intersection(f.area());
     f.render_widget(
         Paragraph::new(label.to_string()).centered().style(
             Style::default()
@@ -101,6 +105,65 @@ fn button(
     );
     app.hits.push((r, action));
 }
+const SHELL_MIN_WIDTH: u16 = 76;
+const SHELL_MIN_HEIGHT: u16 = 24;
+const TINY_WIDTH: u16 = 20;
+const TINY_HEIGHT: u16 = 6;
+
+fn nav_width(app: &App, compact: bool) -> u16 {
+    if app.language == locale::Language::English {
+        if compact {
+            20
+        } else {
+            25
+        }
+    } else if compact {
+        17
+    } else {
+        23
+    }
+}
+fn nav_brief(app: &App) -> String {
+    let marker = match &app.live {
+        Some(live) if live.connected => "● LIVE",
+        Some(_) => "○ LIVE",
+        None => "● DEMO",
+    };
+    format!(
+        "{}/{} {} · {}",
+        app.page.index() + 1,
+        Page::ALL.len(),
+        app.page.localized_title(app.language),
+        marker
+    )
+}
+fn minimal(f: &mut Frame, app: &mut App, area: Rect, p: Palette) {
+    text(
+        f,
+        line_area(area, 0, 1),
+        format!("CLASH VERGE TUI · v{}", env!("CARGO_PKG_VERSION")),
+        p.accent,
+    );
+    if area.height >= 2 {
+        text(
+            f,
+            line_area(area, 1, 1),
+            format!(
+                "{} {} / {}",
+                app.page.index() + 1,
+                app.page.localized_title(app.language),
+                app.page.slug().to_uppercase()
+            ),
+            p.text,
+        );
+    }
+    if area.height >= 3 {
+        text(f, line_area(area, 2, 1), tr(&app.status), p.green);
+    }
+    if area.height >= 4 {
+        text(f, line_area(area, 3, 1), t("Enter 操作 · q 退出"), p.muted);
+    }
+}
 pub fn draw(f: &mut Frame, app: &mut App) {
     let _language = locale::use_language(app.language);
     let p = Palette::new(app);
@@ -110,33 +173,32 @@ pub fn draw(f: &mut Frame, app: &mut App) {
         Block::default().style(Style::default().bg(p.bg).fg(p.text)),
         area,
     );
-    if area.width < 76 || area.height < 24 {
-        f.render_widget(Paragraph::new(locale::format("CLASH VERGE TUI · v{}\n\n请将终端调整至至少 76 × 24\n建议尺寸 120 × 40\n\nq / Ctrl+C 退出", &[env!("CARGO_PKG_VERSION").to_string()])).centered().style(Style::default().fg(p.accent)).block(block(t("终端尺寸"),p)),area);
+    if area.width < TINY_WIDTH || area.height < TINY_HEIGHT {
+        minimal(f, app, area, p);
         return;
     }
     let compact = area.width < 100 || app.state.value("compact") == "开启";
-    let shell = Layout::horizontal([
-        Constraint::Length(if app.language == locale::Language::English {
-            if compact {
-                20
-            } else {
-                25
-            }
-        } else if compact {
-            17
-        } else {
-            23
-        }),
-        Constraint::Min(0),
-    ])
-    .split(area);
-    sidebar(f, app, shell[0], p, compact);
-    let main = inset(shell[1], 2, 1);
+    let full = area.width >= SHELL_MIN_WIDTH && area.height >= SHELL_MIN_HEIGHT;
+    let (main, narrow) = if full {
+        let shell = Layout::horizontal([
+            Constraint::Length(nav_width(app, compact)),
+            Constraint::Min(0),
+        ])
+        .split(area);
+        sidebar(f, app, shell[0], p, compact);
+        (inset(shell[1], 2, 1), false)
+    } else {
+        (inset(area, 1, 0), true)
+    };
+    let show_desc = !narrow || main.height >= 15;
+    let show_banner = !narrow || main.height >= 11;
+    let show_status = main.height >= 7;
     let parts = Layout::vertical([
-        Constraint::Length(4),
+        Constraint::Length(if narrow { 1 + u16::from(show_desc) } else { 4 }),
+        Constraint::Length(u16::from(show_banner)),
+        Constraint::Min(1),
+        Constraint::Length(u16::from(show_status)),
         Constraint::Length(1),
-        Constraint::Min(0),
-        Constraint::Length(2),
     ])
     .split(main);
     let heading = Line::from(vec![
@@ -150,12 +212,14 @@ pub fn draw(f: &mut Frame, app: &mut App) {
         ),
     ]);
     text(f, line_area(parts[0], 0, 1), heading, p.text);
-    text(
-        f,
-        line_area(parts[0], 2, 1),
-        app.page.localized_description(app.language),
-        p.muted,
-    );
+    if show_desc {
+        text(
+            f,
+            line_area(parts[0], if narrow { 1 } else { 2 }, 1),
+            app.page.localized_description(app.language),
+            p.muted,
+        );
+    }
     if parts[0].width > 44 {
         let badge = Rect::new(parts[0].right() - 29, parts[0].y, 29, 1);
         let label = match &app.live {
@@ -174,37 +238,41 @@ pub fn draw(f: &mut Frame, app: &mut App) {
             },
         );
     }
-    let banner = Line::from(vec![
-        Span::styled(
-            if app.live.is_some() {
-                t(" 真实内核 ")
-            } else {
-                t(" 演示工作区 ")
-            },
-            Style::default()
-                .fg(if app.live.is_some() {
-                    p.green
+    if show_banner {
+        let banner = Line::from(vec![
+            Span::styled(
+                if app.live.is_some() {
+                    t(" 真实内核 ")
                 } else {
-                    p.yellow
-                })
-                .bg(p.raised),
-        ),
-        Span::styled(
-            if app.live.is_some() {
-                t("  数据来自 mihomo · 未接入的操作会单独说明")
-            } else {
-                t("  所有网络数据为示例 · 操作仅保存在本地")
-            },
-            Style::default().fg(p.muted),
-        ),
-    ]);
-    text(f, parts[1], banner, p.muted);
+                    t(" 演示工作区 ")
+                },
+                Style::default()
+                    .fg(if app.live.is_some() {
+                        p.green
+                    } else {
+                        p.yellow
+                    })
+                    .bg(p.raised),
+            ),
+            Span::styled(
+                if app.live.is_some() {
+                    t("  数据来自 mihomo · 未接入的操作会单独说明")
+                } else {
+                    t("  所有网络数据为示例 · 操作仅保存在本地")
+                },
+                Style::default().fg(p.muted),
+            ),
+        ]);
+        text(f, parts[1], banner, p.muted);
+    }
     if app.page == Page::Home {
         home(f, app, parts[2], p);
     } else {
         page(f, app, parts[2], p);
     }
-    text(f, line_area(parts[3], 0, 1), tr(&app.status), p.green);
+    if show_status {
+        text(f, line_area(parts[3], 0, 1), tr(&app.status), p.green);
+    }
     let vim = app.state.value("vim") == "开启";
     let vertical = if vim {
         t("↑↓ / j/k 选择")
@@ -221,15 +289,16 @@ pub fn draw(f: &mut Frame, app: &mut App) {
     } else {
         String::new()
     };
-    text(
-        f,
-        line_area(parts[3], 1, 1),
-        locale::format(
-            "{vertical}{horizontal}  Enter/双击 操作  ? 帮助  q 退出",
-            &[vertical.to_string(), horizontal.to_string()],
-        ),
-        p.muted,
+    let keys = locale::format(
+        "{vertical}{horizontal}  Enter/双击 操作  ? 帮助  q 退出",
+        &[vertical.to_string(), horizontal.to_string()],
     );
+    let hint = if narrow {
+        format!("{}  ·  {}  ·  {keys}", nav_brief(app), t("1–8 切换"))
+    } else {
+        keys
+    };
+    text(f, parts[4], hint, p.muted);
     if app.modal.is_some() {
         app.hits.clear();
         modal(f, app, area, p);
@@ -355,27 +424,13 @@ fn resample(history: &[u64], width: usize) -> Vec<u64> {
 
 const TRAFFIC_GRAPH_MAX: u64 = 100 * 1024 * 1024;
 
-fn home(f: &mut Frame, app: &mut App, r: Rect, p: Palette) {
-    let parts = Layout::vertical([
-        Constraint::Length(1),
-        Constraint::Length(5),
-        Constraint::Length((r.height / 3).max(5)),
-        Constraint::Min(0),
-    ])
-    .split(r);
-    let cards = Layout::horizontal([
-        Constraint::Percentage(34),
-        Constraint::Percentage(33),
-        Constraint::Percentage(33),
-    ])
-    .spacing(1)
-    .split(parts[1]);
+fn traffic_values(app: &App) -> [(String, String, String); 3] {
     let down = 2.40 + (app.tick % 19) as f64 / 10.0;
     let up = 128 + app.tick % 80;
-    let values = if let Some(live) = &app.live {
+    if let Some(live) = &app.live {
         [
             (
-                t("下载速率"),
+                t("下载速率").to_string(),
                 live.down_rate
                     .map(|v| format!("{}/s", crate::live::bytes(v)))
                     .unwrap_or(t("等待采样").into()),
@@ -385,14 +440,14 @@ fn home(f: &mut Frame, app: &mut App, r: Rect, p: Palette) {
                 ),
             ),
             (
-                t("上传速率"),
+                t("上传速率").to_string(),
                 live.up_rate
                     .map(|v| format!("{}/s", crate::live::bytes(v)))
                     .unwrap_or(t("等待采样").into()),
                 locale::format("累计 {}", &[crate::live::bytes(live.uploaded).to_string()]),
             ),
             (
-                t("活动连接"),
+                t("活动连接").to_string(),
                 locale::format("{} 会话", &[format!("{}", app.state.connections.len())]),
                 if app.state.value("memory") == "开启" {
                     live.memory
@@ -406,17 +461,17 @@ fn home(f: &mut Frame, app: &mut App, r: Rect, p: Palette) {
     } else {
         [
             (
-                t("下载速率 · 演示"),
+                t("下载速率 · 演示").to_string(),
                 format!("{down:.2} MiB/s"),
                 t("累计  1.82 GiB").to_string(),
             ),
             (
-                t("上传速率 · 演示"),
+                t("上传速率 · 演示").to_string(),
                 format!("{up} KiB/s"),
                 t("累计  248.6 MiB").to_string(),
             ),
             (
-                t("活动连接 · 演示"),
+                t("活动连接 · 演示").to_string(),
                 locale::format("{} 会话", &[format!("{}", app.state.connections.len())]),
                 if app.state.value("memory") == "开启" {
                     t("内存  48.2 MiB")
@@ -426,19 +481,9 @@ fn home(f: &mut Frame, app: &mut App, r: Rect, p: Palette) {
                 .to_string(),
             ),
         ]
-    };
-    for (i, (title, value, extra)) in values.into_iter().enumerate() {
-        f.render_widget(block(title, p), cards[i]);
-        let inner = inset(cards[i], 2, 1);
-        text(
-            f,
-            line_area(inner, 0, 1),
-            Line::from(Span::styled(value, Style::default().bold())),
-            if i == 1 { p.accent } else { p.green },
-        );
-        text(f, line_area(inner, 2, 1), extra, p.muted);
     }
-    let graph = inset(parts[2], 0, 0);
+}
+fn traffic_graph(f: &mut Frame, app: &App, r: Rect, p: Palette) {
     f.render_widget(
         block(
             if app.live.is_some() {
@@ -448,10 +493,10 @@ fn home(f: &mut Frame, app: &mut App, r: Rect, p: Palette) {
             },
             p,
         ),
-        graph,
+        r,
     );
     if app.state.value("traffic_graph") == "开启" {
-        let inner = inset(graph, 2, 1);
+        let inner = inset(r, 2, 1);
         let lines = Layout::vertical([Constraint::Min(1), Constraint::Length(1)]).split(inner);
         let history: Vec<u64> = if let Some(live) = &app.live {
             live.history.iter().copied().collect()
@@ -499,25 +544,29 @@ fn home(f: &mut Frame, app: &mut App, r: Rect, p: Palette) {
     } else {
         text(
             f,
-            inset(graph, 2, 1),
+            inset(r, 2, 1),
             t("流量图已关闭 · 设置 → 界面 → 外观与布局"),
             p.muted,
         );
     }
-    let bottom = Layout::horizontal([Constraint::Percentage(51), Constraint::Percentage(49)])
-        .spacing(1)
-        .split(parts[3]);
-    let controls_focused = app.home_focus == HomeFocus::Controls;
-    let profile_focused = app.home_focus == HomeFocus::Profile;
+}
+fn quick_controls(
+    f: &mut Frame,
+    app: &mut App,
+    r: Rect,
+    p: Palette,
+    focused: bool,
+    title: &'static str,
+) {
     f.render_widget(
-        block(t("快捷控制 · ←"), p).border_style(Style::default().fg(if controls_focused {
+        block(title, p).border_style(Style::default().fg(if focused {
             p.accent
         } else {
             p.border
         })),
-        bottom[0],
+        r,
     );
-    let inner = inset(bottom[0], 2, 1);
+    let inner = inset(r, 2, 1);
     let rows = app.rows();
     let offset = app
         .selected
@@ -530,7 +579,7 @@ fn home(f: &mut Frame, app: &mut App, r: Rect, p: Palette) {
     {
         let line = Line::from(vec![
             Span::styled(
-                if controls_focused && i == app.selected {
+                if focused && i == app.selected {
                     "› "
                 } else {
                     "  "
@@ -549,17 +598,68 @@ fn home(f: &mut Frame, app: &mut App, r: Rect, p: Palette) {
         ]);
         let rect = line_area(inner, (i - offset) as u16, 1);
         f.render_widget(
-            Paragraph::new(line).style(Style::default().bg(
-                if controls_focused && i == app.selected {
-                    p.raised
-                } else {
-                    p.panel
-                },
-            )),
+            Paragraph::new(line).style(Style::default().bg(if focused && i == app.selected {
+                p.raised
+            } else {
+                p.panel
+            })),
             rect,
         );
         app.hits.push((rect, Action::Select(i)));
     }
+}
+fn profile_usage(app: &App) -> String {
+    let index = app.state.active_profile;
+    if let Some(live) = &app.live {
+        live.profiles
+            .get(index)
+            .map(|p| p.usage_label())
+            .unwrap_or(t("外部内核管理").into())
+    } else if let Some(profile) = app.state.profiles.get(index) {
+        locale::format(
+            "{} / {} GB · 示例配额",
+            &[format!("{}", profile.used), format!("{}", profile.total)],
+        )
+    } else {
+        String::new()
+    }
+}
+fn home(f: &mut Frame, app: &mut App, r: Rect, p: Palette) {
+    if r.width < 50 || r.height < 12 {
+        return home_narrow(f, app, r, p);
+    }
+    let parts = Layout::vertical([
+        Constraint::Length(1),
+        Constraint::Length(5),
+        Constraint::Length((r.height / 3).max(5)),
+        Constraint::Min(0),
+    ])
+    .split(r);
+    let cards = Layout::horizontal([
+        Constraint::Percentage(34),
+        Constraint::Percentage(33),
+        Constraint::Percentage(33),
+    ])
+    .spacing(1)
+    .split(parts[1]);
+    for (i, (title, value, extra)) in traffic_values(app).into_iter().enumerate() {
+        f.render_widget(block(title, p), cards[i]);
+        let inner = inset(cards[i], 2, 1);
+        text(
+            f,
+            line_area(inner, 0, 1),
+            Line::from(Span::styled(value, Style::default().bold())),
+            if i == 1 { p.accent } else { p.green },
+        );
+        text(f, line_area(inner, 2, 1), extra, p.muted);
+    }
+    traffic_graph(f, app, parts[2], p);
+    let bottom = Layout::horizontal([Constraint::Percentage(51), Constraint::Percentage(49)])
+        .spacing(1)
+        .split(parts[3]);
+    let controls_focused = app.home_focus == HomeFocus::Controls;
+    let profile_focused = app.home_focus == HomeFocus::Profile;
+    quick_controls(f, app, bottom[0], p, controls_focused, "快捷控制 · ←");
     f.render_widget(
         block(t("当前订阅 · →"), p).border_style(Style::default().fg(if profile_focused {
             p.accent
@@ -572,23 +672,8 @@ fn home(f: &mut Frame, app: &mut App, r: Rect, p: Palette) {
         .push((bottom[1], Action::HomeFocus(HomeFocus::Profile)));
     let inner = inset(bottom[1], 2, 1);
     text(f, line_area(inner, 0, 1), app.active_profile_name(), p.text);
-    if let Some(profile) = app.state.profiles.get(app.state.active_profile) {
-        text(
-            f,
-            line_area(inner, 2, 1),
-            if let Some(live) = &app.live {
-                live.profiles
-                    .get(app.state.active_profile)
-                    .map(|p| p.usage_label())
-                    .unwrap_or(t("外部内核管理").into())
-            } else {
-                locale::format(
-                    "{} / {} GB · 示例配额",
-                    &[format!("{}", profile.used), format!("{}", profile.total)],
-                )
-            },
-            p.muted,
-        );
+    if app.state.profiles.get(app.state.active_profile).is_some() {
+        text(f, line_area(inner, 2, 1), profile_usage(app), p.muted);
         let quota = app
             .live
             .as_ref()
@@ -597,9 +682,13 @@ fn home(f: &mut Frame, app: &mut App, r: Rect, p: Palette) {
             .map(|(used, total, _)| (used as f64 / total as f64).clamp(0.0, 1.0))
             .or_else(|| {
                 if app.live.is_none() {
-                    Some(
-                        (f64::from(profile.used) / f64::from(profile.total.max(1))).clamp(0.0, 1.0),
-                    )
+                    app.state
+                        .profiles
+                        .get(app.state.active_profile)
+                        .map(|profile| {
+                            (f64::from(profile.used) / f64::from(profile.total.max(1)))
+                                .clamp(0.0, 1.0)
+                        })
                 } else {
                     None
                 }
@@ -628,6 +717,70 @@ fn home(f: &mut Frame, app: &mut App, r: Rect, p: Palette) {
             p,
             profile_focused,
         );
+    }
+}
+fn home_narrow(f: &mut Frame, app: &mut App, r: Rect, p: Palette) {
+    let graph_rows = if r.height >= 11 { 4 } else { 0 };
+    let profile_rows = if r.height >= 9 { 2 } else { 0 };
+    let parts = Layout::vertical([
+        Constraint::Length(1),
+        Constraint::Length(graph_rows),
+        Constraint::Min(3),
+        Constraint::Length(profile_rows),
+    ])
+    .split(r);
+    let values = traffic_values(app);
+    text(
+        f,
+        parts[0],
+        Line::from(vec![
+            Span::styled(
+                format!("↓ {}", values[0].1),
+                Style::default().fg(p.green).bold(),
+            ),
+            Span::raw("   "),
+            Span::styled(
+                format!("↑ {}", values[1].1),
+                Style::default().fg(p.accent).bold(),
+            ),
+            Span::styled(format!("   {}", values[2].1), Style::default().fg(p.muted)),
+        ]),
+        p.text,
+    );
+    if graph_rows > 0 {
+        traffic_graph(f, app, parts[1], p);
+    }
+    quick_controls(
+        f,
+        app,
+        parts[2],
+        p,
+        app.home_focus == HomeFocus::Controls,
+        "快捷控制",
+    );
+    if profile_rows > 0 {
+        let focused = app.home_focus == HomeFocus::Profile;
+        text(
+            f,
+            line_area(parts[3], 0, 1),
+            Line::from(vec![
+                Span::styled(
+                    if focused { "› " } else { "  " },
+                    Style::default().fg(p.accent),
+                ),
+                Span::styled(
+                    app.active_profile_name(),
+                    Style::default().fg(p.text).add_modifier(if focused {
+                        Modifier::BOLD
+                    } else {
+                        Modifier::empty()
+                    }),
+                ),
+            ]),
+            p.text,
+        );
+        text(f, line_area(parts[3], 1, 1), profile_usage(app), p.muted);
+        app.hits.push((parts[3], Action::ProfileButton));
     }
 }
 fn toolbar(app: &App) -> Vec<(&'static str, Action)> {
@@ -762,12 +915,32 @@ fn toolbar(app: &App) -> Vec<(&'static str, Action)> {
 }
 fn page(f: &mut Frame, app: &mut App, r: Rect, p: Palette) {
     let has_tabs = !app.tabs().is_empty();
+    let tight = r.width < 48 || r.height < 12;
+    let detail_rows = if tight {
+        if r.height >= 14 {
+            2
+        } else {
+            0
+        }
+    } else if r.height >= 23 {
+        3
+    } else {
+        2
+    };
     let parts = Layout::vertical([
-        Constraint::Length(if has_tabs { 2 } else { 1 }),
-        Constraint::Length(3),
+        Constraint::Length(if has_tabs {
+            if tight {
+                1
+            } else {
+                2
+            }
+        } else {
+            1
+        }),
+        Constraint::Length(if tight { 1 } else { 3 }),
         Constraint::Length(1),
-        Constraint::Min(3),
-        Constraint::Length(if r.height >= 23 { 3 } else { 2 }),
+        Constraint::Min(if tight { 1 } else { 3 }),
+        Constraint::Length(detail_rows),
     ])
     .split(r);
     if has_tabs {
@@ -788,7 +961,7 @@ fn page(f: &mut Frame, app: &mut App, r: Rect, p: Palette) {
             if x + w > parts[0].right() {
                 break;
             }
-            let rect = Rect::new(x, parts[0].y + 1, w, 1);
+            let rect = Rect::new(x, parts[0].y + u16::from(!tight), w, 1);
             button(
                 f,
                 app,
@@ -886,12 +1059,16 @@ fn page(f: &mut Frame, app: &mut App, r: Rect, p: Palette) {
     } else {
         summary
     };
-    f.render_widget(
-        Paragraph::new(summary)
-            .style(Style::default().fg(p.accent))
-            .block(block("", p)),
-        parts[1],
-    );
+    if tight {
+        text(f, parts[1], summary, p.accent);
+    } else {
+        f.render_widget(
+            Paragraph::new(summary)
+                .style(Style::default().fg(p.accent))
+                .block(block("", p)),
+            parts[1],
+        );
+    }
     let mut x = parts[2].x;
     for (label, action) in toolbar(app) {
         let w = label.width() as u16 + 2;
@@ -929,7 +1106,7 @@ fn page(f: &mut Frame, app: &mut App, r: Rect, p: Palette) {
             ],
         )
     };
-    let (headers, mut widths) = columns(app);
+    let (headers, mut widths, indices) = column_plan(app, parts[3].width);
     for (header, width) in headers.iter().zip(&mut widths) {
         if let Constraint::Length(length) = width {
             *length = (*length).max(header.width() as u16);
@@ -938,23 +1115,30 @@ fn page(f: &mut Frame, app: &mut App, r: Rect, p: Palette) {
     let table_rows: Vec<Row> = rows
         .iter()
         .map(|r| {
-            Row::new(r.cells.iter().enumerate().map(|(i, s)| {
-                let color = if s.contains(t("超时")) || s.contains(t("不可用")) || s == "ERROR"
-                {
-                    p.yellow
-                } else if s == t("开启")
-                    || s.contains(t("可用"))
-                    || s == "[✓]"
-                    || s == t("[✓] 当前")
-                {
-                    p.green
-                } else if i == 0 {
-                    p.text
-                } else {
-                    p.muted
-                };
-                Cell::from(s.clone()).style(Style::default().fg(color))
-            }))
+            Row::new(
+                indices
+                    .iter()
+                    .filter_map(|i| r.cells.get(*i))
+                    .enumerate()
+                    .map(|(i, s)| {
+                        let color =
+                            if s.contains(t("超时")) || s.contains(t("不可用")) || s == "ERROR"
+                            {
+                                p.yellow
+                            } else if s == t("开启")
+                                || s.contains(t("可用"))
+                                || s == "[✓]"
+                                || s == t("[✓] 当前")
+                            {
+                                p.green
+                            } else if i == 0 {
+                                p.text
+                            } else {
+                                p.muted
+                            };
+                        Cell::from(s.clone()).style(Style::default().fg(color))
+                    }),
+            )
             .height(1)
             .bottom_margin(0)
         })
@@ -1035,20 +1219,34 @@ fn page(f: &mut Frame, app: &mut App, r: Rect, p: Palette) {
             _ => r.cells.join("   ·   "),
         })
         .unwrap_or_else(|| t("使用 / 搜索，Esc 清除筛选。").into());
-    f.render_widget(
-        Paragraph::new(detail)
-            .style(Style::default().fg(p.muted))
-            .wrap(Wrap { trim: false })
-            .block(Block::default().padding(Padding::new(1, 1, 1, 0))),
-        parts[4],
-    );
+    if detail_rows > 0 {
+        f.render_widget(
+            Paragraph::new(detail)
+                .style(Style::default().fg(p.muted))
+                .wrap(Wrap { trim: false })
+                .block(Block::default().padding(Padding::new(1, 1, 1, 0))),
+            parts[4],
+        );
+    }
 }
-fn columns(app: &App) -> (Vec<&'static str>, Vec<Constraint>) {
+fn column_plan(app: &App, width: u16) -> (Vec<&'static str>, Vec<Constraint>, Vec<usize>) {
     use Constraint::*;
+    let narrow = width < 56;
     match app.page {
+        Page::Proxies if narrow => (
+            vec![t("状态"), t("节点名称"), t("延迟")],
+            vec![Length(4), Min(10), Length(8)],
+            vec![0, 1, 4],
+        ),
         Page::Proxies => (
             vec![t("状态"), t("节点名称"), t("协议"), t("地区"), t("延迟")],
             vec![Length(4), Min(14), Length(12), Length(4), Length(8)],
+            vec![0, 1, 2, 3, 4],
+        ),
+        Page::Profiles if app.sub == 0 && narrow => (
+            vec![t("状态"), t("订阅名称"), t("用量")],
+            vec![Length(8), Min(10), Length(10)],
+            vec![0, 1, 2],
         ),
         Page::Profiles if app.sub == 0 => (
             vec![
@@ -1059,10 +1257,22 @@ fn columns(app: &App) -> (Vec<&'static str>, Vec<Constraint>) {
                 t("最近更新"),
             ],
             vec![Length(8), Min(12), Length(13), Length(9), Length(18)],
+            vec![0, 1, 2, 3, 4],
+        ),
+        Page::Profiles if narrow => (
+            vec![t("顺序"), t("名称"), t("状态")],
+            vec![Length(3), Min(10), Length(6)],
+            vec![0, 1, 3],
         ),
         Page::Profiles => (
             vec![t("顺序"), t("名称"), t("类型"), t("状态")],
             vec![Length(5), Min(15), Length(12), Length(6)],
+            vec![0, 1, 2, 3],
+        ),
+        Page::Connections if narrow => (
+            vec![t("目标地址"), t("下载"), t("上传")],
+            vec![Min(12), Length(9), Length(8)],
+            vec![0, 4, 5],
         ),
         Page::Connections => (
             vec![
@@ -1081,10 +1291,22 @@ fn columns(app: &App) -> (Vec<&'static str>, Vec<Constraint>) {
                 Length(10),
                 Length(9),
             ],
+            vec![0, 1, 2, 3, 4, 5],
+        ),
+        Page::Rules if app.sub == 0 && narrow => (
+            vec![t("匹配内容"), t("出站策略")],
+            vec![Min(12), Length(10)],
+            vec![2, 3],
         ),
         Page::Rules if app.sub == 0 => (
             vec![t("状态"), t("类型"), t("匹配内容"), t("出站策略")],
             vec![Length(4), Length(16), Min(15), Length(12)],
+            vec![0, 1, 2, 3],
+        ),
+        Page::Rules if narrow => (
+            vec![t("集合名称"), t("规则数"), t("状态")],
+            vec![Min(10), Length(7), Length(8)],
+            vec![0, 2, 4],
         ),
         Page::Rules => (
             if app.live.is_some() {
@@ -1093,18 +1315,37 @@ fn columns(app: &App) -> (Vec<&'static str>, Vec<Constraint>) {
                 vec![t("集合名称"), t("行为"), t("规则数"), t("策略"), t("状态")]
             },
             vec![Min(12), Length(18), Length(8), Length(8), Length(10)],
+            vec![0, 1, 2, 3, 4],
+        ),
+        Page::Logs if narrow => (
+            vec![t("时间"), t("内容")],
+            vec![Length(8), Min(10)],
+            vec![0, 2],
         ),
         Page::Logs => (
             vec![t("时间"), t("等级"), t("内容")],
             vec![Length(8), Length(6), Min(18)],
+            vec![0, 1, 2],
+        ),
+        Page::Unlock if narrow => (
+            vec![t("服务"), t("结果")],
+            vec![Min(10), Length(14)],
+            vec![0, 2],
         ),
         Page::Unlock => (
             vec![t("服务"), t("类型"), t("结果"), t("区域")],
             vec![Min(20), Length(10), Length(18), Length(5)],
+            vec![0, 1, 2, 3],
+        ),
+        _ if narrow => (
+            vec![t("设置项"), t("说明")],
+            vec![Length(16), Min(8)],
+            vec![0, 1],
         ),
         _ => (
             vec![t("设置项"), t("说明"), ""],
             vec![Length(20), Min(14), Length(2)],
+            vec![0, 1, 2],
         ),
     }
 }
@@ -1123,8 +1364,17 @@ fn redact_url(url: &str) -> String {
     format!("{scheme}://{host}/…")
 }
 fn modal(f: &mut Frame, app: &mut App, area: Rect, p: Palette) {
-    let width = area.width.saturating_sub(8).min(88);
-    let height = area.height.saturating_sub(4).min(34);
+    if area.width < 24 || area.height < 8 {
+        return;
+    }
+    let width = area
+        .width
+        .saturating_sub(if area.width < 48 { 4 } else { 8 })
+        .min(88);
+    let height = area
+        .height
+        .saturating_sub(if area.height < 20 { 2 } else { 4 })
+        .min(34);
     let r = Rect::new(
         (area.width - width) / 2,
         (area.height - height) / 2,
@@ -1245,21 +1495,21 @@ fn modal(f: &mut Frame, app: &mut App, area: Rect, p: Palette) {
             if app.live.is_some() {
                 text(
                     f,
-                    line_area(inner, inner.height - 5, 1),
+                    line_area(inner, inner.height.saturating_sub(5), 1),
                     tr(&app.status),
                     p.yellow,
                 );
             }
             text(
                 f,
-                line_area(inner, inner.height - 3, 1),
+                line_area(inner, inner.height.saturating_sub(3), 1),
                 t("↑↓ 选择   Enter/双击 恢复   d 删除   Esc 关闭"),
                 p.muted,
             );
             button(
                 f,
                 app,
-                Rect::new(inner.x, inner.bottom() - 1, 18, 1),
+                Rect::new(inner.x, inner.bottom().saturating_sub(1), 18, 1),
                 t("b 创建快照"),
                 Action::Key('b'),
                 p,
@@ -1268,7 +1518,7 @@ fn modal(f: &mut Frame, app: &mut App, area: Rect, p: Palette) {
             button(
                 f,
                 app,
-                Rect::new(inner.x + 20, inner.bottom() - 1, 20, 1),
+                Rect::new(inner.x + 20, inner.bottom().saturating_sub(1), 20, 1),
                 t("e WebDAV 设置"),
                 Action::Key('e'),
                 p,
@@ -1474,14 +1724,14 @@ fn modal(f: &mut Frame, app: &mut App, area: Rect, p: Palette) {
             };
             text(
                 f,
-                Rect::new(inner.x, inner.bottom() - 3, inner.width, 1),
+                Rect::new(inner.x, inner.bottom().saturating_sub(3), inner.width, 1),
                 hint,
                 p.yellow,
             );
             button(
                 f,
                 app,
-                Rect::new(inner.x, inner.bottom() - 1, submit_width, 1),
+                Rect::new(inner.x, inner.bottom().saturating_sub(1), submit_width, 1),
                 submit_label,
                 Action::Submit,
                 p,
@@ -1490,7 +1740,12 @@ fn modal(f: &mut Frame, app: &mut App, area: Rect, p: Palette) {
             button(
                 f,
                 app,
-                Rect::new(inner.x + submit_width + 2, inner.bottom() - 1, 15, 1),
+                Rect::new(
+                    inner.x + submit_width + 2,
+                    inner.bottom().saturating_sub(1),
+                    15,
+                    1,
+                ),
                 t("Esc 取消"),
                 Action::Cancel,
                 p,
@@ -1532,7 +1787,7 @@ fn modal(f: &mut Frame, app: &mut App, area: Rect, p: Palette) {
             button(
                 f,
                 app,
-                Rect::new(inner.x, inner.bottom() - 1, 18, 1),
+                Rect::new(inner.x, inner.bottom().saturating_sub(1), 18, 1),
                 t("Esc 关闭"),
                 Action::Cancel,
                 p,
@@ -1540,7 +1795,12 @@ fn modal(f: &mut Frame, app: &mut App, area: Rect, p: Palette) {
             );
             text(
                 f,
-                Rect::new(inner.x + 20, inner.bottom() - 1, inner.width - 20, 1),
+                Rect::new(
+                    inner.x + 20,
+                    inner.bottom().saturating_sub(1),
+                    inner.width.saturating_sub(20),
+                    1,
+                ),
                 t("↑ ↓ 滚动 / PgUp PgDn"),
                 p.muted,
             );
@@ -1577,7 +1837,7 @@ fn modal(f: &mut Frame, app: &mut App, area: Rect, p: Palette) {
             button(
                 f,
                 app,
-                Rect::new(inner.x, inner.bottom() - 1, 16, 1),
+                Rect::new(inner.x, inner.bottom().saturating_sub(1), 16, 1),
                 t("Esc 取消"),
                 Action::Cancel,
                 p,
@@ -1595,12 +1855,17 @@ fn modal(f: &mut Frame, app: &mut App, area: Rect, p: Palette) {
                 Paragraph::new(tr(&body))
                     .wrap(Wrap { trim: false })
                     .style(Style::default().fg(p.text)),
-                Rect::new(inner.x, inner.y + 4, inner.width, inner.height - 7),
+                Rect::new(
+                    inner.x,
+                    inner.y + 4,
+                    inner.width,
+                    inner.height.saturating_sub(7),
+                ),
             );
             button(
                 f,
                 app,
-                Rect::new(inner.x, inner.bottom() - 1, 18, 1),
+                Rect::new(inner.x, inner.bottom().saturating_sub(1), 18, 1),
                 t("Enter 确认"),
                 Action::Submit,
                 p,
@@ -1609,7 +1874,7 @@ fn modal(f: &mut Frame, app: &mut App, area: Rect, p: Palette) {
             button(
                 f,
                 app,
-                Rect::new(inner.x + 20, inner.bottom() - 1, 16, 1),
+                Rect::new(inner.x + 20, inner.bottom().saturating_sub(1), 16, 1),
                 t("Esc 取消"),
                 Action::Cancel,
                 p,
@@ -1655,7 +1920,7 @@ fn modal(f: &mut Frame, app: &mut App, area: Rect, p: Palette) {
             button(
                 f,
                 app,
-                Rect::new(inner.x, inner.bottom() - 1, 16, 1),
+                Rect::new(inner.x, inner.bottom().saturating_sub(1), 16, 1),
                 t("Esc 关闭"),
                 Action::Cancel,
                 p,

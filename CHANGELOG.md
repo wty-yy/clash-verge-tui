@@ -4,6 +4,12 @@
 
 See the [feature mapping](docs/FEATURES.md) for planned work.
 
+## v1.4.11 · 2026-09-16
+
+1. Keep the interface usable at any zoom level: below `76 × 24` the sidebar collapses into the bottom hint, Home metrics condense to one line, and lists drop secondary columns so the main content fills the window down to tiny sizes
+2. Clamp dialogs, fields, and buttons to the visible buffer, fixing the crash when a zoomed terminal opened a form
+3. Pin Rust 1.88.0 through `rust-toolchain.toml` and the CI workflows so local, CI, and release builds use the same compiler
+
 ## v1.4.10 · 2026-09-15
 
 1. Offer a quit choice when the foreground TUI owns the core: keep it running through the workspace systemd user service, stop it, or cancel; sessions attached to a running service print the service name with status and stop commands on exit

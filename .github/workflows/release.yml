@@ -23,8 +23,9 @@ jobs:
     runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@master
         with:
+          toolchain: 1.88.0
           targets: ${{ matrix.target }}
       - name: Resolve and check package version
         id: version

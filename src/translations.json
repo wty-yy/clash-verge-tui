@@ -847,6 +847,10 @@
     "Quick controls · ←",
     "快速控制 · ←"
   ],
+  "快捷控制": [
+    "Quick controls",
+    "快速控制"
+  ],
   "当前订阅 · →": [
     "Active profile · →",
     "目前訂閱 · →"
@@ -1190,6 +1194,14 @@
   "? 帮助": [
     "? Help",
     "? 說明"
+  ],
+  "1–8 切换": [
+    "1–8 Switch page",
+    "1–8 切換頁面"
+  ],
+  "Enter 操作 · q 退出": [
+    "Enter Activate · q Quit",
+    "Enter 操作 · q 結束"
   ],
   "累计 ": [
     "Total ",

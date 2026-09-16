@@ -66,11 +66,65 @@ fn every_page_and_tab_renders_at_supported_sizes_and_in_both_themes() {
     }
 }
 #[test]
-fn undersized_terminal_is_actionable() {
+fn small_terminals_collapse_the_sidebar_into_the_status_hint() {
     let mut a = app();
-    assert!(render(&mut a, 60, 18).contains("76 × 24"));
+    let small = render(&mut a, 60, 18);
+    assert!(small.contains("首页"));
+    assert!(!small.contains("TERMINAL / 01"), "sidebar stays hidden");
+    assert!(small.contains("1/8 首页"), "nav brief moves into the hint");
+    assert!(
+        !small.contains("76 × 24"),
+        "no size gate on small terminals"
+    );
     key(&mut a, KeyCode::Char('q'));
     assert!(a.quit);
+
+    let mut a = app();
+    a.navigate(Page::Proxies);
+    assert!(render(&mut a, 60, 18).contains("2/8 代理"));
+    let full = render(&mut a, 76, 24);
+    assert!(full.contains("TERMINAL / 01"));
+    assert!(!full.contains("2/8 代理"));
+}
+#[test]
+fn every_page_and_tab_renders_in_small_and_tiny_terminals() {
+    for (w, h) in [
+        (76, 20),
+        (60, 18),
+        (48, 14),
+        (40, 12),
+        (30, 10),
+        (20, 8),
+        (18, 5),
+    ] {
+        for page in Page::ALL {
+            let mut a = app();
+            a.navigate(page);
+            for sub in 0..a.tabs().len().max(1) {
+                a.sub = sub;
+                let s = render(&mut a, w, h);
+                assert!(s.contains(page.title()), "{page:?} at {w}x{h}");
+            }
+        }
+    }
+}
+#[test]
+fn modals_stay_readable_in_small_terminals() {
+    for (w, h) in [(76, 24), (48, 14), (40, 12), (34, 11), (24, 10)] {
+        let mut a = app();
+        a.navigate(Page::Profiles);
+        a.command('a');
+        let s = render(&mut a, w, h);
+        assert!(s.contains("添加订阅"), "import form at {w}x{h}");
+        assert!(s.contains("保存") || s.contains("[ 导入 ]"));
+
+        let mut q = app();
+        q.owns_core = true;
+        key(&mut q, KeyCode::Char('q'));
+        let s = render(&mut q, w, h);
+        assert!(matches!(q.modal, Some(Modal::Quit { .. })));
+        assert!(s.contains("后台运行"), "quit choice at {w}x{h}");
+    }
 }
 #[test]
 fn all_settings_forms_scroll_to_every_field_and_save_defaults() {

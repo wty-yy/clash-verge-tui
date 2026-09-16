@@ -6,7 +6,7 @@
 
 - 目标：使用 mihomo 内核，逐步提供与 Clash Verge Rev 功能对应的终端客户端。
 - 参考基线：Clash Verge Rev `v2.5.2` / `28f2efc`。参考仓库位于 `upstream/clash-verge-rev`，由 Git 忽略，不纳入本项目提交。
-- 当前为 `v1.4.x` Linux 可分发版本，版本号以 `Cargo.toml` 为准（写作时 `1.4.10`）：默认启动应用自管工作区，发行包同步携带 Mihomo v1.19.29 与固定 GeoSite.dat 快照，保留显式演示模式。范围见 `docs/FEATURES.md`，历史见 `CHANGELOG.md`。
+- 当前为 `v1.4.x` Linux 可分发版本，版本号以 `Cargo.toml` 为准（写作时 `1.4.11`）：默认启动应用自管工作区，发行包同步携带 Mihomo v1.19.29 与固定 GeoSite.dat 快照，保留显式演示模式。范围见 `docs/FEATURES.md`，历史见 `CHANGELOG.md`。
 - 演示数据必须明确标识；不能将模拟测速、订阅刷新、解锁检测或系统代理状态描述为真实网络结果。
 - 演示状态与实际 Clash Verge 配置分离。界面开发和测试使用独立目录，不启动或修改用户正在使用的代理配置来验证演示交互。
 
@@ -52,6 +52,8 @@
 - 左侧导航使用大点击区域：终端高度至少 32 行时每项 3 行，更矮时每项 2 行。
 - 选中导航项整块高亮、文字加粗，并使用边框或左侧指示线；边框和上下留白都属于点击区域。
 - 8 个导航入口在最低支持尺寸 `76 × 24` 下仍须可见，底部状态不能覆盖导航。推荐尺寸为 `120 × 40`。
+- 小于 `76 × 24` 时自动收起左侧导航：当前页面、连接状态与 `1–8` 切换提示并入底部提示行，主内容占满宽度；`20 × 6` 以上必须正常渲染，更小尺寸只保留标题、页面、状态与退出提示，不能让任何缩放尺寸白屏或报错。
+- 窄窗口下主内容自适应缩放：首页三张速率卡片合并为一行、订阅卡片降为两行；列表移除次要列（协议 / 地区 / 进程 / 出站链等），保留主键与状态列；弹窗按钮和命中区域必须夹紧在屏幕内。
 - 主内容与导航采用不同密度：2–8 页列表使用连续单行，不在条目之间插入空白行。
 - 备份历史、页面跳转列表同样紧凑排列；设置表单去除字段间多余空行，同时保留字段标签和多行编辑区域。
 - 调整行高或间距时，同步修改鼠标命中区域、表头偏移、滚动容量和选中项定位。
@@ -102,7 +104,7 @@
 - 仓库：`https://github.com/wty-yy/clash-verge-tui.git`；主分支及远端默认分支：`master`。
 - 每次提交说明必须以版本号开头，摘要使用英文：`v0.1.5: Compact content lists and settings forms`。
 - 不使用 `feat:`、`fix:`、`docs:` 等作为提交开头；不要使用中文提交摘要。同一版本内允许多个提交共用版本号。
-- 版本从 `v0.1.0` 起迭代，使用语义化版本和带注释的 Git 标签；已发布至 `v1.4.10`，新版本按用户明确要求迭代。
+- 版本从 `v0.1.0` 起迭代，使用语义化版本和带注释的 Git 标签；已发布至 `v1.4.11`，新版本按用户明确要求迭代。
 - 版本更新同步 `Cargo.toml`、`Cargo.lock`、英文 CHANGELOG 和必要的 README 内容；涉及界面时更新预览图。
 - 已发布标签不移动，不为整理提交信息而擅自重写已推送历史。用户明确要求重写时，先保留可恢复的 Git 历史备份。
 - 合并远端已有内容时保留其提交历史；不要用强制推送覆盖远端初始化内容。
@@ -144,7 +146,7 @@ cargo build --locked --release
 
 ## 测试环境与自动化
 
-- 工具链 Rust 1.88+；`cargo test --locked` 需要系统 `gsettings`（Debian/Ubuntu 安装 `libglib2.0-bin`、`gsettings-desktop-schemas`）和 Node.js（CI 使用 24）来运行 GNOME 系统代理与 JavaScript 增强用例。
+- 工具链由根目录 `rust-toolchain.toml` 固定为 Rust 1.88.0（本地与 CI 一致）；`cargo test --locked` 需要系统 `gsettings`（Debian/Ubuntu 安装 `libglib2.0-bin`、`gsettings-desktop-schemas`）和 Node.js（CI 使用 24）来运行 GNOME 系统代理与 JavaScript 增强用例。
 - 测试使用本地 TCP 夹具（`tests/support/`），不需要真实内核或网络；单独运行某个集成测试：`cargo test --locked --test workflows <test_name>`。
 - TUN DNS 使用按 UID/工作区隔离的受限 root 服务，只允许 domain/default-route/dns/revert 四种操作，校验 socket 对端 UID、参数与工作区网卡；不得给系统 `/usr/bin/resolvectl` 全局加能力或使用宽泛的 PolicyKit 免认证规则。
 - 不操作用户正在使用的桌面 Clash Verge 服务、内核或 TUN；网络验证使用独立环境。检测到其他活动 TUN 网卡时，自动路由开启必须在修改网络前拒绝并提示用户自行切换。
