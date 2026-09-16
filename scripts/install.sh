@@ -1,9 +1,9 @@
 #!/bin/sh
 set -eu
 
-release_version="v1.4.8"
+release_version="v1.5.0"
 source="github"
-github_proxy="${CLASH_VERGE_TUI_GITHUB_PROXY:-https://gh-proxy.com}"
+github_proxy="${CLASH_VERGE_TUI_GITHUB_PROXY:-https://gh.wty-yy.top}"
 repository="${CLASH_VERGE_TUI_REPOSITORY:-https://github.com/wty-yy/clash-verge-tui}"
 install_dir="${CLASH_VERGE_TUI_INSTALL_DIR:-${HOME}/.local/bin}"
 library_dir="$(dirname "$install_dir")/lib/clash-verge-tui"
@@ -32,7 +32,7 @@ while [ "$#" -gt 0 ]; do
             shift 2
             ;;
         -h | --help)
-            printf 'Usage: sh install.sh [--source github|proxy] [--github-proxy https://ghfast.top]\n'
+            printf 'Usage: sh install.sh [--source github|proxy] [--github-proxy https://gh-proxy.com]\n'
             printf 'Optional environment: CLASH_VERGE_TUI_VERSION, CLASH_VERGE_TUI_REPOSITORY, CLASH_VERGE_TUI_INSTALL_DIR, CLASH_VERGE_TUI_ASSET_BASE_URL, CLASH_VERGE_TUI_GITHUB_PROXY\n'
             exit 0
             ;;
@@ -97,7 +97,7 @@ trap cleanup EXIT HUP INT TERM
 printf 'Downloading clash-verge-tui %s for Linux %s...\n' "$version" "$architecture"
 printf 'Source: %s\n' "$base_url"
 curl -fL --connect-timeout 15 --max-time 300 --speed-limit 1024 --speed-time 30 --retry 3 --retry-delay 2 ${retry_all_errors} \
-    -o "$temporary_dir/$asset" "$base_url/$asset" || fail "release bundle unavailable at $base_url; try --github-proxy https://ghfast.top or --source github"
+    -o "$temporary_dir/$asset" "$base_url/$asset" || fail "release bundle unavailable at $base_url; try --github-proxy https://gh-proxy.com or --source github"
 curl -fL --connect-timeout 15 --max-time 60 --retry 3 --retry-delay 2 ${retry_all_errors} \
     -o "$temporary_dir/$asset.sha256" "$base_url/$asset.sha256" || fail "release checksum unavailable at $base_url; refusing to install"
 (cd "$temporary_dir" && sha256sum -c "$asset.sha256")

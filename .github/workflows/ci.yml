@@ -16,7 +16,11 @@ jobs:
           node-version: 24
       - run: sudo apt-get update && sudo apt-get install -y libglib2.0-bin gsettings-desktop-schemas
       - run: sh -n scripts/install.sh
+      - name: Check the pinned installer version
+        run: |
+          test "v$(sed -n 's/^version = "\([^"]*\)"/\1/p' Cargo.toml | head -1)" = "$(sed -n 's/^release_version="\([^"]*\)"/\1/p' scripts/install.sh)"
       - run: python3 scripts/test-install.py
+      - run: node --test deploy/gh-mirror/*.test.mjs
       - run: cargo fmt --check
       - run: cargo clippy --locked --all-targets -- -D warnings
       - run: cargo test --locked

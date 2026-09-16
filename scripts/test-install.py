@@ -4,12 +4,17 @@ import io
 import json
 import os
 from pathlib import Path
+import re
 import subprocess
 import tarfile
 import tempfile
 import unittest
 
 INSTALLER = Path(__file__).resolve().with_name('install.sh')
+PINNED_VERSION = re.search(r'^release_version="(v[0-9]+\.[0-9]+\.[0-9]+)"$', INSTALLER.read_text(), re.MULTILINE).group(1)
+NUMERIC_VERSION = PINNED_VERSION.removeprefix('v')
+REPOSITORY = 'https://github.com/wty-yy/clash-verge-tui'
+MIRROR = 'https://gh.wty-yy.top'
 MOCK_CURL = r'''#!/usr/bin/env python3
 import json, os, pathlib, sys
 args = sys.argv[1:]
@@ -57,13 +62,13 @@ class InstallerTests(unittest.TestCase):
                         RESPONSES=str(self.root / 'responses.json'), REQUEST_LOG=str(self.log))
 
     def bundle(self, base, architecture='x86_64', include_geosite=True):
-        asset = f'clash-verge-tui-v1.4.8-linux-{architecture}.tar.gz'
+        asset = f'clash-verge-tui-{PINNED_VERSION}-linux-{architecture}.tar.gz'
         archive = self.root / asset
         files = {
-            'bin/clash-verge-tui': b'#!/bin/sh\necho "clash-verge-tui 1.4.8"\n',
+            'bin/clash-verge-tui': f'#!/bin/sh\necho "clash-verge-tui {NUMERIC_VERSION}"\n'.encode(),
             'lib/clash-verge-tui/mihomo': b'#!/bin/sh\necho "Mihomo Meta v1.19.29"\n',
             'lib/clash-verge-tui/GeoSite.dat': b'fixture geosite data\n',
-            'lib/clash-verge-tui/release.json': b'{"app_version":"1.4.8"}\n',
+            'lib/clash-verge-tui/release.json': f'{{"app_version":"{NUMERIC_VERSION}"}}\n'.encode(),
             'share/licenses/clash-verge-tui/LICENSE': b'fixture TUI license\n',
             'share/licenses/mihomo/LICENSE': b'fixture core license\n',
             'share/licenses/meta-rules-dat/LICENSE': b'fixture geosite license\n',
@@ -96,17 +101,15 @@ class InstallerTests(unittest.TestCase):
         self.assertTrue((self.home / '.local/lib/clash-verge-tui/MIHOMO-LICENSE').is_file())
 
     def test_github_default(self):
-        repo = 'https://github.com/wty-yy/clash-verge-tui'
-        self.responses[repo + '/releases/latest'] = repo + '/releases/tag/v1.4.8'
-        self.bundle(repo + '/releases/download/v1.4.8')
+        self.responses[REPOSITORY + '/releases/latest'] = f'{REPOSITORY}/releases/tag/{PINNED_VERSION}'
+        self.bundle(f'{REPOSITORY}/releases/download/{PINNED_VERSION}')
         self.assert_installed(self.run_installer())
         self.assertNotIn('gitee.com', self.log.read_text())
 
     def test_old_curl_omits_unsupported_retry_option(self):
         self.env['OLD_CURL'] = '1'
-        repo = 'https://github.com/wty-yy/clash-verge-tui'
-        self.responses[repo + '/releases/latest'] = repo + '/releases/tag/v1.4.8'
-        self.bundle(repo + '/releases/download/v1.4.8')
+        self.responses[REPOSITORY + '/releases/latest'] = f'{REPOSITORY}/releases/tag/{PINNED_VERSION}'
+        self.bundle(f'{REPOSITORY}/releases/download/{PINNED_VERSION}')
         self.assert_installed(self.run_installer())
         self.assertNotIn('--retry-all-errors', Path(str(self.log) + '.args').read_text())
 
@@ -119,52 +122,63 @@ class InstallerTests(unittest.TestCase):
         for architecture in ['x86_64', 'aarch64']:
             with self.subTest(architecture=architecture):
                 self.env['TEST_ARCH'] = architecture
-                self.bundle('https://gh-proxy.com/https://github.com/wty-yy/clash-verge-tui/releases/download/v1.4.8', architecture)
+                self.bundle(f'{MIRROR}/{REPOSITORY}/releases/download/{PINNED_VERSION}', architecture)
                 self.assert_installed(self.run_installer('--source', 'proxy'))
-                self.assertTrue(all(url.startswith('https://gh-proxy.com/') for url in self.log.read_text().splitlines()))
+                self.assertTrue(all(url.startswith(MIRROR + '/') for url in self.log.read_text().splitlines()))
                 self.assertNotIn('/latest', self.log.read_text())
 
     def test_explicit_version_skips_api(self):
-        self.env['CLASH_VERGE_TUI_VERSION'] = 'v1.4.8'
-        self.bundle('https://gh-proxy.com/https://github.com/wty-yy/clash-verge-tui/releases/download/v1.4.8')
+        self.env['CLASH_VERGE_TUI_VERSION'] = PINNED_VERSION
+        self.bundle(f'{MIRROR}/{REPOSITORY}/releases/download/{PINNED_VERSION}')
         self.assert_installed(self.run_installer('--source', 'proxy'))
         self.assertNotIn('/api/', self.log.read_text())
 
+    def test_community_proxy_override(self):
+        self.bundle(f'https://gh-proxy.com/{REPOSITORY}/releases/download/{PINNED_VERSION}')
+        self.assert_installed(self.run_installer('--source', 'proxy', '--github-proxy', 'https://gh-proxy.com'))
+        self.assertTrue(all(url.startswith('https://gh-proxy.com/') for url in self.log.read_text().splitlines()))
+
+    def test_github_proxy_environment_override(self):
+        self.env['CLASH_VERGE_TUI_GITHUB_PROXY'] = 'https://mirror.example.com'
+        self.bundle(f'https://mirror.example.com/{REPOSITORY}/releases/download/{PINNED_VERSION}')
+        self.assert_installed(self.run_installer('--source', 'proxy'))
+        self.assertTrue(all(url.startswith('https://mirror.example.com/') for url in self.log.read_text().splitlines()))
+
     def test_repository_override_and_trailing_git(self):
         self.env['CLASH_VERGE_TUI_REPOSITORY'] = 'https://github.com/example/mirror.git/'
-        self.responses['https://github.com/example/mirror/releases/latest'] = 'https://github.com/example/mirror/releases/tag/v1.4.8'
-        self.bundle('https://github.com/example/mirror/releases/download/v1.4.8')
+        self.responses['https://github.com/example/mirror/releases/latest'] = f'https://github.com/example/mirror/releases/tag/{PINNED_VERSION}'
+        self.bundle(f'https://github.com/example/mirror/releases/download/{PINNED_VERSION}')
         self.assert_installed(self.run_installer())
 
     def test_asset_override_and_install_directory(self):
-        self.env.update(CLASH_VERGE_TUI_VERSION='v1.4.8', CLASH_VERGE_TUI_ASSET_BASE_URL='https://example.com/assets',
+        self.env.update(CLASH_VERGE_TUI_VERSION=PINNED_VERSION, CLASH_VERGE_TUI_ASSET_BASE_URL='https://example.com/assets',
                         CLASH_VERGE_TUI_INSTALL_DIR=str(self.root / 'custom/bin'))
         self.bundle('https://example.com/assets')
         result = self.run_installer('--source', 'proxy')
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertTrue((self.root / 'custom/bin/clash-verge-tui').is_file())
-        self.assertNotIn('gh-proxy.com', self.log.read_text())
+        self.assertNotIn('gh.wty-yy.top', self.log.read_text())
 
     def test_missing_release_is_actionable(self):
         result = self.run_installer('--source', 'proxy')
         self.assertNotEqual(result.returncode, 0)
         self.assertIn('release bundle unavailable', result.stderr)
         self.assertFalse((self.home / '.local').exists())
-        self.assertTrue(all(url.startswith('https://gh-proxy.com/') for url in self.log.read_text().splitlines()))
+        self.assertTrue(all(url.startswith(MIRROR + '/') for url in self.log.read_text().splitlines()))
 
     def test_invalid_release_tag_and_arguments(self):
-        self.responses['https://github.com/wty-yy/clash-verge-tui/releases/latest'] = 'https://github.com/wty-yy/clash-verge-tui/releases/tag/invalid'
+        self.responses[REPOSITORY + '/releases/latest'] = f'{REPOSITORY}/releases/tag/invalid'
         result = self.run_installer()
         self.assertNotEqual(result.returncode, 0)
         self.assertIn('invalid release version', result.stderr)
         for args in [('--source',), ('--source', 'unknown'), ('--source', 'gitee'), ('--github-proxy',), ('--github-proxy', 'http://example.com'), ('--github-proxy', 'https://user:secret@example.com'), ('--bad',)]:
             self.assertNotEqual(self.run_installer(*args).returncode, 0)
-        self.env['CLASH_VERGE_TUI_VERSION'] = 'v1.4.8/../../other'
+        self.env['CLASH_VERGE_TUI_VERSION'] = f'{PINNED_VERSION}/../../other'
         self.assertIn('invalid release version', self.run_installer().stderr)
 
     def test_missing_or_corrupt_assets_preserve_installation(self):
-        self.env['CLASH_VERGE_TUI_VERSION'] = 'v1.4.8'
-        base = 'https://gh-proxy.com/https://github.com/wty-yy/clash-verge-tui/releases/download/v1.4.8'
+        self.env['CLASH_VERGE_TUI_VERSION'] = PINNED_VERSION
+        base = f'{MIRROR}/{REPOSITORY}/releases/download/{PINNED_VERSION}'
         archive, checksum = self.bundle(base)
         installed = self.home / '.local/bin/clash-verge-tui'
         installed.parent.mkdir(parents=True)
@@ -181,8 +195,9 @@ class InstallerTests(unittest.TestCase):
         self.assertEqual(installed.read_text(), 'original installation')
 
     def test_missing_geosite_preserves_installation(self):
-        self.env['CLASH_VERGE_TUI_VERSION'] = 'v1.4.8'
-        self.bundle('https://github.com/wty-yy/clash-verge-tui/releases/download/v1.4.8', include_geosite=False)
+        self.env['CLASH_VERGE_TUI_VERSION'] = PINNED_VERSION
+        self.responses[REPOSITORY + '/releases/latest'] = f'{REPOSITORY}/releases/tag/{PINNED_VERSION}'
+        self.bundle(f'{REPOSITORY}/releases/download/{PINNED_VERSION}', include_geosite=False)
         installed = self.home / '.local/bin/clash-verge-tui'
         installed.parent.mkdir(parents=True)
         installed.write_text('original installation')

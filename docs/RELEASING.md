@@ -5,7 +5,7 @@
 ## 迭代流程
 
 1. 提交说明统一为 `v主版本.次版本.补丁版本: English summary`，使用简短英文，例如 `v0.1.5: Compact content lists and settings forms`。同一版本内的多个提交使用相同版本号，不使用 `feat:`、`fix:` 等类型前缀。
-2. 新版本修改 `Cargo.toml` 的 `version`，运行 Cargo 更新 `Cargo.lock`。
+2. 新版本修改 `Cargo.toml` 的 `version`，运行 Cargo 更新 `Cargo.lock`，并同步 `scripts/install.sh` 的 `release_version`（CI 校验其与 `Cargo.toml` 一致）。
 3. 将 CHANGELOG 的未发布内容归入新版本，同步 英文 `CHANGELOG.md`。
 4. 使用方式或功能范围变化时同步 `README.md` 与 `README.zh-CN.md`。
 5. 界面变化后重新生成并检查 `docs/previews`。
@@ -16,6 +16,7 @@
 # 发布前检查
 sh -n scripts/install.sh
 python3 scripts/test-install.py
+node --test deploy/gh-mirror/*.test.mjs
 cargo fmt --check
 cargo clippy --locked --all-targets -- -D warnings
 cargo test --locked
@@ -41,7 +42,7 @@ GitHub Actions 在推送和 Pull Request 时执行格式、Clippy、测试与构
 
 ```bash
 # 本地检查 x86_64 发行包；VERSION 不带 v
-VERSION=1.4.11
+VERSION=1.5.0
 # 安装 musl-tools 后构建静态发行包
 rustup target add x86_64-unknown-linux-musl
 RUSTFLAGS="-C target-feature=+crt-static -C linker=musl-gcc" cargo build --locked --release --target x86_64-unknown-linux-musl
@@ -63,11 +64,11 @@ Linux 组合包同时包含固定 GeoSite 快照。更新快照时，同步 `src
 
 ## 国内代理下载
 
-发行版安装脚本支持 `--source proxy`，默认使用 `https://gh-proxy.com`。代理仅转发 GitHub Release，安装脚本仍校验归档和 SHA-256 文件。
+发行版安装脚本支持 `--source proxy`，默认使用项目维护的 Cloudflare Worker 镜像 `https://gh.wty-yy.top`（源码与部署说明见 `deploy/gh-mirror/`），可用 `--github-proxy https://gh-proxy.com` 切换到社区前缀。代理/镜像仅转发 GitHub Release，安装脚本仍校验归档和 SHA-256 文件。Release 工作流在 publish 阶段把标签版本写入发行版 `install.sh` 的 `release_version`，避免 `--source proxy` 固定到旧版本。
 
 
 ```bash
-# 通过国内代理安装
+# 通过镜像安装
 curl -fsSL https://github.com/wty-yy/clash-verge-tui/releases/latest/download/install.sh | sh -s -- --source proxy
 
 # 检查安装结果

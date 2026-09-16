@@ -30,14 +30,14 @@ Created for personal use with development assistance from ChatGPT. The interface
 # Install the latest release to ~/.local/bin with the pinned mihomo v1.19.29
 curl -fsSL https://github.com/wty-yy/clash-verge-tui/releases/latest/download/install.sh | sh
 
-# Use the China GitHub mirror instead
+# Use the project Cloudflare mirror (gh.wty-yy.top) when GitHub is unreachable
 curl -fsSL https://github.com/wty-yy/clash-verge-tui/releases/latest/download/install.sh | sh -s -- --source proxy
 
 # Launch the live TUI; the first launch creates the managed workspace
 clash-verge-tui
 ```
 
-The installer verifies the release against the published SHA-256 checksum and also works with older curl versions such as Ubuntu 20.04’s 7.68. Add `~/.local/bin` to `PATH` if needed, and set `CLASH_VERGE_TUI_VERSION` to install a specific published version.
+The installer verifies the release against the published SHA-256 checksum and also works with older curl versions such as Ubuntu 20.04’s 7.68. `--source proxy` downloads through the project-maintained mirror `gh.wty-yy.top` (a Cloudflare Worker, see [deploy/gh-mirror](deploy/gh-mirror/README.md)), and `--github-proxy https://gh-proxy.com` switches to that community prefix. Add `~/.local/bin` to `PATH` if needed, and set `CLASH_VERGE_TUI_VERSION` to install a specific published version.
 
 ## Usage
 

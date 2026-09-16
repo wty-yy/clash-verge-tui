@@ -6,7 +6,7 @@
 
 - 目标：使用 mihomo 内核，逐步提供与 Clash Verge Rev 功能对应的终端客户端。
 - 参考基线：Clash Verge Rev `v2.5.2` / `28f2efc`。参考仓库位于 `upstream/clash-verge-rev`，由 Git 忽略，不纳入本项目提交。
-- 当前为 `v1.4.x` Linux 可分发版本，版本号以 `Cargo.toml` 为准（写作时 `1.4.11`）：默认启动应用自管工作区，发行包同步携带 Mihomo v1.19.29 与固定 GeoSite.dat 快照，保留显式演示模式。范围见 `docs/FEATURES.md`，历史见 `CHANGELOG.md`。
+- 当前为 `v1.5.x` Linux 可分发版本，版本号以 `Cargo.toml` 为准（写作时 `1.5.0`）：默认启动应用自管工作区，发行包同步携带 Mihomo v1.19.29 与固定 GeoSite.dat 快照，保留显式演示模式。范围见 `docs/FEATURES.md`，历史见 `CHANGELOG.md`。
 - 演示数据必须明确标识；不能将模拟测速、订阅刷新、解锁检测或系统代理状态描述为真实网络结果。
 - 演示状态与实际 Clash Verge 配置分离。界面开发和测试使用独立目录，不启动或修改用户正在使用的代理配置来验证演示交互。
 
@@ -104,12 +104,12 @@
 - 仓库：`https://github.com/wty-yy/clash-verge-tui.git`；主分支及远端默认分支：`master`。
 - 每次提交说明必须以版本号开头，摘要使用英文：`v0.1.5: Compact content lists and settings forms`。
 - 不使用 `feat:`、`fix:`、`docs:` 等作为提交开头；不要使用中文提交摘要。同一版本内允许多个提交共用版本号。
-- 版本从 `v0.1.0` 起迭代，使用语义化版本和带注释的 Git 标签；已发布至 `v1.4.11`，新版本按用户明确要求迭代。
-- 版本更新同步 `Cargo.toml`、`Cargo.lock`、英文 CHANGELOG 和必要的 README 内容；涉及界面时更新预览图。
+- 版本从 `v0.1.0` 起迭代，使用语义化版本和带注释的 Git 标签；已发布至 `v1.5.0`，新版本按用户明确要求迭代。
+- 版本更新同步 `Cargo.toml`、`Cargo.lock`、`scripts/install.sh` 的 `release_version`（CI 校验与 `Cargo.toml` 一致）、英文 CHANGELOG 和必要的 README 内容；涉及界面时更新预览图。
 - 已发布标签不移动，不为整理提交信息而擅自重写已推送历史。用户明确要求重写时，先保留可恢复的 Git 历史备份。
 - 合并远端已有内容时保留其提交历史；不要用强制推送覆盖远端初始化内容。
 - 详细流程见 `docs/RELEASING.md`。推送正式版本标签后由 Release 工作流创建 GitHub Release；不得发布缺少任一架构、校验文件或 `install.sh` 的版本。
-- 安装脚本默认从 GitHub 安装；`--source proxy` / `--github-proxy` 只替换传输路径，仍校验归档 SHA-256，改动下载逻辑时保留该保证。
+- 安装脚本默认从 GitHub 安装；`--source proxy` / `--github-proxy` 只替换传输路径，仍校验归档 SHA-256，改动下载逻辑时保留该保证。`--source proxy` 默认使用项目维护的 Cloudflare Worker 镜像 `https://gh.wty-yy.top`（源码、测试与部署说明见 `deploy/gh-mirror/`，通过 `MIRROR_DOMAIN` 与 `ORIGIN` 两个变量配置，只转发所配置仓库的 release 资产），可用 `--github-proxy` 换成其他前缀；Release 工作流在 publish 阶段把标签版本写入发行版 `install.sh`。
 
 ## 文档与许可
 
@@ -130,6 +130,7 @@
 ```bash
 sh -n scripts/install.sh
 python3 scripts/test-install.py
+node --test deploy/gh-mirror/*.test.mjs
 cargo fmt --check
 cargo clippy --locked --all-targets -- -D warnings
 cargo test --locked

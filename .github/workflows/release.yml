@@ -74,7 +74,12 @@ jobs:
           path: dist
           merge-multiple: true
       - name: Add installer to release assets
-        run: cp scripts/install.sh dist/install.sh
+        run: |
+          version="$(sed -n 's/^version = "\([^"]*\)"/\1/p' Cargo.toml | head -1)"
+          test "$GITHUB_REF_NAME" = "v$version"
+          sed "s/^release_version=.*/release_version=\"v$version\"/" scripts/install.sh > dist/install.sh
+          grep -qF "release_version=\"v$version\"" dist/install.sh
+          sh -n dist/install.sh
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v3
         with:

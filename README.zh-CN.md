@@ -30,14 +30,14 @@ Clash Verge TUI 是**仅支持 Linux**（x86_64/aarch64）的 mihomo 终端客�
 # 一键安装最新发行版到 ~/.local/bin，并同步安装固定 mihomo v1.19.29
 curl -fsSL https://github.com/wty-yy/clash-verge-tui/releases/latest/download/install.sh | sh
 
-# 使用中国内 GitHub 镜像下载
+# GitHub 不可达时使用项目 Cloudflare 镜像 gh.wty-yy.top
 curl -fsSL https://github.com/wty-yy/clash-verge-tui/releases/latest/download/install.sh | sh -s -- --source proxy
 
 # 启动真实 TUI；首次启动创建自管工作区
 clash-verge-tui
 ```
 
-安装脚本会校验发行包发布的 SHA-256，并兼容 Ubuntu 20.04 的 curl 7.68 等旧版本。`~/.local/bin` 不在 `PATH` 时手动添加；设置 `CLASH_VERGE_TUI_VERSION` 可安装指定的已发布版本。
+安装脚本会校验发行包发布的 SHA-256，并兼容 Ubuntu 20.04 的 curl 7.68 等旧版本。`--source proxy` 通过项目维护的 Cloudflare Worker 镜像 `gh.wty-yy.top` 下载（源码与部署说明见 [deploy/gh-mirror](deploy/gh-mirror/README.zh-CN.md)），可用 `--github-proxy https://gh-proxy.com` 切换到社区前缀。`~/.local/bin` 不在 `PATH` 时手动添加；设置 `CLASH_VERGE_TUI_VERSION` 可安装指定的已发布版本。
 
 ## 使用
 
