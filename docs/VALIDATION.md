@@ -285,3 +285,14 @@
 - 真实内核临时 HOME 验证：用固定 mihomo v1.19.29 组装 v1.5.0 x86_64 归档，经 `install.sh` 安装后 `--check` 通过；validation.log 无任何下载、`Initial configuration complete, total time: 0ms`，`core/geoip.metadb` 与 `core/ui/index.html` 播种且权限 0600，删除三者后自动补齐，快照与退出清理通过
 - 独立工作区 `--check` 生成的 `core/config.yaml` 中 `geox-url` 四个地址与 `external-ui-url` 均指向 `clash-verge-tui.wty-yy.top`；镜像新路由部署后实测 `/latest-version`、`/geodata/geoip.metadb`、`/ui/metacubexd.tar.gz`、`/core/v1.19.29/…gz` 均返回 200
 - 本机无 musl 工具链，未本地运行 `package-linux.sh`；musl 双架构打包与 Ubuntu 20.04 容器安装验证由 v1.6.0 Release 工作流完成
+
+### v1.6.0 正式发布验收 · 2026-09-17
+
+- 推送 master `84340ae` 与注释标签 `v1.6.0`；[CI master 35202986408](https://github.com/wty-yy/clash-verge-tui/actions/runs/35202986408)、[标签 CI 35202991354](https://github.com/wty-yy/clash-verge-tui/actions/runs/35202991354) 与 [Release 35202991307](https://github.com/wty-yy/clash-verge-tui/actions/runs/35202991307) 全部 success；Release 工作流完成双架构 musl 构建、Ubuntu 20.04 容器安装验证与 publish
+- [v1.6.0 发行页](https://github.com/wty-yy/clash-verge-tui/releases/tag/v1.6.0) 含两个组合包、两个 SHA-256 与 `install.sh`，归档校验通过，公开发行脚本与仓库 `scripts/install.sh` 逐字节一致
+- 双架构归档检查：`release.json` 的 GeoSite 与 geoip.metadb 哈希、mihomo 二进制哈希与包内文件一致；UI 160 个文件、5 份许可齐全；TUI 与内核均无 INTERP（静态）
+- 镜像新路由实测：`/latest-version` 返回 `v1.6.0`；`/v1.6.0/<asset>` 与 `.sha256`、`/install.sh`（`release_version="v1.6.0"`）、`/geodata/geoip.metadb`、`/ui/metacubexd.tar.gz`、`/core/v1.19.29/mihomo-linux-amd64-v1.19.29.gz` 全部可用
+- 临时 HOME 经 `curl https://clash-verge-tui.wty-yy.top/install.sh | sh -s -- --source proxy` 安装 v1.6.0；`--version` 为 `clash-verge-tui 1.6.0`，`--check` 返回 `app_version 1.6.0` / `expected_core v1.19.29` / `managed true`
+- 新工作区播种 `geoip.metadb`、`GeoSite.dat` 与 `ui`，配置与数据权限 0600，validation.log 无任何下载且 `Initial configuration complete, total time: 0ms`
+- 删除随包内核与工作区内核后重新 `--check`，自动经镜像下载固定内核，归档与解压后二进制 SHA-256 校验通过；`--check` 退出后无残留内核进程
+- 未操作本机桌面代理、系统代理或 TUN 服务；aarch64 未在本机运行（无 ARM 环境），仅做静态链接与归档结构检查
