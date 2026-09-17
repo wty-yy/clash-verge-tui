@@ -182,6 +182,74 @@ test('honours the MIRROR_DOMAIN and ORIGIN variables', async () => {
   assert.match(page, /mirror\.example\.com\/example\/repo/);
 });
 
+test('serves pinned MetaCubeX GeoData, UI, and core assets', async () => {
+  const geodata = environment();
+  const metadb = await worker.fetch(request('/geodata/geoip.metadb'), {}, geodata.ctx);
+  assert.equal(metadb.status, 200);
+  assert.deepEqual(geodata.calls, [
+    'https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geoip.metadb',
+  ]);
+  const ui = environment();
+  const metacubexd = await worker.fetch(request('/ui/metacubexd.tar.gz'), {}, ui.ctx);
+  assert.equal(metacubexd.status, 200);
+  assert.equal(metacubexd.headers.get('cache-control'), 'public, max-age=300');
+  assert.deepEqual(ui.calls, ['https://codeload.github.com/MetaCubeX/metacubexd/tar.gz/refs/heads/gh-pages']);
+  const yacd = environment();
+  await worker.fetch(request('/ui/yacd-meta.tar.gz'), {}, yacd.ctx);
+  assert.deepEqual(yacd.calls, ['https://codeload.github.com/MetaCubeX/Yacd-meta/tar.gz/refs/heads/gh-pages']);
+  const core = environment();
+  const version = 'v1.19.29';
+  const asset = 'mihomo-linux-amd64-v1.19.29.gz';
+  const response = await worker.fetch(request(`/core/${version}/${asset}`), {}, core.ctx);
+  assert.equal(response.status, 200);
+  assert.deepEqual(core.calls, [`https://github.com/MetaCubeX/mihomo/releases/download/${version}/${asset}`]);
+  assert.equal(response.headers.get('cache-control'), 'public, max-age=31536000, immutable');
+});
+
+test('rejects unpinned GeoData, UI, and core shapes', async () => {
+  const { calls, ctx } = environment();
+  for (const path of [
+    '/geodata/GeoIP.dat.bak',
+    '/geodata/../geoip.metadb',
+    '/ui/unknown-panel.tar.gz',
+    '/ui/metacubexd.zip',
+    '/core/v1.19.29/mihomo-linux-amd64-v1.19.30.gz',
+    '/core/v1.19.29/evil.tar.gz',
+    '/core/1.19.29/mihomo-linux-amd64-v1.19.29.gz',
+  ]) {
+    const response = await worker.fetch(request(path), {}, ctx);
+    assert.equal(response.status, 404, path);
+  }
+  assert.deepEqual(calls, []);
+});
+
+test('resolves the latest release tag without the GitHub API', async () => {
+  const { pending, ctx } = environment();
+  globalThis.fetch = async (target, init) => {
+    assert.equal(target.toString(), `https://github.com/${REPOSITORY}/releases/latest`);
+    assert.equal(init.redirect, 'follow');
+    const response = new Response('html', { status: 200 });
+    Object.defineProperty(response, 'url', {
+      value: `https://github.com/${REPOSITORY}/releases/tag/${VERSION}`,
+    });
+    return response;
+  };
+  const first = await worker.fetch(request('/latest-version'), {}, ctx);
+  assert.equal(first.status, 200);
+  assert.equal(await first.text(), `${VERSION}\n`);
+  await Promise.all(pending);
+  const second = await worker.fetch(request('/latest-version'), {}, ctx);
+  assert.equal(second.headers.get('x-mirror-cache'), 'hit');
+  assert.equal(await second.text(), `${VERSION}\n`);
+});
+
+test('reports an unavailable latest release tag', async () => {
+  const { ctx } = environment();
+  globalThis.fetch = async () => new Response(null, { status: 404 });
+  const response = await worker.fetch(request('/latest-version'), {}, ctx);
+  assert.equal(response.status, 502);
+});
+
 test('rejects an invalid ORIGIN variable', async () => {
   const { calls, ctx } = environment();
   for (const origin of ['http://github.com/wty-yy/clash-verge-tui', 'https://github.com/only-owner', '']) {

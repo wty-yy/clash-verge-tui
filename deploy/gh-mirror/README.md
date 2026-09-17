@@ -2,7 +2,7 @@
 
 **English** · [简体中文](README.zh-CN.md)
 
-`worker.js` is a transparent download proxy deployed on Cloudflare Workers: it serves this repository's GitHub Release assets (`install.sh`, `.tar.gz`, `.sha256`) through `https://clash-verge-tui.wty-yy.top` with edge caching. The script stores no files, calls no GitHub API, and forwards only release assets of the configured repository.
+`worker.js` is a transparent download proxy deployed on Cloudflare Workers: it serves this repository's GitHub Release assets (`install.sh`, `.tar.gz`, `.sha256`) plus pinned MetaCubeX GeoData, Web UI, and mihomo assets through `https://clash-verge-tui.wty-yy.top` with edge caching. The script stores no files, calls no GitHub API, and forwards only the configured release assets and an explicit asset whitelist.
 
 ## Variables
 
@@ -22,6 +22,10 @@ Both variables default to the values above. `wrangler.json` already fills `vars`
 | `/install.sh` | Installer script of the latest release, cached 5 minutes |
 | `/latest/<asset>` | GitHub resolves the latest release; cached 5 minutes |
 | `/v<major>.<minor>.<patch>/<asset>` | Pinned version; cached 1 year |
+| `/geodata/<geoip.dat\|geosite.dat\|geoip.metadb\|country.mmdb\|GeoLite2-ASN.mmdb>` | Pinned MetaCubeX/meta-rules-dat `latest` release asset, cached 5 minutes |
+| `/ui/<metacubexd\|yacd-meta>.tar.gz` | Web UI archive from the panel's `gh-pages` branch, cached 1 year |
+| `/core/v<version>/mihomo-linux-<amd64\|arm64>-v<version>.gz` | Pinned mihomo core archive, cached 1 year |
+| `/latest-version` | Latest release tag resolved from the GitHub redirect, cached 5 minutes |
 
 `/health` returns `ok`, and `/` returns the usage text.
 
@@ -54,6 +58,11 @@ curl -fsSL https://clash-verge-tui.wty-yy.top/v1.5.0/clash-verge-tui-v1.5.0-linu
 
 # Install through the mirror: script and archives both use it; archives are still verified against the published SHA-256
 curl -fsSL https://clash-verge-tui.wty-yy.top/install.sh | sh -s -- --source proxy
+
+# Runtime assets used by the TUI (GeoData, Web UI, and the latest release tag)
+curl -fsSL https://clash-verge-tui.wty-yy.top/geodata/geoip.metadb -o /dev/null
+curl -fsSL https://clash-verge-tui.wty-yy.top/ui/metacubexd.tar.gz -o /dev/null
+curl -fsSL https://clash-verge-tui.wty-yy.top/latest-version
 ```
 
 The release workflow writes the tag version into the published `install.sh` `release_version` during publish.

@@ -4,6 +4,13 @@
 
 See the [feature mapping](docs/FEATURES.md) for planned work.
 
+## v1.6.0 · 2026-09-17
+
+1. Bundle `geoip.metadb` and the MetaCubeXD Web UI with the release and seed them into the workspace before the first configuration parse, so a blocked GitHub no longer stalls the first launch or the first profile import
+2. Default GeoData updates and Web UI downloads to the project mirror `clash-verge-tui.wty-yy.top`; the `GeoData source` setting can keep mihomo's MetaCubeX defaults or a custom `geox-url`, and subscriptions can no longer override the client's choice
+3. Extend the mirror Worker with whitelisted `/geodata`, `/ui`, `/core`, and `/latest-version` routes, install the core from the mirror with a GitHub fallback, and check updates without api.github.com
+4. Keep `mihomo -t` offline, retry configuration reloads across the controller restart window, and show a core-initializing status before the first successful connection
+
 ## v1.5.0 · 2026-09-16
 
 1. Download `--source proxy` installs through the project Cloudflare Worker mirror `https://clash-verge-tui.wty-yy.top`; `--github-proxy` still switches to other prefixes

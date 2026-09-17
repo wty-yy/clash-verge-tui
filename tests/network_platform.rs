@@ -33,6 +33,28 @@ fn runtime_dns_defaults_match_the_settings_form() {
 }
 
 #[test]
+fn geodata_source_switches_between_mirror_and_mihomo_defaults() {
+    let mut overrides = serde_yaml_ng::Mapping::new();
+    network::apply(
+        &mut overrides,
+        &BTreeMap::from([("geo_source".into(), "镜像".into())]),
+    )
+    .unwrap();
+    let config = serde_yaml_ng::Value::Mapping(overrides.clone());
+    assert_eq!(
+        config["geox-url"]["mmdb"],
+        "https://clash-verge-tui.wty-yy.top/geodata/geoip.metadb"
+    );
+    network::apply(
+        &mut overrides,
+        &BTreeMap::from([("geo_source".into(), "MetaCubeX".into())]),
+    )
+    .unwrap();
+    let config = serde_yaml_ng::Value::Mapping(overrides);
+    assert!(config.get("geox-url").is_none());
+}
+
+#[test]
 fn network_values_produce_typed_nested_config_and_validate_ports() {
     let mut patch = serde_yaml_ng::Mapping::new();
     network::apply(

@@ -11,10 +11,14 @@ use std::{
 };
 
 pub const MIHOMO_VERSION: &str = "1.19.29";
-const RELEASE_ROOT: &str = "https://github.com/MetaCubeX/mihomo/releases/download/v1.19.29";
 const MAX_ARCHIVE_SIZE: usize = 32 * 1024 * 1024;
 pub const GEOSITE_FILE: &str = "GeoSite.dat";
 pub const GEOSITE_SHA256: &str = "c5fe9448d979391192f5bd553b5e28c39efdc9bd857b7c879a7d995fded0c3fe";
+/// GeoData mode uses the meta database; mihomo would otherwise fetch it from
+/// GitHub during the blocking initial configuration parse.
+pub const GEODATA_FILE: &str = "geoip.metadb";
+pub const GEODATA_SHA256: &str = "4eda34a0851c96259fdc2330aeb2173beec58f2534b80da6e3a89e488a18c672";
+pub const UI_INDEX: &str = "index.html";
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Asset {
@@ -118,23 +122,54 @@ fn bundled_candidates() -> Vec<PathBuf> {
     paths
 }
 
-pub fn prepare_geosite(dir: &Path, binary: &Path) -> Result<()> {
-    let mut paths = binary
-        .parent()
-        .filter(|parent| *parent != dir)
-        .map(|parent| vec![parent.join(GEOSITE_FILE)])
-        .unwrap_or_default();
-    if let Ok(executable) = std::env::current_exe() {
-        if let Some(bin) = executable.parent() {
-            paths.push(bin.join(format!("../lib/clash-verge-tui/{GEOSITE_FILE}")));
-            paths.push(bin.join(format!("../libexec/clash-verge-tui/{GEOSITE_FILE}")));
-        }
-    }
-    paths.push(install_root().join(GEOSITE_FILE));
-    seed_geosite(dir, &paths)
+/// Seed release-bundled GeoData and Web UI before the core parses a config.
+/// Without them mihomo downloads from GitHub through direct connections during
+/// the blocking initial configuration parse.
+pub fn prepare_assets(dir: &Path, binary: &Path) -> Result<()> {
+    let roots = bundled_roots(binary, dir);
+    let named = |name: &str| -> Vec<PathBuf> { roots.iter().map(|root| root.join(name)).collect() };
+    seed_file(
+        dir,
+        GEOSITE_FILE,
+        GEOSITE_SHA256,
+        GEOSITE_FILE,
+        &named(GEOSITE_FILE),
+    )?;
+    seed_file(
+        dir,
+        GEODATA_FILE,
+        GEODATA_SHA256,
+        GEODATA_FILE,
+        &named(GEODATA_FILE),
+    )?;
+    seed_ui(dir, &named("ui"))
 }
 
-fn seed_geosite(dir: &Path, candidates: &[PathBuf]) -> Result<()> {
+fn bundled_roots(binary: &Path, dir: &Path) -> Vec<PathBuf> {
+    let mut roots = Vec::new();
+    if let Some(parent) = binary.parent().filter(|parent| *parent != dir) {
+        roots.push(parent.to_path_buf());
+    }
+    if let Ok(executable) = std::env::current_exe() {
+        if let Some(bin) = executable.parent() {
+            roots.push(bin.join("../lib/clash-verge-tui"));
+            roots.push(bin.join("../libexec/clash-verge-tui"));
+        }
+    }
+    roots.push(install_root());
+    roots.retain(|root| root != dir);
+    roots
+}
+
+/// Copy a release file only when the workspace has no local copy, so a user
+/// update or a mirror refresh is never overwritten by an older bundle.
+fn seed_file(
+    dir: &Path,
+    name: &str,
+    sha256: &str,
+    label: &str,
+    candidates: &[PathBuf],
+) -> Result<()> {
     fs::create_dir_all(dir)?;
     // Mihomo accepts case-insensitive names; preserve locally updated data too.
     for entry in fs::read_dir(dir)? {
@@ -142,10 +177,10 @@ fn seed_geosite(dir: &Path, candidates: &[PathBuf]) -> Result<()> {
         if entry
             .file_name()
             .to_string_lossy()
-            .eq_ignore_ascii_case(GEOSITE_FILE)
+            .eq_ignore_ascii_case(name)
         {
             if !entry.file_type()?.is_file() {
-                bail!("GeoSite.dat 必须为普通文件");
+                bail!("{label} 必须为普通文件");
             }
             if entry.metadata()?.len() > 0 {
                 return Ok(());
@@ -157,16 +192,58 @@ fn seed_geosite(dir: &Path, candidates: &[PathBuf]) -> Result<()> {
             continue;
         };
         if !metadata.is_file() {
-            bail!("随包 GeoSite.dat 必须为普通文件");
+            bail!("随包 {label} 必须为普通文件");
         }
         let bytes = fs::read(source)?;
-        if format!("{:x}", Sha256::digest(&bytes)) != GEOSITE_SHA256 {
-            bail!("随包 GeoSite.dat SHA-256 校验失败；请重新安装发行包");
+        if format!("{:x}", Sha256::digest(&bytes)) != sha256 {
+            bail!("随包 {label} SHA-256 校验失败；请重新安装发行包");
         }
-        crate::subscriptions::private_write(&dir.join(GEOSITE_FILE), &bytes)?;
+        crate::subscriptions::private_write(&dir.join(name), &bytes)?;
         return Ok(());
     }
     // Source-only installations may not have a release data bundle.
+    Ok(())
+}
+
+fn seed_ui(dir: &Path, candidates: &[PathBuf]) -> Result<()> {
+    let target = dir.join("ui");
+    if target.exists() {
+        if !target.is_dir() {
+            bail!("随包网页界面必须为目录");
+        }
+        if fs::read_dir(&target)?.next().is_some() {
+            return Ok(());
+        }
+    }
+    for source in candidates {
+        let Ok(metadata) = fs::symlink_metadata(source) else {
+            continue;
+        };
+        if !metadata.is_dir() {
+            bail!("随包网页界面必须为目录");
+        }
+        if !source.join(UI_INDEX).is_file() {
+            bail!("随包网页界面缺少 index.html");
+        }
+        copy_ui(source, &target)?;
+        return Ok(());
+    }
+    // Source-only installations may not have a release UI bundle.
+    Ok(())
+}
+
+fn copy_ui(source: &Path, target: &Path) -> Result<()> {
+    for entry in fs::read_dir(source)? {
+        let entry = entry?;
+        let destination = target.join(entry.file_name());
+        let kind = entry.file_type()?;
+        if kind.is_dir() {
+            fs::create_dir_all(&destination)?;
+            copy_ui(&entry.path(), &destination)?;
+        } else if kind.is_file() {
+            crate::subscriptions::private_write(&destination, &fs::read(entry.path())?)?;
+        }
+    }
     Ok(())
 }
 
@@ -193,8 +270,23 @@ pub async fn ensure(workspace: &Path, override_path: Option<&Path>) -> Result<Pa
 
 async fn download(destination: &Path) -> Result<()> {
     let asset = asset()?;
-    let url = format!("{RELEASE_ROOT}/{}", asset.name);
     eprintln!("Installing mihomo v{MIHOMO_VERSION} ({})…", asset.arch);
+    let mut last = None;
+    // The mirror keeps working when GitHub is unreachable; both sources are
+    // pinned by the same archive and binary SHA-256.
+    for url in [
+        crate::sources::core_url(MIHOMO_VERSION, asset.name),
+        crate::sources::core_github_url(MIHOMO_VERSION, asset.name),
+    ] {
+        match download_from(&url, asset, destination).await {
+            Ok(()) => return Ok(()),
+            Err(error) => last = Some(error),
+        }
+    }
+    Err(last.unwrap_or_else(|| anyhow!("mihomo 下载失败")))
+}
+
+async fn download_from(url: &str, asset: Asset, destination: &Path) -> Result<()> {
     let response = reqwest::Client::builder()
         .connect_timeout(Duration::from_secs(10))
         .timeout(Duration::from_secs(120))
@@ -264,20 +356,101 @@ mod tests {
     }
 
     #[test]
-    fn geosite_preserves_existing_data_and_rejects_corrupt_bundle() {
+    fn seeded_data_preserves_existing_files_and_rejects_corrupt_bundles() {
         let dir = tempfile::tempdir().unwrap();
         let bundle = dir.path().join("bundle.dat");
         fs::write(&bundle, b"truncated download").unwrap();
         let workspace = dir.path().join("workspace");
-        assert!(seed_geosite(&workspace, std::slice::from_ref(&bundle)).is_err());
+        assert!(seed_file(
+            &workspace,
+            GEOSITE_FILE,
+            GEOSITE_SHA256,
+            GEOSITE_FILE,
+            std::slice::from_ref(&bundle)
+        )
+        .is_err());
         assert!(!workspace.join(GEOSITE_FILE).exists());
         fs::write(workspace.join("geosite.dat"), b"locally updated data").unwrap();
-        seed_geosite(&workspace, &[bundle]).unwrap();
+        seed_file(
+            &workspace,
+            GEOSITE_FILE,
+            GEOSITE_SHA256,
+            GEOSITE_FILE,
+            std::slice::from_ref(&bundle),
+        )
+        .unwrap();
         assert_eq!(
             fs::read(workspace.join("geosite.dat")).unwrap(),
             b"locally updated data"
         );
         assert!(!workspace.join(GEOSITE_FILE).exists());
+
+        let geodata = b"metadata fixture".to_vec();
+        let geodata_bundle = dir.path().join("geoip.metadb");
+        fs::write(&geodata_bundle, &geodata).unwrap();
+        let checksum = format!("{:x}", Sha256::digest(&geodata));
+        seed_file(
+            &workspace,
+            GEODATA_FILE,
+            &checksum,
+            GEODATA_FILE,
+            std::slice::from_ref(&geodata_bundle),
+        )
+        .unwrap();
+        assert_eq!(fs::read(workspace.join(GEODATA_FILE)).unwrap(), geodata);
+        fs::write(workspace.join(GEODATA_FILE), b"updated via mirror").unwrap();
+        seed_file(
+            &workspace,
+            GEODATA_FILE,
+            GEODATA_SHA256,
+            GEODATA_FILE,
+            std::slice::from_ref(&geodata_bundle),
+        )
+        .unwrap();
+        assert_eq!(
+            fs::read(workspace.join(GEODATA_FILE)).unwrap(),
+            b"updated via mirror"
+        );
+    }
+
+    #[test]
+    fn bundled_ui_is_copied_once_and_stays_private() {
+        let dir = tempfile::tempdir().unwrap();
+        let bundle = dir.path().join("ui");
+        fs::create_dir_all(bundle.join("_next")).unwrap();
+        fs::write(bundle.join(UI_INDEX), b"<html></html>").unwrap();
+        fs::write(bundle.join("_next/app.js"), b"console.log(1)").unwrap();
+        let workspace = dir.path().join("workspace");
+        seed_ui(&workspace, std::slice::from_ref(&bundle)).unwrap();
+        assert_eq!(
+            fs::read(workspace.join("ui/index.html")).unwrap(),
+            b"<html></html>"
+        );
+        fs::write(workspace.join("ui/index.html"), b"user update").unwrap();
+        seed_ui(&workspace, std::slice::from_ref(&bundle)).unwrap();
+        assert_eq!(
+            fs::read(workspace.join("ui/index.html")).unwrap(),
+            b"user update"
+        );
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mode = fs::metadata(workspace.join("ui/_next/app.js"))
+                .unwrap()
+                .permissions()
+                .mode()
+                & 0o777;
+            assert_eq!(mode, 0o600);
+        }
+        let missing = dir.path().join("missing");
+        assert!(seed_ui(
+            &dir.path().join("source-only"),
+            std::slice::from_ref(&missing)
+        )
+        .is_ok());
+        let corrupt = dir.path().join("corrupt-ui");
+        fs::create_dir(&corrupt).unwrap();
+        assert!(seed_ui(&dir.path().join("broken"), std::slice::from_ref(&corrupt)).is_err());
     }
 
     #[test]

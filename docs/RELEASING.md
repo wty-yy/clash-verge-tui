@@ -60,11 +60,13 @@ clash-verge-tui --check
 
 可先手动触发 Release 工作流（workflow_dispatch）验证 master 的双架构构建与安装；手动运行只上传 Actions 构建产物，正式标签才创建 GitHub Release。
 
-Linux 组合包同时包含固定 GeoSite 快照。更新快照时，同步 `src/core_manager.rs` 与 `scripts/package-linux.sh` 的 SHA-256，以及打包脚本中的上游提交地址；保留数据许可。`scripts/test-release.py` 在禁止 GeoSite 下载的配置下验证首次启动与数据补齐。
+Linux 组合包同时包含固定 GeoData（`GeoSite.dat`、`geoip.metadb`）与 MetaCubeXD 网页界面。更新快照或面板时，同步 `src/core_manager.rs`、`src/sources.rs` 与 `scripts/package-linux.sh` 的 SHA-256 / 上游提交地址；保留 meta-rules-dat 与 metacubexd 的许可。`scripts/test-release.py` 在禁止 GeoData 下载的配置下验证首次启动、数据播种与补齐。
+
+运行时的 GeoData 更新、网页界面回退下载与内核补装默认经 `src/sources.rs` 记录的项目镜像完成，镜像不可达时内核下载回退 GitHub；打包固定的是同一批文件，因此首次启动不依赖网络。
 
 ## 国内代理下载
 
-发行版安装脚本支持 `--source proxy`，默认使用项目维护的 Cloudflare Worker 镜像 `https://clash-verge-tui.wty-yy.top`（源码与部署说明见 `deploy/gh-mirror/`），可用 `--github-proxy https://gh-proxy.com` 切换到社区前缀。代理/镜像仅转发 GitHub Release，安装脚本仍校验归档和 SHA-256 文件。Release 工作流在 publish 阶段把标签版本写入发行版 `install.sh` 的 `release_version`，避免 `--source proxy` 固定到旧版本。
+发行版安装脚本支持 `--source proxy`，默认使用项目维护的 Cloudflare Worker 镜像 `https://clash-verge-tui.wty-yy.top`（源码与部署说明见 `deploy/gh-mirror/`），可用 `--github-proxy https://gh-proxy.com` 切换到社区前缀。代理/镜像转发本仓库 GitHub Release 与白名单内的 MetaCubeX GeoData/网页界面/内核资产，安装脚本仍校验归档和 SHA-256 文件。Release 工作流在 publish 阶段把标签版本写入发行版 `install.sh` 的 `release_version`，避免 `--source proxy` 固定到旧版本。
 
 
 ```bash

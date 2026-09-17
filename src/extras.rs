@@ -136,22 +136,7 @@ pub async fn execute(command: ExtraCommand) -> Result<ExtraResult> {
                 .timeout(Duration::from_secs(15))
                 .user_agent("clash-verge-tui")
                 .build()?;
-            let response = client
-                .get("https://api.github.com/repos/wty-yy/clash-verge-tui/tags?per_page=100")
-                .send()
-                .await
-                .map_err(|e| anyhow!("检查更新失败：{}", e.without_url()))?;
-            if !response.status().is_success() {
-                bail!("更新服务器 HTTP {}", response.status().as_u16());
-            }
-            let value: serde_json::Value = response.json().await?;
-            let latest = value
-                .as_array()
-                .into_iter()
-                .flatten()
-                .filter_map(|tag| tag["name"].as_str())
-                .filter_map(|s| semver::Version::parse(s.trim_start_matches('v')).ok())
-                .max();
+            let latest = latest_release(&client).await?;
             let current = semver::Version::parse(env!("CARGO_PKG_VERSION"))?;
             let message=match latest{Some(version) if version>current=>format!("发现新版本 v{version}。\n\n当前采用源码安装，可执行：\ncargo install --locked --git https://github.com/wty-yy/clash-verge-tui --tag v{version}\n\n项目：https://github.com/wty-yy/clash-verge-tui"),Some(version)=>format!("当前版本 v{current}\n已发布最新版本 v{version}\n无需更新。"),None=>"未发现已发布版本".into()};
             Ok(ExtraResult::Update(message))
@@ -174,6 +159,38 @@ pub async fn execute(command: ExtraCommand) -> Result<ExtraResult> {
             Ok(ExtraResult::Opened)
         }
     }
+}
+/// Newest published version, preferring the mirror over the GitHub API.
+async fn latest_release(client: &reqwest::Client) -> Result<Option<semver::Version>> {
+    if let Ok(response) = client
+        .get(crate::sources::latest_version_url())
+        .send()
+        .await
+    {
+        if response.status().is_success() {
+            if let Ok(tag) = response.text().await {
+                if let Ok(version) = semver::Version::parse(tag.trim().trim_start_matches('v')) {
+                    return Ok(Some(version));
+                }
+            }
+        }
+    }
+    let response = client
+        .get(crate::sources::github_tags_url())
+        .send()
+        .await
+        .map_err(|e| anyhow!("检查更新失败：{}", e.without_url()))?;
+    if !response.status().is_success() {
+        bail!("更新服务器 HTTP {}", response.status().as_u16());
+    }
+    let value: serde_json::Value = response.json().await?;
+    Ok(value
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(|tag| tag["name"].as_str())
+        .filter_map(|s| semver::Version::parse(s.trim_start_matches('v')).ok())
+        .max())
 }
 pub fn rotate_log(context: &WorkspaceContext) -> Result<()> {
     let state = crate::workspace::load(&context.dir)?;

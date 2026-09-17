@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-release_version="v1.5.0"
+release_version="v1.6.0"
 source="github"
 github_proxy="${CLASH_VERGE_TUI_GITHUB_PROXY:-https://clash-verge-tui.wty-yy.top}"
 repository="${CLASH_VERGE_TUI_REPOSITORY:-https://github.com/wty-yy/clash-verge-tui}"
@@ -107,10 +107,15 @@ tar -xzf "$temporary_dir/$asset" -C "$temporary_dir/package" --no-same-owner
 app="$temporary_dir/package/bin/clash-verge-tui"
 core="$temporary_dir/package/lib/clash-verge-tui/mihomo"
 geosite="$temporary_dir/package/lib/clash-verge-tui/GeoSite.dat"
+geodata="$temporary_dir/package/lib/clash-verge-tui/geoip.metadb"
+ui="$temporary_dir/package/lib/clash-verge-tui/ui"
 [ -f "$app" ] && [ ! -L "$app" ] || fail "release does not contain a regular TUI binary"
 [ -f "$core" ] && [ ! -L "$core" ] || fail "release does not contain a regular mihomo binary"
 [ -f "$geosite" ] && [ -s "$geosite" ] && [ ! -L "$geosite" ] || fail "release does not contain GeoSite.dat"
+[ -f "$geodata" ] && [ -s "$geodata" ] && [ ! -L "$geodata" ] || fail "release does not contain geoip.metadb"
+[ -f "$ui/index.html" ] && [ ! -L "$ui/index.html" ] || fail "release does not contain the Web UI"
 [ -f "$temporary_dir/package/share/licenses/meta-rules-dat/LICENSE" ] || fail "release does not contain the GeoSite license"
+[ -f "$temporary_dir/package/share/licenses/metacubexd/LICENSE" ] || fail "release does not contain the metacubexd license"
 "$app" --version | grep -F "$numeric_version" >/dev/null || fail "TUI version verification failed"
 "$core" -v | grep -F 'v1.19.29' >/dev/null || fail "mihomo version verification failed"
 
@@ -118,13 +123,21 @@ mkdir -p "$install_dir" "$core_dir"
 install -m 0755 "$app" "$install_dir/clash-verge-tui.new"
 install -m 0755 "$core" "$core_dir/mihomo.new"
 install -m 0644 "$geosite" "$library_dir/GeoSite.dat.new"
+install -m 0644 "$geodata" "$library_dir/geoip.metadb.new"
+rm -rf "$library_dir/ui.new"
+cp -R "$ui" "$library_dir/ui.new"
 mv -f "$core_dir/mihomo.new" "$core_dir/mihomo"
 mv -f "$library_dir/GeoSite.dat.new" "$library_dir/GeoSite.dat"
+mv -f "$library_dir/geoip.metadb.new" "$library_dir/geoip.metadb"
+rm -rf "$library_dir/ui"
+mv "$library_dir/ui.new" "$library_dir/ui"
+# The application binary is the version switch commit point.
 mv -f "$install_dir/clash-verge-tui.new" "$install_dir/clash-verge-tui"
 install -m 0644 "$temporary_dir/package/lib/clash-verge-tui/release.json" "$library_dir/release.json"
 install -m 0644 "$temporary_dir/package/share/licenses/clash-verge-tui/LICENSE" "$library_dir/LICENSE"
 install -m 0644 "$temporary_dir/package/share/licenses/mihomo/LICENSE" "$library_dir/MIHOMO-LICENSE"
 install -m 0644 "$temporary_dir/package/share/licenses/meta-rules-dat/LICENSE" "$library_dir/GEOSITE-LICENSE"
+install -m 0644 "$temporary_dir/package/share/licenses/metacubexd/LICENSE" "$library_dir/METACUBEXD-LICENSE"
 
 # Older releases predate the musl bundle.
 if [ -f "$temporary_dir/package/share/licenses/musl/LICENSE" ]; then

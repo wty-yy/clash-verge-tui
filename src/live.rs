@@ -22,6 +22,9 @@ pub struct ManagedSettings {
 pub struct LiveState {
     pub endpoint: String,
     pub connected: bool,
+    /// The core only listens after its first configuration parse; distinguish a
+    /// slow start from a dropped connection that was previously healthy.
+    pub ever_connected: bool,
     pub pending: bool,
     pub version: String,
     pub error: String,
@@ -61,6 +64,7 @@ impl LiveState {
         Self {
             endpoint,
             connected: false,
+            ever_connected: false,
             pending: false,
             version: String::new(),
             error: String::new(),
@@ -374,7 +378,11 @@ impl App {
                 live.sample_at = None;
                 live.down_rate = None;
                 live.up_rate = None;
-                self.status = format!("连接断开，自动重试：{error}");
+                self.status = if live.ever_connected {
+                    format!("连接断开，自动重试：{error}")
+                } else {
+                    "内核初始化中，正在等待控制器就绪…".into()
+                };
             }
             CoreEvent::Completed(result) => {
                 let live = self.live.as_mut().unwrap();
@@ -556,6 +564,7 @@ impl App {
         live.uploaded = up;
         live.memory = snapshot.connections["memory"].as_u64();
         live.connected = true;
+        live.ever_connected = true;
         live.error.clear();
         live.version = snapshot.version;
         self.state.mode = match snapshot.config["mode"].as_str() {

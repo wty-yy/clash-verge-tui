@@ -15,7 +15,7 @@ Clash Verge TUI is a **Linux-only** (x86_64/aarch64) terminal client for a self-
 - **Familiar Clash Verge interface** — the same Home / Proxies / Profiles / Connections / Rules / Logs / Unlock checks / Settings pages
 - **System proxy and TUN** — mixed proxy port plus TUN mode; the first TUN enable asks for the system password inside the TUI
 - **Runs in the background** — quit the TUI and keep the core and system proxy running through a systemd user service, freeing the terminal
-- **Self-managed core** — pinned mihomo v1.19.29 and a pinned `GeoSite.dat` snapshot; static musl builds with no runtime dependencies
+- **Self-managed core** — pinned mihomo v1.19.29 with bundled `GeoSite.dat`, `geoip.metadb`, and the MetaCubeXD Web UI, so the first launch works without GitHub access; static musl builds with no runtime dependencies
 - **Profiles and enhancements** — link import, YAML / JavaScript enhancement chains, scheduled updates
 - **Everyday operations** — live traffic and sessions, rule toggles, latency tests, unlock checks, encrypted backups with WebDAV
 - **Terminal-native** — Simplified Chinese, Traditional Chinese, and English; Vim keys, mouse, dark/light themes, and a layout that stays readable at any zoom level
@@ -39,6 +39,8 @@ clash-verge-tui
 
 The installer verifies the release against the published SHA-256 checksum and also works with older curl versions such as Ubuntu 20.04’s 7.68. `--source proxy` uses the project-maintained mirror `clash-verge-tui.wty-yy.top` (a Cloudflare Worker, see [deploy/gh-mirror](deploy/gh-mirror/README.md)) for both `install.sh` and the release archives, and `--github-proxy https://gh-proxy.com` switches to that community prefix. Add `~/.local/bin` to `PATH` if needed, and set `CLASH_VERGE_TUI_VERSION` to install a specific published version.
 
+Release bundles already contain the pinned core, GeoData, and Web UI, so the first launch and the first profile import never wait for GitHub. Optional GeoData updates use the same mirror; change **GeoData source** in Settings to `MetaCubeX` for mihomo’s GitHub defaults or paste a custom `geox-url` YAML.
+
 ## Usage
 
 - **Interface language** — follows the system by default; switch in Home quick controls or start with `--language en`, `zh-CN`, `zh-TW`, or `auto`.
@@ -57,6 +59,7 @@ The installer verifies the release against the published SHA-256 checksum and al
 cargo build --locked --release
 
 # Run the source build; the first launch downloads and verifies the pinned core
+# through the project mirror, falling back to GitHub
 ./target/release/clash-verge-tui
 
 # Release checks
@@ -65,7 +68,7 @@ cargo clippy --locked --all-targets -- -D warnings
 cargo test --locked
 ```
 
-- `src/core_manager.rs`: pinned core versions, bundled-core discovery, official downloads, dual SHA-256 checks, and automatic repair.
+- `src/core_manager.rs`, `src/sources.rs`: pinned core versions, bundled GeoData / Web UI seeding, mirror-first downloads with GitHub fallback, dual SHA-256 checks, and automatic repair.
 - `src/workspace.rs`, `src/subscriptions.rs`: authoritative manifests, profiles, enhancements, and transactional rollback.
 - `src/core.rs`, `src/live.rs`: mihomo API, logs, reconnection, and live action queues.
 - `src/platform.rs`, `src/service.rs`: system proxy, TUN, and systemd user services.
@@ -79,4 +82,4 @@ Pushing a `v*.*.*` tag makes GitHub Actions build both musl architectures and pu
 - Bundled core [mihomo](https://github.com/MetaCubeX/mihomo/tree/v1.19.29) v1.19.29: GPL-3.0, full text in [docs/LICENSE-GPL-3.0](docs/LICENSE-GPL-3.0), upstream source recorded in the release manifest
 - Rust dependencies: MIT / Apache-2.0, key components are [ratatui](https://github.com/ratatui/ratatui), [crossterm](https://github.com/crossterm-rs/crossterm), [tokio](https://github.com/tokio-rs/tokio), [reqwest](https://github.com/seanmonstar/reqwest), and [serde](https://github.com/serde-rs/serde); complete inventory in [third-party licenses](docs/THIRD-PARTY-LICENSES.md)
 - [Clash Verge Rev](https://github.com/clash-verge-rev/clash-verge-rev) is the interface and feature reference (GPL-3.0); the optional JavaScript enhancement runtime [Node.js](https://github.com/nodejs/node/blob/main/LICENSE) uses MIT
-- Static release bundles include the [musl license and copyright notices](docs/LICENSE-MUSL); bundled GeoSite data comes from [MetaCubeX/meta-rules-dat](https://github.com/MetaCubeX/meta-rules-dat) under GPL-3.0
+- Static release bundles include the [musl license and copyright notices](docs/LICENSE-MUSL); bundled GeoData comes from [MetaCubeX/meta-rules-dat](https://github.com/MetaCubeX/meta-rules-dat) under GPL-3.0, and the bundled Web UI from [MetaCubeX/metacubexd](https://github.com/MetaCubeX/metacubexd) under MIT

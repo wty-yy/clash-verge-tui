@@ -13,6 +13,7 @@ pub mod live;
 pub mod network;
 pub mod platform;
 pub mod service;
+pub mod sources;
 pub mod subscriptions;
 pub mod workspace;
 

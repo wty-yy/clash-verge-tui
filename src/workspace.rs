@@ -354,9 +354,20 @@ pub async fn compose(snapshot: &WorkspaceSnapshot, context: &WorkspaceContext) -
         .to_string_lossy()
         .to_string()
         .into();
+    // Prefer the project mirror for GeoData updates; "MetaCubeX" keeps mihomo's
+    // built-in GitHub defaults, and a custom `geox-url` always wins.
+    if config.get("geox-url").is_none()
+        && snapshot
+            .state
+            .preferences
+            .get("geo_source")
+            .map(String::as_str)
+            != Some("MetaCubeX")
+    {
+        config["geox-url"] = crate::sources::mirror_geox();
+    }
     if config.get("external-ui-url").is_none() {
-        config["external-ui-url"] =
-            "https://github.com/MetaCubeX/metacubexd/archive/refs/heads/gh-pages.zip".into();
+        config["external-ui-url"] = crate::sources::ui_url("MetaCubeXD").into();
     }
     config["external-controller"] = context.controller.clone().into();
     config["secret"] = context.secret.clone().into();
@@ -405,6 +416,10 @@ pub async fn validate(payload: &str, context: &WorkspaceContext) -> Result<()> {
     let ui = staging.path().join("ui");
     fs::create_dir_all(&ui)?;
     validation["external-ui"] = ui.to_string_lossy().to_string().into();
+    // `mihomo -t` must never fetch the Web UI; the staging directory is temporary.
+    if let Some(map) = validation.as_mapping_mut() {
+        map.remove(Value::from("external-ui-url"));
+    }
     subscriptions::private_write(&path, serde_yaml_ng::to_string(&validation)?.as_bytes())?;
     let log = context.dir.join("core/validation.log");
     subscriptions::private_write(&log, b"")?;
@@ -434,6 +449,26 @@ fn ensure(index: usize, length: usize) -> Result<()> {
         bail!("条目已变化，请刷新后重试");
     }
     Ok(())
+}
+/// Reloading re-creates the core's external controller, so the first request
+/// can race the listener restart. Retry briefly instead of failing the action.
+async fn reload(client: &CoreClient, payload: &str) -> Result<()> {
+    let mut delay = Duration::from_millis(250);
+    let mut last = None;
+    for _ in 0..6 {
+        match client
+            .execute(&CoreCommand::Reload(payload.to_string()))
+            .await
+        {
+            Ok(()) => return Ok(()),
+            Err(error) => {
+                last = Some(error);
+                tokio::time::sleep(delay).await;
+                delay = (delay * 2).min(Duration::from_millis(1500));
+            }
+        }
+    }
+    Err(last.unwrap_or_else(|| anyhow!("配置重载失败")))
 }
 pub(crate) fn next_file_id(dir: &Path) -> usize {
     fs::read_dir(dir)
@@ -803,13 +838,11 @@ pub async fn execute(
             crate::network::preflight(fields, &parsed, &previous).await?;
         }
         if !tun_restart {
-            client
-                .execute(&CoreCommand::Reload(candidate.clone()))
-                .await?;
+            reload(client, &candidate).await?;
             if let Some(fields) = &network_fields {
                 if let Err(error) = crate::network::verify_tun(fields, &parsed).await {
                     if let Ok(previous) = compose(&old, context).await {
-                        let _ = client.execute(&CoreCommand::Reload(previous)).await;
+                        let _ = reload(client, &previous).await;
                     }
                     return Err(error);
                 }
@@ -828,7 +861,7 @@ pub async fn execute(
         {
             if apply && !tun_restart {
                 if let Ok(previous) = compose(&old, context).await {
-                    let _ = client.execute(&CoreCommand::Reload(previous)).await;
+                    let _ = reload(client, &previous).await;
                 }
             }
             return Err(error);
@@ -842,7 +875,7 @@ pub async fn execute(
         }
         if apply && !tun_restart {
             if let Ok(previous) = compose(&old, context).await {
-                let _ = client.execute(&CoreCommand::Reload(previous)).await;
+                let _ = reload(client, &previous).await;
             }
         }
         return Err(error);

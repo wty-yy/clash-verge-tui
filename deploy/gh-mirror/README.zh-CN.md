@@ -2,7 +2,7 @@
 
 [English](README.md) · **简体中文**
 
-`worker.js` 是部署在 Cloudflare Workers 上的透明下载代理：把本仓库 GitHub Release 的资产（`install.sh`、`.tar.gz`、`.sha256`）通过 `https://clash-verge-tui.wty-yy.top` 分发并做边缘缓存。该脚本不存储文件、不调用 GitHub API，只转发所配置仓库的 release 资产。
+`worker.js` 是部署在 Cloudflare Workers 上的透明下载代理：把本仓库 GitHub Release 的资产（`install.sh`、`.tar.gz`、`.sha256`）以及固定版本的 MetaCubeX GeoData、网页界面与 mihomo 内核通过 `https://clash-verge-tui.wty-yy.top` 分发并做边缘缓存。该脚本不存储文件、不调用 GitHub API，只转发所配置仓库的 release 资产与显式白名单资产。
 
 ## 变量
 
@@ -22,6 +22,10 @@
 | `/install.sh` | 最新版本的安装脚本，缓存 5 分钟 |
 | `/latest/<asset>` | 由 GitHub 解析最新版本，缓存 5 分钟 |
 | `/v<major>.<minor>.<patch>/<asset>` | 指定版本，缓存 1 年 |
+| `/geodata/<geoip.dat\|geosite.dat\|geoip.metadb\|country.mmdb\|GeoLite2-ASN.mmdb>` | MetaCubeX/meta-rules-dat `latest` release 资产，缓存 5 分钟 |
+| `/ui/<metacubexd\|yacd-meta>.tar.gz` | 面板 `gh-pages` 分支的网页资源归档，缓存 1 年 |
+| `/core/v<版本>/mihomo-linux-<amd64\|arm64>-v<版本>.gz` | 固定版本 mihomo 内核压缩包，缓存 1 年 |
+| `/latest-version` | 由 GitHub 跳转解析出的最新版本标签，缓存 5 分钟 |
 
 `/health` 返回 `ok`，`/` 返回用法说明。
 
@@ -54,6 +58,11 @@ curl -fsSL https://clash-verge-tui.wty-yy.top/v1.5.0/clash-verge-tui-v1.5.0-linu
 
 # 经镜像引导安装：脚本与归档都走镜像，归档仍校验发布版 SHA-256
 curl -fsSL https://clash-verge-tui.wty-yy.top/install.sh | sh -s -- --source proxy
+
+# TUI 运行时资产（GeoData、网页界面与最新版本标签）
+curl -fsSL https://clash-verge-tui.wty-yy.top/geodata/geoip.metadb -o /dev/null
+curl -fsSL https://clash-verge-tui.wty-yy.top/ui/metacubexd.tar.gz -o /dev/null
+curl -fsSL https://clash-verge-tui.wty-yy.top/latest-version
 ```
 
 发行版 `install.sh` 的 `release_version` 由 Release 工作流在 publish 阶段写入标签版本。

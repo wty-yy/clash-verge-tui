@@ -15,7 +15,7 @@ Clash Verge TUI 是**仅支持 Linux**（x86_64/aarch64）的 mihomo 终端客�
 - **贴近 Clash Verge 的界面** — 首页 / 代理 / 订阅 / 连接 / 规则 / 日志 / 解锁检测 / 设置与桌面版一一对应
 - **系统代理与 TUN 双模式** — 混合代理端口加 TUN 网卡；首次开启 TUN 在界面内输入系统密码
 - **退出后台驻留** — 关闭界面后由 systemd 用户服务继续运行内核与系统代理，不占用前台终端
-- **自管内核** — 固定 mihomo v1.19.29 与固定版本 `GeoSite.dat`；musl 静态构建，无运行时依赖
+- **自管内核** — 固定 mihomo v1.19.29，随包 `GeoSite.dat`、`geoip.metadb` 与 MetaCubeXD 网页界面，首次启动不依赖 GitHub；musl 静态构建，无运行时依赖
 - **订阅与增强** — 链接导入、YAML / JavaScript 增强链、定时更新
 - **日常操作** — 实时流量与会话、规则启停、延迟测速、解锁检测、加密备份与 WebDAV 同步
 - **终端原生** — 简体中文 / 繁體中文 / English 三语，Vim 按键与鼠标操作，深浅主题，任意缩放窗口都保持可读
@@ -39,6 +39,8 @@ clash-verge-tui
 
 安装脚本会校验发行包发布的 SHA-256，并兼容 Ubuntu 20.04 的 curl 7.68 等旧版本。`--source proxy` 通过项目维护的 Cloudflare Worker 镜像 `clash-verge-tui.wty-yy.top` 下载脚本与归档（源码与部署说明见 [deploy/gh-mirror](deploy/gh-mirror/README.zh-CN.md)），可用 `--github-proxy https://gh-proxy.com` 切换到社区前缀。`~/.local/bin` 不在 `PATH` 时手动添加；设置 `CLASH_VERGE_TUI_VERSION` 可安装指定的已发布版本。
 
+发行包已包含固定内核、GeoData 与网页界面，首次启动和首次添加订阅都不会等待 GitHub。可选的 GeoData 自动更新同样走镜像；在设置页把 **GeoData 来源** 改为 `MetaCubeX` 可回到内核内置的 GitHub 地址，或填写自定义 `geox-url` YAML。
+
 ## 使用
 
 - **界面语言** — 默认跟随系统；可在首页快捷控制切换，或用 `--language en`、`zh-CN`、`zh-TW`、`auto` 启动。
@@ -56,7 +58,7 @@ clash-verge-tui
 # 从源码构建；Rust 1.88+（由 rust-toolchain.toml 固定）
 cargo build --locked --release
 
-# 运行源码构建；首次启动下载并校验固定内核
+# 运行源码构建；首次启动经项目镜像下载并校验固定内核，失败时回退 GitHub
 ./target/release/clash-verge-tui
 
 # 发布前检查
@@ -65,7 +67,7 @@ cargo clippy --locked --all-targets -- -D warnings
 cargo test --locked
 ```
 
-- `src/core_manager.rs`：固定内核版本、发行包发现、官方下载、双重 SHA-256 校验与自动修复。
+- `src/core_manager.rs`、`src/sources.rs`：固定内核版本与来源、随包 GeoData / 网页界面播种、镜像优先下载并回退 GitHub、双重 SHA-256 校验与自动修复。
 - `src/workspace.rs`、`src/subscriptions.rs`：权威清单、订阅、配置增强与事务回滚。
 - `src/core.rs`、`src/live.rs`：mihomo API、日志、重连与真实操作队列。
 - `src/platform.rs`、`src/service.rs`：系统代理、TUN 与 systemd 用户服务。
@@ -79,4 +81,4 @@ cargo test --locked
 - 随包内核 [mihomo](https://github.com/MetaCubeX/mihomo/tree/v1.19.29) v1.19.29：GPL-3.0，许可原文见 [docs/LICENSE-GPL-3.0](docs/LICENSE-GPL-3.0)，发行清单记录对应上游源码
 - Rust 依赖：MIT / Apache-2.0，主要有 [ratatui](https://github.com/ratatui/ratatui)、[crossterm](https://github.com/crossterm-rs/crossterm)、[tokio](https://github.com/tokio-rs/tokio)、[reqwest](https://github.com/seanmonstar/reqwest)、[serde](https://github.com/serde-rs/serde)，完整清单见 [第三方许可](docs/THIRD-PARTY-LICENSES.md)
 - [Clash Verge Rev](https://github.com/clash-verge-rev/clash-verge-rev) 仅作为界面与功能参考（GPL-3.0）；可选 JavaScript 增强运行时 [Node.js](https://github.com/nodejs/node/blob/main/LICENSE) 采用 MIT
-- 静态发行包附带 [musl 许可及版权声明](docs/LICENSE-MUSL)；随包 GeoSite 数据来自 [MetaCubeX/meta-rules-dat](https://github.com/MetaCubeX/meta-rules-dat)，采用 GPL-3.0
+- 静态发行包附带 [musl 许可及版权声明](docs/LICENSE-MUSL)；随包 GeoData 来自 [MetaCubeX/meta-rules-dat](https://github.com/MetaCubeX/meta-rules-dat)，采用 GPL-3.0；随包网页界面来自 [MetaCubeX/metacubexd](https://github.com/MetaCubeX/metacubexd)，采用 MIT

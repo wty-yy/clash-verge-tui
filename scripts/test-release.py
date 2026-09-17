@@ -5,6 +5,7 @@ import json
 import os
 from pathlib import Path
 import re
+import shutil
 import socket
 import subprocess
 import sys
@@ -27,15 +28,21 @@ with tempfile.TemporaryDirectory(prefix='cvt-release-test-') as directory:
     subprocess.run(['sh', str(installer)], env=env, check=True, timeout=90)
     app = home / '.local/bin/clash-verge-tui'
     assert subprocess.check_output([str(app), '--version'], env=env, text=True).strip() == 'clash-verge-tui ' + version[1:]
-    core = home / '.local/lib/clash-verge-tui/core/v1.19.29/mihomo'
-    geosite = home / '.local/lib/clash-verge-tui/GeoSite.dat'
-    assert (home / '.local/lib/clash-verge-tui/MUSL-LICENSE').is_file()
+    library = home / '.local/lib/clash-verge-tui'
+    core = library / 'core/v1.19.29/mihomo'
+    geosite = library / 'GeoSite.dat'
+    geodata = library / 'geoip.metadb'
+    assert (library / 'MUSL-LICENSE').is_file()
     assert geosite.is_file()
-    assert (home / '.local/lib/clash-verge-tui/GEOSITE-LICENSE').is_file()
+    assert (library / 'GEOSITE-LICENSE').is_file()
+    assert (library / 'METACUBEXD-LICENSE').is_file()
+    assert (library / 'ui/index.html').is_file()
     expected_hash = hashlib.sha256(core.read_bytes()).digest()
     geosite_hash = hashlib.sha256(geosite.read_bytes()).hexdigest()
-    metadata = json.loads((geosite.parent / 'release.json').read_text())
+    geodata_hash = hashlib.sha256(geodata.read_bytes()).hexdigest()
+    metadata = json.loads((library / 'release.json').read_text())
     assert geosite_hash == metadata['geosite_sha256']
+    assert geodata_hash == metadata['geodata_sha256']
     workspace = root / 'workspace'
     with socket.socket() as listener:
         listener.bind(('127.0.0.1', 0))
@@ -45,6 +52,8 @@ with tempfile.TemporaryDirectory(prefix='cvt-release-test-') as directory:
         if repair:
             (workspace / 'core/mihomo').write_bytes(b'corrupted test core\n')
             (workspace / 'core/GeoSite.dat').unlink()
+            (workspace / 'core/geoip.metadb').unlink()
+            shutil.rmtree(workspace / 'core/ui')
         else:
             workspace.mkdir()
             # Exercise initial validation with real GeoSite rules and a dead download URL.
@@ -67,6 +76,9 @@ with tempfile.TemporaryDirectory(prefix='cvt-release-test-') as directory:
         assert hashlib.sha256((workspace / 'core/mihomo').read_bytes()).digest() == expected_hash
         assert hashlib.sha256((workspace / 'core/GeoSite.dat').read_bytes()).hexdigest() == geosite_hash
         assert (workspace / 'core/GeoSite.dat').stat().st_mode & 0o777 == 0o600
+        assert hashlib.sha256((workspace / 'core/geoip.metadb').read_bytes()).hexdigest() == geodata_hash
+        assert (workspace / 'core/geoip.metadb').stat().st_mode & 0o777 == 0o600
+        assert (workspace / 'core/ui/index.html').is_file()
         validation_log = (workspace / 'core/validation.log').read_text()
         assert 'start download' not in validation_log.lower(), validation_log
         assert (workspace / 'workspace-state.json').stat().st_mode & 0o777 == 0o600

@@ -51,6 +51,46 @@ fn initialization_creates_the_authoritative_private_manifest() {
 }
 
 #[tokio::test]
+async fn geodata_defaults_to_the_mirror_and_custom_sources_win() {
+    let dir = tempfile::tempdir().unwrap();
+    let ctx = context(dir.path());
+    let mut state = workspace::initialize(dir.path()).unwrap();
+    let compose = |state: &workspace::WorkspaceSnapshot| {
+        let ctx = ctx.clone();
+        let state = state.clone();
+        async move {
+            serde_yaml_ng::from_str::<serde_yaml_ng::Value>(
+                &workspace::compose(&state, &ctx).await.unwrap(),
+            )
+            .unwrap()
+        }
+    };
+    let runtime = compose(&state).await;
+    assert_eq!(
+        runtime["geox-url"]["mmdb"],
+        "https://clash-verge-tui.wty-yy.top/geodata/geoip.metadb"
+    );
+    assert_eq!(
+        runtime["external-ui-url"],
+        "https://clash-verge-tui.wty-yy.top/ui/metacubexd.tar.gz"
+    );
+    state
+        .state
+        .preferences
+        .insert("geo_source".into(), "MetaCubeX".into());
+    assert!(compose(&state).await.get("geox-url").is_none());
+    state.state.overrides.insert(
+        "geox-url".into(),
+        serde_yaml_ng::from_str("mmdb: https://example.com/geoip.metadb").unwrap(),
+    );
+    let runtime = compose(&state).await;
+    assert_eq!(
+        runtime["geox-url"]["mmdb"],
+        "https://example.com/geoip.metadb"
+    );
+}
+
+#[tokio::test]
 async fn legacy_runtime_defaults_migrate_once_without_changing_subscriptions() {
     let dir = tempfile::tempdir().unwrap();
     let server = support::Server::new(|_| (200, "{}".into()));

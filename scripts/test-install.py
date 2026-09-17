@@ -61,20 +61,25 @@ class InstallerTests(unittest.TestCase):
         self.env.update(HOME=str(self.home), PATH=str(self.bin) + ':' + os.environ['PATH'],
                         RESPONSES=str(self.root / 'responses.json'), REQUEST_LOG=str(self.log))
 
-    def bundle(self, base, architecture='x86_64', include_geosite=True):
+    def bundle(self, base, architecture='x86_64', include_geosite=True, include_geodata=True):
         asset = f'clash-verge-tui-{PINNED_VERSION}-linux-{architecture}.tar.gz'
         archive = self.root / asset
         files = {
             'bin/clash-verge-tui': f'#!/bin/sh\necho "clash-verge-tui {NUMERIC_VERSION}"\n'.encode(),
             'lib/clash-verge-tui/mihomo': b'#!/bin/sh\necho "Mihomo Meta v1.19.29"\n',
             'lib/clash-verge-tui/GeoSite.dat': b'fixture geosite data\n',
+            'lib/clash-verge-tui/geoip.metadb': b'fixture geodata database\n',
+            'lib/clash-verge-tui/ui/index.html': b'<html>fixture ui</html>\n',
             'lib/clash-verge-tui/release.json': f'{{"app_version":"{NUMERIC_VERSION}"}}\n'.encode(),
             'share/licenses/clash-verge-tui/LICENSE': b'fixture TUI license\n',
             'share/licenses/mihomo/LICENSE': b'fixture core license\n',
             'share/licenses/meta-rules-dat/LICENSE': b'fixture geosite license\n',
+            'share/licenses/metacubexd/LICENSE': b'fixture ui license\n',
         }
         if not include_geosite:
             files.pop('lib/clash-verge-tui/GeoSite.dat')
+        if not include_geodata:
+            files.pop('lib/clash-verge-tui/geoip.metadb')
         with tarfile.open(archive, 'w:gz') as tar:
             for name, content in files.items():
                 info = tarfile.TarInfo(name)
@@ -97,8 +102,11 @@ class InstallerTests(unittest.TestCase):
         self.assertTrue((self.home / '.local/bin/clash-verge-tui').is_file())
         self.assertTrue((self.home / '.local/lib/clash-verge-tui/core/v1.19.29/mihomo').is_file())
         self.assertTrue((self.home / '.local/lib/clash-verge-tui/GeoSite.dat').is_file())
+        self.assertTrue((self.home / '.local/lib/clash-verge-tui/geoip.metadb').is_file())
+        self.assertTrue((self.home / '.local/lib/clash-verge-tui/ui/index.html').is_file())
         self.assertTrue((self.home / '.local/lib/clash-verge-tui/GEOSITE-LICENSE').is_file())
         self.assertTrue((self.home / '.local/lib/clash-verge-tui/MIHOMO-LICENSE').is_file())
+        self.assertTrue((self.home / '.local/lib/clash-verge-tui/METACUBEXD-LICENSE').is_file())
 
     def test_github_default(self):
         self.responses[REPOSITORY + '/releases/latest'] = f'{REPOSITORY}/releases/tag/{PINNED_VERSION}'
@@ -202,6 +210,16 @@ class InstallerTests(unittest.TestCase):
         installed.parent.mkdir(parents=True)
         installed.write_text('original installation')
         self.assertIn('release does not contain GeoSite.dat', self.run_installer().stderr)
+        self.assertEqual(installed.read_text(), 'original installation')
+
+    def test_missing_geodata_preserves_installation(self):
+        self.env['CLASH_VERGE_TUI_VERSION'] = PINNED_VERSION
+        self.responses[REPOSITORY + '/releases/latest'] = f'{REPOSITORY}/releases/tag/{PINNED_VERSION}'
+        self.bundle(f'{REPOSITORY}/releases/download/{PINNED_VERSION}', include_geodata=False)
+        installed = self.home / '.local/bin/clash-verge-tui'
+        installed.parent.mkdir(parents=True)
+        installed.write_text('original installation')
+        self.assertIn('release does not contain geoip.metadb', self.run_installer().stderr)
         self.assertEqual(installed.read_text(), 'original installation')
 
 

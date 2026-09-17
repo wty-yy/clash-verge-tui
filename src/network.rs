@@ -153,20 +153,27 @@ pub fn apply(overrides: &mut Mapping, fields: &BTreeMap<String, String>) -> Resu
             "cors_private" => (&["external-controller-cors", "allow-private-network"], 1),
             "cors_origins" => (&["external-controller-cors", "allow-origins"], 3),
             "geo_source" => {
-                if value == "MetaCubeX" {
-                    overrides.remove(Value::from("geox-url"));
-                } else {
-                    let urls = mapping(value)?;
-                    for (_, v) in urls.as_mapping().unwrap() {
-                        let u = v
-                            .as_str()
-                            .and_then(|s| url::Url::parse(s).ok())
-                            .ok_or_else(|| anyhow!("GeoData 地址需要 HTTP(S) URL"))?;
-                        if !matches!(u.scheme(), "http" | "https") {
-                            bail!("GeoData 地址需要 HTTP(S) URL");
-                        }
+                match value.as_str() {
+                    // Mihomo's built-in GitHub defaults; kept as an explicit opt-out.
+                    "MetaCubeX" => {
+                        overrides.remove(Value::from("geox-url"));
                     }
-                    set(overrides, &["geox-url"], urls);
+                    "镜像" => {
+                        set(overrides, &["geox-url"], crate::sources::mirror_geox());
+                    }
+                    _ => {
+                        let urls = mapping(value)?;
+                        for (_, v) in urls.as_mapping().unwrap() {
+                            let u = v
+                                .as_str()
+                                .and_then(|s| url::Url::parse(s).ok())
+                                .ok_or_else(|| anyhow!("GeoData 地址需要 HTTP(S) URL"))?;
+                            if !matches!(u.scheme(), "http" | "https") {
+                                bail!("GeoData 地址需要 HTTP(S) URL");
+                            }
+                        }
+                        set(overrides, &["geox-url"], urls);
+                    }
                 }
                 continue;
             }
@@ -175,12 +182,11 @@ pub fn apply(overrides: &mut Mapping, fields: &BTreeMap<String, String>) -> Resu
             "tunnels" => (&["tunnels"], 5),
             "webui_path" => (&["external-ui"], 0),
             "webui" => {
-                let url = if value == "Yacd" {
-                    "https://github.com/MetaCubeX/Yacd-meta/archive/refs/heads/gh-pages.zip"
-                } else {
-                    "https://github.com/MetaCubeX/metacubexd/archive/refs/heads/gh-pages.zip"
-                };
-                set(overrides, &["external-ui-url"], url.into());
+                set(
+                    overrides,
+                    &["external-ui-url"],
+                    crate::sources::ui_url(value).into(),
+                );
                 continue;
             }
             _ => continue,

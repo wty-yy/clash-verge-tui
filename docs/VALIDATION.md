@@ -274,3 +274,14 @@
 - 临时 HOME 中运行发行版 `install.sh --source proxy`，经镜像安装 `v1.5.0` 与 mihomo `v1.19.29`；`--check` 返回 `app_version 1.5.0`、`expected_core v1.19.29`、`managed true`
 - 远端 CI 与标签 CI 通过；Release 工作流双架构 musl 构建、Ubuntu 20.04 容器安装验证与 publish 通过（x86_64 首次运行出现一次瞬时控制器响应失败，重跑通过）
 - 镜像域名改为 `clash-verge-tui.wty-yy.top` 后重新生成并替换 Release 的 `install.sh` 资产（标签与二进制未变）；`/install.sh | sh -s -- --source proxy` 经新域名安装与 `--check` 复验通过，GitHub 与镜像提供的脚本内容一致
+
+### v1.5.0 首次订阅卡顿修复 · 2026-09-17
+
+- 定位：`external-ui-url` 被无条件写成 GitHub metacubexd zip，且未设置 `geox-url`，mihomo 在解析配置的同步路径里以直连方式下载网页界面与 `geoip.metadb`（日志 `Match using DIRECT`，单文件 90 秒超时）；`mihomo -t` 校验目录同样缺数据、随后又被删除，运行内核重复下载。控制器在初始化/重启窗口不可用，界面显示 `控制器请求失败: error sending request`，首次添加订阅因此长时间卡住
+- 发行包新增固定 `geoip.metadb`（`MetaCubeX/meta-rules-dat` 提交 `464ce812`，SHA-256 `4eda34a0…`）与 MetaCubeXD 网页界面（`gh-pages` 提交 `28a9589f`，归档 SHA-256 `335c0cd4…`，许可提交 `4aeaa2c5`）；`prepare_assets` 在校验前播种 `core/geoip.metadb` 与 `core/ui`，保留用户已更新或镜像更新的数据
+- `compose` 默认写入镜像 `geox-url` 与 `external-ui-url`，订阅自带的 geox 字段不再透传；设置页 GeoData 来源默认“镜像”，可切换 `MetaCubeX` 或自定义 `geox-url` YAML；校验 payload 移除 `external-ui-url`，`mihomo -t` 不再访问网络
+- 内核补装镜像优先、GitHub 回退；Worker 增加 `/geodata`、`/ui`、`/core`、`/latest-version` 白名单路由（`/ui` 与 `latest` 资产 5 分钟缓存，固定内核 1 年）；应用版本检查镜像优先、GitHub API 回退；配置重载在控制器重启窗口内退避重试，首次连接前显示内核初始化提示
+- 本地检查通过：`sh -n scripts/install.sh`、14 项安装脚本回归、18 项 Worker 测试、`cargo fmt --check`、Clippy 严格警告、完整 Rust 测试套件、`cargo build --locked --release`；新增 compose 镜像默认 / MetaCubeX opt-out / 自定义 geox-url 优先级与数据、UI 播种用例
+- 真实内核临时 HOME 验证：用固定 mihomo v1.19.29 组装 v1.5.0 x86_64 归档，经 `install.sh` 安装后 `--check` 通过；validation.log 无任何下载、`Initial configuration complete, total time: 0ms`，`core/geoip.metadb` 与 `core/ui/index.html` 播种且权限 0600，删除三者后自动补齐，快照与退出清理通过
+- 独立工作区 `--check` 生成的 `core/config.yaml` 中 `geox-url` 四个地址与 `external-ui-url` 均指向 `clash-verge-tui.wty-yy.top`；镜像新路由部署后实测 `/latest-version`、`/geodata/geoip.metadb`、`/ui/metacubexd.tar.gz`、`/core/v1.19.29/…gz` 均返回 200
+- 本机无 musl 工具链，未本地运行 `package-linux.sh`；musl 双架构打包与 Ubuntu 20.04 容器安装验证由 v1.6.0 Release 工作流完成

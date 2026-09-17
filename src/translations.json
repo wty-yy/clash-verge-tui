@@ -487,9 +487,9 @@
     "Update interval / hours",
     "更新間隔 / 小時"
   ],
-  "MetaCubeX 或 geox-url YAML": [
-    "MetaCubeX or geox-url YAML",
-    "MetaCubeX 或 geox-url YAML"
+  "镜像、MetaCubeX 或 geox-url YAML": [
+    "Mirror, MetaCubeX, or geox-url YAML",
+    "鏡像、MetaCubeX 或 geox-url YAML"
   ],
   "网页界面": [
     "Web UI",
@@ -2578,6 +2578,26 @@
   "随包 GeoSite.dat SHA-256 校验失败；请重新安装发行包": [
     "Bundled GeoSite.dat SHA-256 verification failed; reinstall the release bundle",
     "隨包 GeoSite.dat SHA-256 校驗失敗；請重新安裝發行包"
+  ],
+  "geoip.metadb 必须为普通文件": [
+    "geoip.metadb must be a regular file",
+    "geoip.metadb 必須為普通檔案"
+  ],
+  "随包 geoip.metadb 必须为普通文件": [
+    "Bundled geoip.metadb must be a regular file",
+    "隨包 geoip.metadb 必須為普通檔案"
+  ],
+  "随包 geoip.metadb SHA-256 校验失败；请重新安装发行包": [
+    "Bundled geoip.metadb SHA-256 verification failed; reinstall the release bundle",
+    "隨包 geoip.metadb SHA-256 校驗失敗；請重新安裝發行包"
+  ],
+  "随包网页界面必须为目录": [
+    "Bundled Web UI must be a directory",
+    "隨包網頁介面必須為目錄"
+  ],
+  "随包网页界面缺少 index.html": [
+    "Bundled Web UI is missing index.html",
+    "隨包網頁介面缺少 index.html"
   ],
   "JavaScript main 必须返回配置对象": [
     "JavaScript main must return a configuration object",
