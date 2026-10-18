@@ -305,3 +305,10 @@
 - x86_64 musl 组合包在临时 HOME 和 Ubuntu 20.04 Docker 容器通过真实安装、Mihomo `v1.19.32` 启动、离线 GeoData 校验、私有权限、损坏内核/数据修复及退出清理
 - 两种架构内核压缩包与 GitHub Release 资产 SHA-256 一致，解压后二进制哈希同步应用和打包脚本，静态链接检查通过；本次未执行 aarch64 原生构建/运行，也未触发远端 CI 或发布
 - 规则缓存验证同源不受订阅映射顺序影响、不同来源不复用；首次导入/选择订阅应用 `rule` 模式，代理页默认规则使用的组，普通轮询保留手动选择
+
+### v1.7.0 正式发布验收 · 2026-10-18
+
+- 发布代码 `cb95b28` 与注释标签 `v1.7.0`；[master CI](https://github.com/wty-yy/clash-verge-tui/actions/runs/39114860198)、[标签 CI](https://github.com/wty-yy/clash-verge-tui/actions/runs/39114860291)、[Release](https://github.com/wty-yy/clash-verge-tui/actions/runs/39114860299) 均为 success
+- 双架构完成原生 musl 构建、静态链接检查、Ubuntu 20.04 容器安装与内核/数据修复验证；[发行页](https://github.com/wty-yy/clash-verge-tui/releases/tag/v1.7.0) 包含两个组合包、两个 SHA-256 与 `install.sh`
+- 公开组合包重新下载后 SHA-256 通过，清单为应用 `1.7.0` / Mihomo `1.19.32` 与对应架构，发行版安装脚本和仓库一致；x86_64 公开下载返回 HTTP 200
+- 镜像 `/latest-version` 返回 `v1.7.0`，`/install.sh` 的 `release_version` 为 `v1.7.0`
