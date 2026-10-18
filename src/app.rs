@@ -19,6 +19,7 @@ pub struct DataRow {
 pub enum HomeFocus {
     Controls,
     Profile,
+    Update,
 }
 
 #[derive(Clone, Debug)]
@@ -32,6 +33,7 @@ pub enum Action {
     BackupSelect(usize),
     HomeFocus(HomeFocus),
     ProfileButton,
+    UpdateApplication,
     ImportProfile,
     Submit,
     Cancel,
@@ -307,6 +309,8 @@ pub struct App {
     pub live: Option<crate::live::LiveState>,
     pub page: Page,
     pub home_focus: HomeFocus,
+    pub application_update: crate::updater::State,
+    pub restart_app: bool,
     pub sub: usize,
     pub selected: usize,
     pub query: String,
@@ -346,6 +350,8 @@ impl App {
             live: None,
             page,
             home_focus: HomeFocus::Controls,
+            application_update: crate::updater::State::default(),
+            restart_app: false,
             sub: 0,
             selected: 0,
             query: String::new(),
@@ -390,7 +396,11 @@ impl App {
         self.cancel_pending_click();
         self.page = page;
         self.home_focus = HomeFocus::Controls;
-        self.sub = 0;
+        self.sub = if page == Page::Proxies && self.live.is_some() {
+            self.default_proxy_group()
+        } else {
+            0
+        };
         self.selected = 0;
         self.query.clear();
         self.searching = false;
@@ -685,7 +695,7 @@ impl App {
         self.rows().get(self.selected).map(|r| r.id)
     }
     pub fn step(&mut self, delta: isize) {
-        if self.page == Page::Home && self.home_focus == HomeFocus::Profile {
+        if self.page == Page::Home && self.home_focus != HomeFocus::Controls {
             return;
         }
         let n = self.rows().len();
@@ -698,11 +708,17 @@ impl App {
     pub fn change_sub(&mut self, delta: isize) {
         self.cancel_pending_click();
         if self.page == Page::Home {
-            self.home_focus = if self.home_focus == HomeFocus::Controls {
-                HomeFocus::Profile
+            let focuses = if self.application_update.visible() {
+                vec![HomeFocus::Controls, HomeFocus::Profile, HomeFocus::Update]
             } else {
-                HomeFocus::Controls
+                vec![HomeFocus::Controls, HomeFocus::Profile]
             };
+            let index = focuses
+                .iter()
+                .position(|focus| *focus == self.home_focus)
+                .unwrap_or(0);
+            self.home_focus =
+                focuses[(index as isize + delta).rem_euclid(focuses.len() as isize) as usize];
             return;
         }
         let n = self.tabs().len();
@@ -1034,6 +1050,7 @@ impl App {
                     }
                 }
             }
+            Action::UpdateApplication => self.update_application(),
             Action::ImportProfile => {
                 if self.live.is_some() {
                     self.import_profile_url();
@@ -1307,6 +1324,10 @@ impl App {
         }
     }
     pub fn activate(&mut self) {
+        if self.page == Page::Home && self.home_focus == HomeFocus::Update {
+            self.update_application();
+            return;
+        }
         if self.page == Page::Home && self.home_focus == HomeFocus::Profile {
             self.navigate(Page::Profiles);
             return;
@@ -1330,6 +1351,10 @@ impl App {
         }
     }
     pub fn command(&mut self, c: char) {
+        if c == 'u' && self.page == Page::Home {
+            self.update_application();
+            return;
+        }
         if self.live.is_some() && self.command_live(c) {
             return;
         }

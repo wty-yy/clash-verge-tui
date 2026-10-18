@@ -1,13 +1,13 @@
 #!/bin/sh
 set -eu
 
-release_version="v1.6.0"
+release_version="v1.7.0"
 source="github"
 github_proxy="${CLASH_VERGE_TUI_GITHUB_PROXY:-https://clash-verge-tui.wty-yy.top}"
 repository="${CLASH_VERGE_TUI_REPOSITORY:-https://github.com/wty-yy/clash-verge-tui}"
 install_dir="${CLASH_VERGE_TUI_INSTALL_DIR:-${HOME}/.local/bin}"
 library_dir="$(dirname "$install_dir")/lib/clash-verge-tui"
-core_dir="$library_dir/core/v1.19.29"
+core_dir="$library_dir/core/v1.19.32"
 version="${CLASH_VERGE_TUI_VERSION:-}"
 
 fail() {
@@ -117,7 +117,7 @@ ui="$temporary_dir/package/lib/clash-verge-tui/ui"
 [ -f "$temporary_dir/package/share/licenses/meta-rules-dat/LICENSE" ] || fail "release does not contain the GeoSite license"
 [ -f "$temporary_dir/package/share/licenses/metacubexd/LICENSE" ] || fail "release does not contain the metacubexd license"
 "$app" --version | grep -F "$numeric_version" >/dev/null || fail "TUI version verification failed"
-"$core" -v | grep -F 'v1.19.29' >/dev/null || fail "mihomo version verification failed"
+"$core" -v | grep -F 'v1.19.32' >/dev/null || fail "mihomo version verification failed"
 
 mkdir -p "$install_dir" "$core_dir"
 install -m 0755 "$app" "$install_dir/clash-verge-tui.new"
@@ -144,7 +144,7 @@ if [ -f "$temporary_dir/package/share/licenses/musl/LICENSE" ]; then
     install -m 0644 "$temporary_dir/package/share/licenses/musl/LICENSE" "$library_dir/MUSL-LICENSE"
 fi
 
-printf '\nInstalled clash-verge-tui %s with mihomo v1.19.29.\n' "$version"
+printf '\nInstalled clash-verge-tui %s with mihomo v1.19.32.\n' "$version"
 printf 'Binary: %s\n' "$install_dir/clash-verge-tui"
 printf 'Core: %s\n' "$core_dir/mihomo"
 case ":${PATH}:" in

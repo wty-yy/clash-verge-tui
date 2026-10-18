@@ -39,7 +39,7 @@ struct Args {
     /// 使用独立演示模式，不启动 mihomo
     #[arg(long, conflicts_with_all=["core","check","import_only","subscriptions_file","daemon","service"])]
     demo: bool,
-    /// 开发兼容选项：导入指定的 v1.19.29 内核到当前工作区
+    /// 开发兼容选项：导入指定的 v1.19.32 内核到当前工作区
     #[arg(long, hide = true)]
     core: Option<PathBuf>,
     /// 订阅清单 JSON 文件：[{"name":"...","url":"..."}]
@@ -82,7 +82,7 @@ struct Args {
     #[arg(long)]
     data_dir: Option<PathBuf>,
     /// 导出某个页面的确定性快照，不读取或保存用户状态
-    #[arg(long,conflicts_with_all=["core","subscriptions_file","check","import_only"],value_parser=["home","proxies","profiles","profile-import","tun-password","connections","rules","logs","unlock","settings"])]
+    #[arg(long,conflicts_with_all=["core","subscriptions_file","check","import_only"],value_parser=["home","home-update","home-download","proxies","profiles","profile-import","tun-password","connections","rules","logs","unlock","settings"])]
     snapshot: Option<String>,
     /// 快照输出路径；.svg 输出彩色 SVG，其他后缀输出文本
     #[arg(long, requires = "snapshot")]
@@ -381,8 +381,18 @@ fn run() -> Result<()> {
             }
             let commands = std::mem::take(&mut app.live.as_mut().unwrap().outbox);
             for command in commands {
+                let update = matches!(
+                    command,
+                    clash_verge_tui::core::Command::ApplicationUpdate(_)
+                );
                 if let Err(error) = worker.send(command) {
-                    app.handle_core(CoreEvent::Completed(Err(error.to_string())));
+                    app.handle_core(if update {
+                        CoreEvent::ApplicationUpdate(clash_verge_tui::updater::Event::Finished(
+                            Err(error.to_string()),
+                        ))
+                    } else {
+                        CoreEvent::Completed(Err(error.to_string()))
+                    });
                 }
             }
         }
@@ -487,6 +497,20 @@ fn run() -> Result<()> {
     }
     let attached = service_active && managed_core.is_none();
     drop(managed_core);
+    if app.restart_app {
+        if attached {
+            runtime.block_on(clash_verge_tui::service::action(&app.data_dir, "restart"))?;
+        }
+        if let clash_verge_tui::updater::Phase::Installed(executable) =
+            &app.application_update.phase
+        {
+            use std::os::unix::process::CommandExt;
+            let error = std::process::Command::new(executable)
+                .args(std::env::args_os().skip(1))
+                .exec();
+            return Err(error.into());
+        }
+    }
     if attached {
         print_background_notice(&app.data_dir, false);
     }
@@ -654,7 +678,17 @@ fn snapshot(args: &Args, page: &str) -> Result<()> {
             .insert("language".into(), language.clone());
         app.sync_language();
     }
-    if page == "profile-import" {
+    if page == "home-update" || page == "home-download" {
+        app.application_update.latest = Some(semver::Version::new(1, 8, 0));
+        app.application_update.phase = if page == "home-update" {
+            clash_verge_tui::updater::Phase::Available
+        } else {
+            clash_verge_tui::updater::Phase::Downloading {
+                received: 25 * 1024 * 1024,
+                total: Some(64 * 1024 * 1024),
+            }
+        };
+    } else if page == "profile-import" {
         app.navigate(Page::Profiles);
         app.command('a');
     } else if page == "tun-password" {

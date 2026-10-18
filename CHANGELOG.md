@@ -4,6 +4,13 @@
 
 See the [feature mapping](docs/FEATURES.md) for planned work.
 
+## v1.7.0 · 2026-10-18
+
+1. Add Home update/download progress, verified release installation, retry, and restart controls
+2. Update pinned Mihomo to `v1.19.32` with verified x86_64/aarch64 assets
+3. Key provider caches by source to prevent incorrect routing after subscription switches
+4. Default subscription activation to `rule` mode and show the rule-selected proxy group
+
 ## v1.6.0 · 2026-09-17
 
 1. Bundle `geoip.metadb` and the MetaCubeXD Web UI with the release and seed them into the workspace before the first configuration parse, so a blocked GitHub no longer stalls the first launch or the first profile import

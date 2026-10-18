@@ -1,6 +1,6 @@
 [package]
 name = "clash-verge-tui"
-version = "1.6.0"
+version = "1.7.0"
 edition = "2021"
 rust-version = "1.88"
 description = "A terminal interface and controller for mihomo"
@@ -33,5 +33,6 @@ semver = "1"
 flate2 = "1"
 sha2 = "0.10"
 zeroize = "1"
+tar = "0.4"
 
 [dev-dependencies]

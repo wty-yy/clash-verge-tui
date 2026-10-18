@@ -475,9 +475,9 @@
     "Core and GeoData",
     "核心與 GeoData"
   ],
-  "固定 mihomo v1.19.29；GeoData 来源与更新偏好": [
-    "Pinned mihomo v1.19.29; GeoData sources and updates",
-    "固定 mihomo v1.19.29；GeoData 來源與更新偏好"
+  "固定 mihomo v1.19.32；GeoData 来源与更新偏好": [
+    "Pinned mihomo v1.19.32; GeoData sources and updates",
+    "固定 mihomo v1.19.32；GeoData 來源與更新偏好"
   ],
   "GeoData 自动更新": [
     "Auto-update GeoData",
@@ -3142,5 +3142,145 @@
   "运行中的内核不是 v{version}；请执行 clash-verge-tui --service restart": [
     "Running core is not v{version}; run clash-verge-tui --service restart",
     "執行中的核心不是 v{version}；請執行 clash-verge-tui --service restart"
+  ],
+  "正在检查更新…": [
+    "Checking for updates…",
+    "正在檢查更新…"
+  ],
+  "立即更新": [
+    "Update now",
+    "立即更新"
+  ],
+  "更新应用": [
+    "Update",
+    "更新應用"
+  ],
+  "正在下载": [
+    "Downloading",
+    "正在下載"
+  ],
+  "正在校验发行包…": [
+    "Verifying release…",
+    "正在驗證發行包…"
+  ],
+  "正在安装更新…": [
+    "Installing update…",
+    "正在安裝更新…"
+  ],
+  "重启生效": [
+    "Restart to apply",
+    "重啟生效"
+  ],
+  "更新失败": [
+    "Update failed",
+    "更新失敗"
+  ],
+  "重试": [
+    "Retry",
+    "重試"
+  ],
+  "当前已是最新版本": [
+    "Already up to date",
+    "目前已是最新版本"
+  ],
+  "演示模式不下载应用更新": [
+    "Demo mode does not download app updates",
+    "演示模式不下載應用更新"
+  ],
+  "已安装更新，请重启生效": [
+    "Update installed; restart to apply",
+    "已安裝更新，請重啟生效"
+  ],
+  "更新版本必须为正式版本": [
+    "Update version must be a stable release",
+    "更新版本必須為正式版本"
+  ],
+  "更新版本无效": [
+    "Invalid update version",
+    "更新版本無效"
+  ],
+  "更新下载失败：{}": [
+    "Update download failed: {}",
+    "更新下載失敗：{}"
+  ],
+  "更新响应过大": [
+    "Update response is too large",
+    "更新回應過大"
+  ],
+  "发行包 SHA-256 校验文件无效": [
+    "Invalid release SHA-256 checksum file",
+    "發行包 SHA-256 驗證檔案無效"
+  ],
+  "更新版本必须高于当前版本": [
+    "Update version must be newer than the current version",
+    "更新版本必須高於目前版本"
+  ],
+  "无法确定安装目录": [
+    "Cannot determine the installation directory",
+    "無法確定安裝目錄"
+  ],
+  "另一个应用更新正在进行": [
+    "Another application update is in progress",
+    "另一個應用更新正在進行"
+  ],
+  "安装目录不可写，请使用安装脚本更新": [
+    "Installation directory is not writable; use the installer to update",
+    "安裝目錄不可寫，請使用安裝腳本更新"
+  ],
+  "更新下载失败": [
+    "Update download failed",
+    "更新下載失敗"
+  ],
+  "发行包 SHA-256 校验失败": [
+    "Release SHA-256 checksum mismatch",
+    "發行包 SHA-256 驗證失敗"
+  ],
+  "更新下载停滞，正在切换下载源": [
+    "Download stalled; switching source",
+    "更新下載停滯，正在切換下載來源"
+  ],
+  "发行包过大": [
+    "Release archive is too large",
+    "發行包過大"
+  ],
+  "发行包下载不完整": [
+    "Release download is incomplete",
+    "發行包下載不完整"
+  ],
+  "发行包包含不安全路径": [
+    "Release archive contains an unsafe path",
+    "發行包包含不安全路徑"
+  ],
+  "发行包包含非普通文件": [
+    "Release archive contains a non-regular file",
+    "發行包包含非一般檔案"
+  ],
+  "发行包解压后过大": [
+    "Unpacked release is too large",
+    "發行包解壓後過大"
+  ],
+  "发行包缺少内核版本": [
+    "Release manifest is missing the core version",
+    "發行包缺少核心版本"
+  ],
+  "发行包版本或架构不匹配": [
+    "Release version or architecture mismatch",
+    "發行包版本或架構不相符"
+  ],
+  "发行包缺少必要文件：{file}": [
+    "Release is missing a required file: {file}",
+    "發行包缺少必要檔案：{file}"
+  ],
+  "发行包内核 SHA-256 校验失败": [
+    "Release core SHA-256 checksum mismatch",
+    "發行包核心 SHA-256 驗證失敗"
+  ],
+  "发行包程序版本校验失败": [
+    "Release executable version verification failed",
+    "發行包程式版本驗證失敗"
+  ],
+  "应用更新由后台任务处理": [
+    "Application updates must run in the background worker",
+    "應用更新由背景工作處理"
   ]
 }

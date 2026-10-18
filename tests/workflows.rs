@@ -1000,3 +1000,47 @@ fn multiline_editor_handles_large_profiles_and_vertical_navigation() {
     field.key(KeyEvent::new(KeyCode::End, KeyModifiers::CONTROL));
     assert_eq!(field.cursor, field.value.len());
 }
+
+#[test]
+fn home_update_buttons_and_download_progress_fit_all_supported_sizes() {
+    use clash_verge_tui::{app::HomeFocus, updater::Phase};
+    for language in ["en", "zh-CN", "zh-TW"] {
+        for (width, height) in [(120, 40), (76, 24), (60, 18), (40, 12), (20, 8)] {
+            let mut a = app();
+            a.state.settings.insert("language".into(), language.into());
+            a.sync_language();
+            a.application_update.latest = Some(semver::Version::new(1, 8, 0));
+            a.application_update.phase = Phase::Available;
+            let view = render(&mut a, width, height);
+            assert!(
+                view.contains("1.8.0"),
+                "{language} {width}x{height}\n{view}"
+            );
+            let button = a
+                .hits
+                .iter()
+                .find(|(_, action)| matches!(action, Action::UpdateApplication))
+                .unwrap()
+                .0;
+            assert!(
+                button.width > 0
+                    && button.height > 0
+                    && button.right() <= width
+                    && button.bottom() <= height
+            );
+            key(&mut a, KeyCode::Tab);
+            key(&mut a, KeyCode::Tab);
+            assert_eq!(a.home_focus, HomeFocus::Update);
+            a.application_update.phase = Phase::Downloading {
+                received: 5 * 1024 * 1024,
+                total: Some(10 * 1024 * 1024),
+            };
+            let view = render(&mut a, width, height);
+            assert!(view.contains("50%"), "{language} {width}x{height}\n{view}");
+            assert!(!a
+                .hits
+                .iter()
+                .any(|(_, action)| matches!(action, Action::UpdateApplication)));
+        }
+    }
+}

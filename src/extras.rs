@@ -5,13 +5,11 @@ use std::{fs, path::Path, time::Duration};
 #[derive(Clone, Debug)]
 pub enum ExtraCommand {
     Detect { proxy: String, indices: Vec<usize> },
-    CheckUpdates,
     Open(String),
 }
 #[derive(Clone, Debug)]
 pub enum ExtraResult {
     Detected(Vec<(usize, Unlock)>),
-    Update(String),
     Opened,
 }
 pub const TARGETS: [(&str, &str, &str); 8] = [
@@ -131,16 +129,6 @@ pub async fn execute(command: ExtraCommand) -> Result<ExtraResult> {
                 .await;
             Ok(ExtraResult::Detected(result))
         }
-        ExtraCommand::CheckUpdates => {
-            let client = reqwest::Client::builder()
-                .timeout(Duration::from_secs(15))
-                .user_agent("clash-verge-tui")
-                .build()?;
-            let latest = latest_release(&client).await?;
-            let current = semver::Version::parse(env!("CARGO_PKG_VERSION"))?;
-            let message=match latest{Some(version) if version>current=>format!("发现新版本 v{version}。\n\n当前采用源码安装，可执行：\ncargo install --locked --git https://github.com/wty-yy/clash-verge-tui --tag v{version}\n\n项目：https://github.com/wty-yy/clash-verge-tui"),Some(version)=>format!("当前版本 v{current}\n已发布最新版本 v{version}\n无需更新。"),None=>"未发现已发布版本".into()};
-            Ok(ExtraResult::Update(message))
-        }
         ExtraCommand::Open(target) => {
             if let Ok(url) = url::Url::parse(&target) {
                 if !matches!(url.scheme(), "http" | "https" | "file") {
@@ -159,38 +147,6 @@ pub async fn execute(command: ExtraCommand) -> Result<ExtraResult> {
             Ok(ExtraResult::Opened)
         }
     }
-}
-/// Newest published version, preferring the mirror over the GitHub API.
-async fn latest_release(client: &reqwest::Client) -> Result<Option<semver::Version>> {
-    if let Ok(response) = client
-        .get(crate::sources::latest_version_url())
-        .send()
-        .await
-    {
-        if response.status().is_success() {
-            if let Ok(tag) = response.text().await {
-                if let Ok(version) = semver::Version::parse(tag.trim().trim_start_matches('v')) {
-                    return Ok(Some(version));
-                }
-            }
-        }
-    }
-    let response = client
-        .get(crate::sources::github_tags_url())
-        .send()
-        .await
-        .map_err(|e| anyhow!("检查更新失败：{}", e.without_url()))?;
-    if !response.status().is_success() {
-        bail!("更新服务器 HTTP {}", response.status().as_u16());
-    }
-    let value: serde_json::Value = response.json().await?;
-    Ok(value
-        .as_array()
-        .into_iter()
-        .flatten()
-        .filter_map(|tag| tag["name"].as_str())
-        .filter_map(|s| semver::Version::parse(s.trim_start_matches('v')).ok())
-        .max())
 }
 pub fn rotate_log(context: &WorkspaceContext) -> Result<()> {
     let state = crate::workspace::load(&context.dir)?;

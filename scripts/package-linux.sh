@@ -4,7 +4,7 @@ set -eu
 target="${TARGET:?TARGET is required}"
 architecture="${ARCHITECTURE:?ARCHITECTURE is required}"
 version="${APP_VERSION:?APP_VERSION is required}"
-core_version="1.19.29"
+core_version="1.19.32"
 geosite_revision="464ce81256c01af2ea0d464e0481fe4726519dcf"
 geosite_url="https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/$geosite_revision/geosite.dat"
 geosite_sha256="c5fe9448d979391192f5bd553b5e28c39efdc9bd857b7c879a7d995fded0c3fe"
@@ -19,13 +19,13 @@ ui_license_sha256="cd0735ba06f26a0008bbca399890c7ca87fe129aacc302c2e33fb03e60a4e
 case "$architecture" in
     x86_64)
         core_asset="mihomo-linux-amd64-v${core_version}.gz"
-        core_sha256="60de76a35a6cbf7b4fa4a20f5c257c24345d1d635ab1aa3877022a1997ef413c"
-        core_binary_sha256="9c397be7489538628fae781bc005e4c5b8cd7b0961b8bb2ca815c8150f193577"
+        core_sha256="8451100836c9eda194331c2babfad490b2faf30cebc1a04b0e76fd8ac2d35d10"
+        core_binary_sha256="3122d100e8177501776109f1a6253a694611627cf4d7c7ec82705855cf8626a8"
         ;;
     aarch64)
         core_asset="mihomo-linux-arm64-v${core_version}.gz"
-        core_sha256="9a868b5e4e0ad91d9d71e1b41b0cfce78aaba44360c30df74a723f8e3926a86c"
-        core_binary_sha256="8e02308f672e89c076bfc2fa1b03379bd54e58b0bafa81ffb01113fcf6da348d"
+        core_sha256="9dd862e28b46ff7d775f169cceebc28deccaa0a9e804237d421cd2571e0caba0"
+        core_binary_sha256="c80df2ca5159567804da883401e0118908fc1155e05df2baf3dbd4d3ecfc3754"
         ;;
     *)
         printf 'Unsupported release architecture: %s\n' "$architecture" >&2

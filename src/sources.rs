@@ -72,7 +72,7 @@ mod tests {
         for url in [
             geodata_url("geoip.metadb"),
             ui_url("MetaCubeXD"),
-            core_url("1.19.29", "mihomo-linux-amd64-v1.19.29.gz"),
+            core_url("1.19.32", "mihomo-linux-amd64-v1.19.32.gz"),
             latest_version_url(),
         ] {
             let url = url::Url::parse(&url).unwrap();

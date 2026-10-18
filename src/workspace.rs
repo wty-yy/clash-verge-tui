@@ -221,6 +221,7 @@ pub fn synchronize_import(dir: &Path, profiles: Vec<StoredProfile>) -> Result<()
         .and_then(|url| profiles.iter().position(|p| p.url == url))
         .unwrap_or(0);
     snapshot.profiles = profiles;
+    rule_mode(&mut snapshot);
     save(dir, &snapshot)
 }
 struct DraftFile(Option<PathBuf>);
@@ -236,6 +237,7 @@ pub fn set_active_on_start(dir: &Path, index: usize) -> Result<()> {
     let mut snapshot = load(dir)?;
     ensure(index, snapshot.profiles.len())?;
     snapshot.active = index;
+    rule_mode(&mut snapshot);
     save(dir, &snapshot)
 }
 fn lowercase_root(value: Value) -> Value {
@@ -701,6 +703,9 @@ pub async fn execute(
             } else {
                 snapshot.profiles.push(profile);
                 apply = old.profiles.is_empty();
+                if apply {
+                    rule_mode(&mut snapshot);
+                }
             }
         }
         WorkspaceCommand::Refresh(i) => {
@@ -762,6 +767,7 @@ pub async fn execute(
         WorkspaceCommand::Select(i) => {
             ensure(i, snapshot.profiles.len())?;
             snapshot.active = i;
+            rule_mode(&mut snapshot);
             apply = true;
         }
         WorkspaceCommand::PutEnhancement { index, item } => {
@@ -960,4 +966,15 @@ pub fn due(dir: &Path) -> Result<Option<usize>> {
         save(dir, &snapshot)?;
     }
     Ok(index)
+}
+
+fn rule_mode(snapshot: &mut WorkspaceSnapshot) {
+    snapshot
+        .state
+        .overrides
+        .insert("mode".into(), "rule".into());
+    snapshot
+        .state
+        .preferences
+        .insert("mode".into(), "rule".into());
 }

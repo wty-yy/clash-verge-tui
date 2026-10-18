@@ -51,6 +51,7 @@ Declared package licenses from the current `Cargo.lock` and local Cargo package 
 | [equivalent](https://github.com/indexmap-rs/equivalent) | `1.0.2` | `Apache-2.0 OR MIT` |
 | [errno](https://github.com/lambda-fairy/rust-errno) | `0.3.14` | `MIT OR Apache-2.0` |
 | [fastrand](https://github.com/smol-rs/fastrand) | `2.5.0` | `Apache-2.0 OR MIT` |
+| [filetime](https://github.com/alexcrichton/filetime) | `0.2.29` | `MIT/Apache-2.0` |
 | [find-msvc-tools](https://github.com/rust-lang/cc-rs) | `0.1.12` | `MIT OR Apache-2.0` |
 | [flate2](https://github.com/rust-lang/flate2-rs) | `1.1.10` | `MIT OR Apache-2.0` |
 | [foldhash](https://github.com/orlp/foldhash) | `0.1.5` | `Zlib` |
@@ -172,6 +173,7 @@ Declared package licenses from the current `Cargo.lock` and local Cargo package 
 | [syn](https://github.com/dtolnay/syn) | `3.0.5` | `MIT OR Apache-2.0` |
 | [sync_wrapper](https://github.com/Actyx/sync_wrapper) | `1.0.2` | `Apache-2.0` |
 | [synstructure](https://github.com/mystor/synstructure) | `0.13.2` | `MIT` |
+| [tar](https://github.com/composefs/tar-rs) | `0.4.46` | `MIT OR Apache-2.0` |
 | [tempfile](https://github.com/Stebalien/tempfile) | `3.27.0` | `MIT OR Apache-2.0` |
 | [thiserror](https://github.com/dtolnay/thiserror) | `2.0.20` | `MIT OR Apache-2.0` |
 | [thiserror-impl](https://github.com/dtolnay/thiserror) | `2.0.20` | `MIT OR Apache-2.0` |
@@ -230,6 +232,7 @@ Declared package licenses from the current `Cargo.lock` and local Cargo package 
 | [windows_x86_64_gnullvm](https://github.com/microsoft/windows-rs) | `0.52.6` | `MIT OR Apache-2.0` |
 | [windows_x86_64_msvc](https://github.com/microsoft/windows-rs) | `0.52.6` | `MIT OR Apache-2.0` |
 | [writeable](https://github.com/unicode-org/icu4x) | `0.6.4` | `Unicode-3.0` |
+| [xattr](https://github.com/Stebalien/xattr) | `1.6.1` | `MIT OR Apache-2.0` |
 | [yoke](https://github.com/unicode-org/icu4x) | `0.8.3` | `Unicode-3.0` |
 | [yoke-derive](https://github.com/unicode-org/icu4x) | `0.8.2` | `Unicode-3.0` |
 | [zerofrom](https://github.com/unicode-org/icu4x) | `0.1.8` | `Unicode-3.0` |

@@ -29,7 +29,7 @@ with tempfile.TemporaryDirectory(prefix='cvt-release-test-') as directory:
     app = home / '.local/bin/clash-verge-tui'
     assert subprocess.check_output([str(app), '--version'], env=env, text=True).strip() == 'clash-verge-tui ' + version[1:]
     library = home / '.local/lib/clash-verge-tui'
-    core = library / 'core/v1.19.29/mihomo'
+    core = library / 'core/v1.19.32/mihomo'
     geosite = library / 'GeoSite.dat'
     geodata = library / 'geoip.metadb'
     assert (library / 'MUSL-LICENSE').is_file()
@@ -71,7 +71,7 @@ with tempfile.TemporaryDirectory(prefix='cvt-release-test-') as directory:
             raise
         status = json.loads(result.stdout)
         assert status['app_version'] == version[1:], status
-        assert status['expected_core'] == 'v1.19.29', status
+        assert status['expected_core'] == 'v1.19.32', status
         assert status['managed'] is True, status
         assert hashlib.sha256((workspace / 'core/mihomo').read_bytes()).digest() == expected_hash
         assert hashlib.sha256((workspace / 'core/GeoSite.dat').read_bytes()).hexdigest() == geosite_hash

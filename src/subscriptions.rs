@@ -449,9 +449,12 @@ pub fn normalized_config(
     }
     for key in ["proxy-providers", "rule-providers"] {
         if let Some(Value::Mapping(providers)) = normalized.get_mut(Value::from(key)) {
-            for (i, provider) in providers.values_mut().enumerate() {
+            for (name, provider) in providers.iter_mut() {
                 if let Value::Mapping(map) = provider {
-                    map.insert("path".into(), format!("providers/{key}-{i}.yaml").into());
+                    use sha2::{Digest, Sha256};
+                    let identity = serde_yaml_ng::to_string(&(name, &*map))?;
+                    let hash = format!("{:x}", Sha256::digest(identity.as_bytes()));
+                    map.insert("path".into(), format!("providers/{key}-{hash}.yaml").into());
                 }
             }
         }

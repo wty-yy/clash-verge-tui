@@ -177,10 +177,11 @@ fn managed_configuration_is_loopback_only_and_rewrites_provider_paths() {
     assert!(config.get("listeners").is_none());
     assert!(config.get("tunnels").is_none());
     assert!(config["dns"].get("listen").is_none());
-    assert_eq!(
-        config["rule-providers"]["fixture"]["path"].as_str(),
-        Some("providers/rule-providers-0.yaml")
-    );
+    let path = config["rule-providers"]["fixture"]["path"]
+        .as_str()
+        .unwrap();
+    assert!(path.starts_with("providers/rule-providers-") && path.ends_with(".yaml"));
+    assert!(!path.contains(".."));
     assert_eq!(
         config["rules"],
         serde_yaml_ng::from_str::<serde_yaml_ng::Value>(YAML).unwrap()["rules"]
@@ -360,4 +361,28 @@ async fn maintenance_actions_use_expected_core_routes() {
     assert!(req
         .iter()
         .any(|r| r.method == "DELETE" && r.path == "/proxies/auto%20%2F%20group"));
+}
+
+#[test]
+fn provider_caches_follow_their_source_instead_of_subscription_order() {
+    fn paths(source: &str) -> serde_yaml_ng::Value {
+        let full = format!("{YAML}{source}");
+        serde_yaml_ng::from_str(
+            &subscriptions::normalized_config(&full, "127.0.0.1:19097", "fixture", 17897).unwrap(),
+        )
+        .unwrap()
+    }
+    let first = paths("rule-providers:\n  domestic: {type: http, behavior: domain, format: mrs, url: 'https://example.com/cn.mrs'}\n  foreign: {type: http, behavior: domain, format: mrs, url: 'https://example.com/foreign.mrs'}");
+    let reordered = paths("rule-providers:\n  foreign: {type: http, behavior: domain, format: mrs, url: 'https://example.com/foreign.mrs'}\n  domestic: {type: http, behavior: domain, format: mrs, url: 'https://example.com/cn.mrs'}");
+    for key in ["domestic", "foreign"] {
+        assert_eq!(
+            first["rule-providers"][key]["path"],
+            reordered["rule-providers"][key]["path"]
+        );
+    }
+    let changed = paths("rule-providers:\n  domestic: {type: http, behavior: domain, format: mrs, url: 'https://example.com/foreign.mrs'}");
+    assert_ne!(
+        first["rule-providers"]["domestic"]["path"],
+        changed["rule-providers"]["domestic"]["path"]
+    );
 }

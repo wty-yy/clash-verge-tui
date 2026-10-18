@@ -15,7 +15,7 @@ Clash Verge TUI is a **Linux-only** (x86_64/aarch64) terminal client for a self-
 - **Familiar Clash Verge interface** — the same Home / Proxies / Profiles / Connections / Rules / Logs / Unlock checks / Settings pages
 - **System proxy and TUN** — mixed proxy port plus TUN mode; the first TUN enable asks for the system password inside the TUI
 - **Runs in the background** — quit the TUI and keep the core and system proxy running through a systemd user service, freeing the terminal
-- **Self-managed core** — pinned mihomo v1.19.29 with bundled `GeoSite.dat`, `geoip.metadb`, and the MetaCubeXD Web UI, so the first launch works without GitHub access; static musl builds with no runtime dependencies
+- **Self-managed core** — pinned mihomo v1.19.32 with bundled `GeoSite.dat`, `geoip.metadb`, and the MetaCubeXD Web UI, so the first launch works without GitHub access; static musl builds with no runtime dependencies
 - **Profiles and enhancements** — link import, YAML / JavaScript enhancement chains, scheduled updates
 - **Everyday operations** — live traffic and sessions, rule toggles, latency tests, unlock checks, encrypted backups with WebDAV
 - **Terminal-native** — Simplified Chinese, Traditional Chinese, and English; Vim keys, mouse, dark/light themes, and a layout that stays readable at any zoom level
@@ -27,7 +27,7 @@ Created for personal use with development assistance from ChatGPT. The interface
 ## Install
 
 ```bash
-# Install the latest release to ~/.local/bin with the pinned mihomo v1.19.29
+# Install the latest release to ~/.local/bin with the pinned mihomo v1.19.32
 curl -fsSL https://github.com/wty-yy/clash-verge-tui/releases/latest/download/install.sh | sh
 
 # Use the project Cloudflare mirror (clash-verge-tui.wty-yy.top) when GitHub is unreachable
@@ -51,6 +51,8 @@ Release bundles already contain the pinned core, GeoData, and Web UI, so the fir
 - **Workspace** — defaults to `${XDG_STATE_HOME:-$HOME/.local/state}/clash-verge-tui`; use `--data-dir` for another location. Configuration and secrets stay private (`0600`).
 - **Keys** — `1`–`8` pages, `↑/↓` or `j/k` select, `←/→` or `h/l` sections, `Enter` or double-click activate, `/` search, `:` page palette, `?` help, `t` theme, `q` quit.
 - **Diagnostics** — `--check` validates the app, core, and configuration without opening the UI; `--demo` opens isolated demo data; `--snapshot home --output home.svg` exports the real Ratatui buffer.
+- **Application updates** — Home shows new releases with `u` / click to download, SHA-256 verification, progress, retry, and restart; downloads prefer the project mirror and fall back to GitHub. Restart also refreshes an attached background service.
+- **Subscription activation** — starts in `rule` mode; Proxies opens the group used by the current rules, preserving manual group selection during polling.
 
 ## Development
 
@@ -79,7 +81,7 @@ Pushing a `v*.*.*` tag makes GitHub Actions build both musl architectures and pu
 ## License and third-party components
 
 - TUI source: [MIT](LICENSE)
-- Bundled core [mihomo](https://github.com/MetaCubeX/mihomo/tree/v1.19.29) v1.19.29: GPL-3.0, full text in [docs/LICENSE-GPL-3.0](docs/LICENSE-GPL-3.0), upstream source recorded in the release manifest
+- Bundled core [mihomo](https://github.com/MetaCubeX/mihomo/tree/v1.19.32) v1.19.32: GPL-3.0, full text in [docs/LICENSE-GPL-3.0](docs/LICENSE-GPL-3.0), upstream source recorded in the release manifest
 - Rust dependencies: MIT / Apache-2.0, key components are [ratatui](https://github.com/ratatui/ratatui), [crossterm](https://github.com/crossterm-rs/crossterm), [tokio](https://github.com/tokio-rs/tokio), [reqwest](https://github.com/seanmonstar/reqwest), and [serde](https://github.com/serde-rs/serde); complete inventory in [third-party licenses](docs/THIRD-PARTY-LICENSES.md)
 - [Clash Verge Rev](https://github.com/clash-verge-rev/clash-verge-rev) is the interface and feature reference (GPL-3.0); the optional JavaScript enhancement runtime [Node.js](https://github.com/nodejs/node/blob/main/LICENSE) uses MIT
 - Static release bundles include the [musl license and copyright notices](docs/LICENSE-MUSL); bundled GeoData comes from [MetaCubeX/meta-rules-dat](https://github.com/MetaCubeX/meta-rules-dat) under GPL-3.0, and the bundled Web UI from [MetaCubeX/metacubexd](https://github.com/MetaCubeX/metacubexd) under MIT

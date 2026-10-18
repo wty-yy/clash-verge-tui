@@ -660,3 +660,109 @@ fn quit_prompt_renders_choices_and_mouse_hits_in_every_language() {
         assert!(actions.contains(&"Cancel".to_string()));
     }
 }
+
+#[test]
+fn home_update_events_allow_retry_and_restart_without_blocking_controller_actions() {
+    use clash_verge_tui::updater::{Event, Phase};
+    let mut app = app();
+    app.handle_core(CoreEvent::ApplicationUpdate(Event::Checked(Ok(Some(
+        semver::Version::new(1, 8, 0),
+    )))));
+    assert!(app.modal.is_none());
+    app.action(Action::UpdateApplication);
+    assert!(matches!(
+        app.live.as_ref().unwrap().outbox.last(),
+        Some(Command::ApplicationUpdate(_))
+    ));
+    assert!(!app.live.as_ref().unwrap().pending);
+    let count = app.live.as_ref().unwrap().outbox.len();
+    app.action(Action::UpdateApplication);
+    assert_eq!(app.live.as_ref().unwrap().outbox.len(), count);
+    app.handle_core(CoreEvent::ApplicationUpdate(Event::Finished(Err(
+        "fixture error".into(),
+    ))));
+    assert!(matches!(app.application_update.phase, Phase::Failed(_)));
+    app.action(Action::UpdateApplication);
+    assert_eq!(app.live.as_ref().unwrap().outbox.len(), count + 1);
+    app.handle_core(CoreEvent::ApplicationUpdate(Event::Finished(Ok(
+        "/tmp/fixture-bin".into(),
+    ))));
+    app.action(Action::UpdateApplication);
+    assert!(app.restart_app && app.quit);
+}
+
+#[test]
+fn rule_mode_opens_the_group_used_by_rules_and_global_mode_opens_global() {
+    let mut app = app();
+    let mut snap = snapshot();
+    snap.proxies["proxies"]["GLOBAL"] =
+        json!({"type":"Selector","all":["Main / #?"],"now":"Main / #?"});
+    snap.rules["rules"]
+        .as_array_mut()
+        .unwrap()
+        .push(json!({"type":"Match","proxy":"Main / #?"}));
+    app.handle_core(CoreEvent::Snapshot(Box::new(snap.clone())));
+    app.navigate(Page::Proxies);
+    assert_eq!(app.state.groups[app.sub].name, "Main / #?");
+    let manual = app
+        .state
+        .groups
+        .iter()
+        .position(|group| group.name == "AUTO")
+        .unwrap();
+    app.sub = manual;
+    app.handle_core(CoreEvent::Snapshot(Box::new(snap.clone())));
+    assert_eq!(
+        app.state.groups[app.sub].name, "AUTO",
+        "refresh preserves manual selection"
+    );
+    snap.config["mode"] = "global".into();
+    app.handle_core(CoreEvent::Snapshot(Box::new(snap)));
+    app.navigate(Page::Home);
+    app.navigate(Page::Proxies);
+    assert_eq!(app.state.groups[app.sub].name, "GLOBAL");
+}
+
+#[test]
+fn home_update_mouse_click_and_keyboard_focus_use_the_visible_button() {
+    use clash_verge_tui::{
+        app::HomeFocus,
+        updater::{Event, Phase},
+    };
+    use crossterm::event::{
+        KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind,
+    };
+    for (width, height) in [(76, 24), (120, 40)] {
+        let mut app = app();
+        app.handle_core(CoreEvent::ApplicationUpdate(Event::Checked(Ok(Some(
+            semver::Version::new(1, 8, 0),
+        )))));
+        let mut terminal = Terminal::new(TestBackend::new(width, height)).unwrap();
+        terminal.draw(|frame| ui::draw(frame, &mut app)).unwrap();
+        let area = app
+            .hits
+            .iter()
+            .find(|(_, action)| matches!(action, Action::UpdateApplication))
+            .unwrap()
+            .0;
+        app.mouse(MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Left),
+            column: area.x + area.width / 2,
+            row: area.y,
+            modifiers: KeyModifiers::NONE,
+        });
+        assert!(matches!(
+            app.live.as_ref().unwrap().outbox.last(),
+            Some(Command::ApplicationUpdate(_))
+        ));
+        app.handle_core(CoreEvent::ApplicationUpdate(Event::Finished(Err(
+            "fixture".into(),
+        ))));
+        app.home_focus = HomeFocus::Update;
+        app.key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+        assert!(matches!(
+            app.application_update.phase,
+            Phase::Downloading { .. }
+        ));
+    }
+}

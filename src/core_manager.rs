@@ -10,7 +10,7 @@ use std::{
     time::Duration,
 };
 
-pub const MIHOMO_VERSION: &str = "1.19.29";
+pub const MIHOMO_VERSION: &str = "1.19.32";
 const MAX_ARCHIVE_SIZE: usize = 32 * 1024 * 1024;
 pub const GEOSITE_FILE: &str = "GeoSite.dat";
 pub const GEOSITE_SHA256: &str = "c5fe9448d979391192f5bd553b5e28c39efdc9bd857b7c879a7d995fded0c3fe";
@@ -32,15 +32,15 @@ pub fn asset() -> Result<Asset> {
     match std::env::consts::ARCH {
         "x86_64" => Ok(Asset {
             arch: "x86_64",
-            name: "mihomo-linux-amd64-v1.19.29.gz",
-            sha256: "60de76a35a6cbf7b4fa4a20f5c257c24345d1d635ab1aa3877022a1997ef413c",
-            binary_sha256: "9c397be7489538628fae781bc005e4c5b8cd7b0961b8bb2ca815c8150f193577",
+            name: "mihomo-linux-amd64-v1.19.32.gz",
+            sha256: "8451100836c9eda194331c2babfad490b2faf30cebc1a04b0e76fd8ac2d35d10",
+            binary_sha256: "3122d100e8177501776109f1a6253a694611627cf4d7c7ec82705855cf8626a8",
         }),
         "aarch64" => Ok(Asset {
             arch: "aarch64",
-            name: "mihomo-linux-arm64-v1.19.29.gz",
-            sha256: "9a868b5e4e0ad91d9d71e1b41b0cfce78aaba44360c30df74a723f8e3926a86c",
-            binary_sha256: "8e02308f672e89c076bfc2fa1b03379bd54e58b0bafa81ffb01113fcf6da348d",
+            name: "mihomo-linux-arm64-v1.19.32.gz",
+            sha256: "9dd862e28b46ff7d775f169cceebc28deccaa0a9e804237d421cd2571e0caba0",
+            binary_sha256: "c80df2ca5159567804da883401e0118908fc1155e05df2baf3dbd4d3ecfc3754",
         }),
         arch => bail!("暂不支持 {arch}；Linux 发行包支持 x86_64 与 aarch64"),
     }

@@ -18,3 +18,5 @@ pub mod subscriptions;
 pub mod workspace;
 
 pub mod resolver_service;
+
+pub mod updater;

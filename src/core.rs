@@ -46,6 +46,7 @@ pub struct Snapshot {
 #[derive(Clone, Debug)]
 pub enum Command {
     Refresh,
+    ApplicationUpdate(crate::updater::Command),
     Workspace(crate::workspace::WorkspaceCommand),
     Backup(crate::backup::BackupCommand),
     Extra(crate::extras::ExtraCommand),
@@ -87,6 +88,7 @@ pub enum Command {
 }
 #[derive(Debug)]
 pub enum CoreEvent {
+    ApplicationUpdate(crate::updater::Event),
     Snapshot(Box<Snapshot>),
     Workspace(Box<crate::workspace::WorkspaceSnapshot>),
     WorkspaceRestart(Box<crate::workspace::WorkspaceSnapshot>),
@@ -328,6 +330,7 @@ impl CoreClient {
                 )
                 .await?;
             }
+            Command::ApplicationUpdate(_) => bail!("应用更新由后台任务处理"),
             Command::Patch(config) => {
                 self.request(
                     Method::PATCH,
@@ -440,8 +443,13 @@ impl Worker {
             let mut interval=tokio::time::interval(Duration::from_secs(1));
             interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
             let mut guard_at=std::time::Instant::now();let mut ticks=0u64;let mut poll_every=1u64;let mut delay_at=std::time::Instant::now();let mut auto_delay:Option<tokio::task::JoinHandle<()>>=None;
-            let mut auto_update=None;
-            if let Some(context)=&workspace{if crate::workspace::load(&context.dir).ok().is_some_and(|w|w.state.preferences.get("auto_check").is_none_or(|v|v=="开启")){let tx=events_tx.clone();auto_update=Some(tokio::spawn(async move{if let Ok(crate::extras::ExtraResult::Update(message))=crate::extras::execute(crate::extras::ExtraCommand::CheckUpdates).await{if message.starts_with("发现新版本"){let _=tx.send(CoreEvent::BackgroundNotice(message));}}}));}}
+            let mut auto_update:Option<tokio::task::JoinHandle<()>>=None;
+            if let Some(context)=&workspace {
+                if crate::workspace::load(&context.dir).ok().is_some_and(|w|w.state.preferences.get("auto_check").is_none_or(|v|v=="开启")) {
+                    let tx=events_tx.clone();
+                    auto_update=Some(tokio::spawn(crate::updater::execute(crate::updater::Command::Check, tx)));
+                }
+            }
 
             loop {
                 let mut command=tokio::select! {_=stopped.changed()=>break, command=receiver.recv()=>{if command.is_none(){break;}command},_=interval.tick()=>None};
@@ -451,6 +459,12 @@ if ticks.is_multiple_of(3){let host=prefs.get("proxy_host").map(String::as_str).
                 if command.is_none(){if let Some(context)=&workspace{if let Ok(Some(index))=crate::workspace::due(&context.dir){command=Some(Command::Workspace(crate::workspace::WorkspaceCommand::Refresh(index)));}}}
                 if automatic {if let Some(context)=&workspace{if let Ok(state)=crate::workspace::load(&context.dir){let prefs=state.state.preferences;let delay=prefs.get("delay_interval").and_then(|s|s.parse::<u64>().ok()).unwrap_or(300).max(30);if prefs.get("auto_delay").is_some_and(|v|v=="开启")&&delay_at.elapsed()>=Duration::from_secs(delay)&&auto_delay.as_ref().is_none_or(|t|t.is_finished()){delay_at=std::time::Instant::now();let api=client.clone();let tx=events_tx.clone();auto_delay=Some(tokio::spawn(async move{if let Ok(value)=api.get(&["proxies"]).await{if let Some(proxies)=value["proxies"].as_object(){for(name,group)in proxies{if group["type"].as_str()==Some("Selector"){let _=api.execute(&Command::Delay{group:name.clone(),url:prefs.get("test_url").cloned().unwrap_or("https://www.gstatic.com/generate_204".into()),timeout:5000}).await;}}}}let _=tx.send(CoreEvent::BackgroundNotice("自动测速已完成".into()));}));}}}}
                 if let Some(command)=command {
+                    if let Command::ApplicationUpdate(task)=command {
+                        if auto_update.as_ref().is_none_or(|task|task.is_finished()) {
+                            auto_update=Some(tokio::spawn(crate::updater::execute(task,events_tx.clone())));
+                        }
+                        continue;
+                    }
                     if let Command::PollEvery(value)=command{poll_every=value.clamp(1,60);continue;}
                     if let Command::ImportProfile { request, url, proxy }=&command {
                         let source=crate::subscriptions::Source{name:String::new(),url:url.clone(),proxy:proxy.clone()};

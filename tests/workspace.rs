@@ -392,3 +392,40 @@ fn background_service_preference_is_persisted_in_the_manifest() {
         "运行中"
     );
 }
+
+#[tokio::test]
+async fn importing_the_first_profile_and_selecting_profiles_apply_rule_mode() {
+    let dir = tempfile::tempdir().unwrap();
+    let ctx = context(dir.path());
+    workspace::initialize(dir.path()).unwrap();
+    let server =
+        support::Server::new(|request| (200, support::response(&request.path).to_string()));
+    let client = CoreClient::new(&server.url, String::new()).unwrap();
+    workspace::execute(
+        &ctx,
+        &client,
+        W::Settings(BTreeMap::from([("mode".into(), "global".into())])),
+    )
+    .await
+    .unwrap();
+    let imported = workspace::execute(&ctx, &client, local(None, "first"))
+        .await
+        .unwrap();
+    assert_eq!(imported.state.overrides["mode"], "rule");
+    workspace::execute(&ctx, &client, local(None, "second"))
+        .await
+        .unwrap();
+    workspace::execute(
+        &ctx,
+        &client,
+        W::Settings(BTreeMap::from([("mode".into(), "global".into())])),
+    )
+    .await
+    .unwrap();
+    let selected = workspace::execute(&ctx, &client, W::Select(1))
+        .await
+        .unwrap();
+    assert_eq!(selected.active, 1);
+    assert_eq!(selected.state.overrides["mode"], "rule");
+    assert_eq!(selected.state.preferences["mode"], "rule");
+}

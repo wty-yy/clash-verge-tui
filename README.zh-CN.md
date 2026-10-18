@@ -15,7 +15,7 @@ Clash Verge TUI 是**仅支持 Linux**（x86_64/aarch64）的 mihomo 终端客�
 - **贴近 Clash Verge 的界面** — 首页 / 代理 / 订阅 / 连接 / 规则 / 日志 / 解锁检测 / 设置与桌面版一一对应
 - **系统代理与 TUN 双模式** — 混合代理端口加 TUN 网卡；首次开启 TUN 在界面内输入系统密码
 - **退出后台驻留** — 关闭界面后由 systemd 用户服务继续运行内核与系统代理，不占用前台终端
-- **自管内核** — 固定 mihomo v1.19.29，随包 `GeoSite.dat`、`geoip.metadb` 与 MetaCubeXD 网页界面，首次启动不依赖 GitHub；musl 静态构建，无运行时依赖
+- **自管内核** — 固定 mihomo v1.19.32，随包 `GeoSite.dat`、`geoip.metadb` 与 MetaCubeXD 网页界面，首次启动不依赖 GitHub；musl 静态构建，无运行时依赖
 - **订阅与增强** — 链接导入、YAML / JavaScript 增强链、定时更新
 - **日常操作** — 实时流量与会话、规则启停、延迟测速、解锁检测、加密备份与 WebDAV 同步
 - **终端原生** — 简体中文 / 繁體中文 / English 三语，Vim 按键与鼠标操作，深浅主题，任意缩放窗口都保持可读
@@ -27,7 +27,7 @@ Clash Verge TUI 是**仅支持 Linux**（x86_64/aarch64）的 mihomo 终端客�
 ## 安装
 
 ```bash
-# 一键安装最新发行版到 ~/.local/bin，并同步安装固定 mihomo v1.19.29
+# 一键安装最新发行版到 ~/.local/bin，并同步安装固定 mihomo v1.19.32
 curl -fsSL https://github.com/wty-yy/clash-verge-tui/releases/latest/download/install.sh | sh
 
 # GitHub 不可达时使用项目 Cloudflare 镜像 clash-verge-tui.wty-yy.top
@@ -51,6 +51,8 @@ clash-verge-tui
 - **工作区** — 默认为 `${XDG_STATE_HOME:-$HOME/.local/state}/clash-verge-tui`，可用 `--data-dir` 更换；配置与密钥保持私有权限（`0600`）。
 - **按键** — `1`–`8` 切换页面，`↑/↓` 或 `j/k` 选择，`←/→` 或 `h/l` 切换区域，`Enter` 或双击执行，`/` 搜索，`:` 页面跳转，`?` 帮助，`t` 主题，`q` 退出。
 - **诊断** — `--check` 不开界面检查应用、内核与配置；`--demo` 打开独立演示数据；`--snapshot home --output home.svg` 导出真实 Ratatui 缓冲区。
+- **应用更新** — 首页发现新版后按 `u` 或点击更新，显示下载进度并校验 SHA-256，失败可重试，安装后重启生效；下载优先使用项目镜像，失败回退 GitHub，重启时同步更新已附加的后台服务。
+- **订阅启用** — 默认使用 `rule` 模式，代理页打开当前规则使用的代理组，轮询刷新保留手动选择。
 
 ## 开发
 
@@ -78,7 +80,7 @@ cargo test --locked
 ## 许可与第三方组件
 
 - TUI 源码：[MIT](LICENSE)
-- 随包内核 [mihomo](https://github.com/MetaCubeX/mihomo/tree/v1.19.29) v1.19.29：GPL-3.0，许可原文见 [docs/LICENSE-GPL-3.0](docs/LICENSE-GPL-3.0)，发行清单记录对应上游源码
+- 随包内核 [mihomo](https://github.com/MetaCubeX/mihomo/tree/v1.19.32) v1.19.32：GPL-3.0，许可原文见 [docs/LICENSE-GPL-3.0](docs/LICENSE-GPL-3.0)，发行清单记录对应上游源码
 - Rust 依赖：MIT / Apache-2.0，主要有 [ratatui](https://github.com/ratatui/ratatui)、[crossterm](https://github.com/crossterm-rs/crossterm)、[tokio](https://github.com/tokio-rs/tokio)、[reqwest](https://github.com/seanmonstar/reqwest)、[serde](https://github.com/serde-rs/serde)，完整清单见 [第三方许可](docs/THIRD-PARTY-LICENSES.md)
 - [Clash Verge Rev](https://github.com/clash-verge-rev/clash-verge-rev) 仅作为界面与功能参考（GPL-3.0）；可选 JavaScript 增强运行时 [Node.js](https://github.com/nodejs/node/blob/main/LICENSE) 采用 MIT
 - 静态发行包附带 [musl 许可及版权声明](docs/LICENSE-MUSL)；随包 GeoData 来自 [MetaCubeX/meta-rules-dat](https://github.com/MetaCubeX/meta-rules-dat)，采用 GPL-3.0；随包网页界面来自 [MetaCubeX/metacubexd](https://github.com/MetaCubeX/metacubexd)，采用 MIT

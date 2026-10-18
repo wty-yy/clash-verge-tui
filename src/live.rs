@@ -51,6 +51,7 @@ pub struct LiveState {
     pub backups: Vec<crate::backup::BackupMeta>,
     pub backups_remote: bool,
     pub tun_capable: bool,
+    reset_proxy_group: bool,
 }
 impl LiveState {
     pub fn new(
@@ -91,6 +92,7 @@ impl LiveState {
             backups: Vec::new(),
             backups_remote: false,
             tun_capable,
+            reset_proxy_group: false,
         }
     }
 }
@@ -249,6 +251,7 @@ impl App {
     }
     pub fn handle_core(&mut self, event: CoreEvent) {
         match event {
+            CoreEvent::ApplicationUpdate(event) => self.handle_application_update(event),
             CoreEvent::Extra(result) => match result {
                 crate::extras::ExtraResult::Detected(items) => {
                     for (i, item) in items {
@@ -258,7 +261,6 @@ impl App {
                     }
                     self.status = "检测完成；结果表示网页可达性，地区为出口参考".into();
                 }
-                crate::extras::ExtraResult::Update(message) => self.detail("应用更新", message),
                 crate::extras::ExtraResult::Opened => self.status = "已请求打开".into(),
             },
             CoreEvent::Backups(result) => {
@@ -424,6 +426,36 @@ impl App {
         }
     }
     pub fn apply_workspace(&mut self, snapshot: crate::workspace::WorkspaceSnapshot) {
+        if let Some(live) = &mut self.live {
+            let previous = live
+                .profiles
+                .get(self.state.active_profile)
+                .map(|p| (&p.name, &p.url));
+            let next = snapshot
+                .profiles
+                .get(snapshot.active)
+                .map(|p| (&p.name, &p.url));
+            live.reset_proxy_group |= self.state.active_profile != snapshot.active
+                || previous != next
+                || snapshot
+                    .state
+                    .overrides
+                    .get(serde_yaml_ng::Value::from("mode"))
+                    .and_then(serde_yaml_ng::Value::as_str)
+                    .is_some_and(|mode| mode == "rule" && self.state.mode != 0);
+        }
+        if let Some(mode) = snapshot
+            .state
+            .overrides
+            .get(serde_yaml_ng::Value::from("mode"))
+            .and_then(serde_yaml_ng::Value::as_str)
+        {
+            self.state.mode = match mode {
+                "global" => 1,
+                "direct" => 2,
+                _ => 0,
+            };
+        }
         self.state.active_profile = snapshot.active;
         self.state.enhancements = snapshot.state.enhancements.clone();
         self.state
@@ -531,7 +563,11 @@ impl App {
         }
     }
     fn apply_snapshot(&mut self, snapshot: Snapshot) {
-        let previous_group = self.state.groups.get(self.sub).map(|g| g.name.clone());
+        let previous_mode = self.state.mode;
+        let reset_group = self.live.as_ref().unwrap().reset_proxy_group;
+        let previous_group = (!reset_group)
+            .then(|| self.state.groups.get(self.sub).map(|g| g.name.clone()))
+            .flatten();
         let previous_node = if self.page == Page::Proxies {
             self.selected_id()
                 .and_then(|i| self.state.nodes.get(i))
@@ -698,9 +734,11 @@ impl App {
             .unwrap_or_default();
         if self.page == Page::Proxies {
             self.sub = previous_group
+                .filter(|_| previous_mode == self.state.mode)
                 .and_then(|name| self.state.groups.iter().position(|g| g.name == name))
-                .unwrap_or(0);
+                .unwrap_or_else(|| self.default_proxy_group());
         }
+        self.live.as_mut().unwrap().reset_proxy_group = false;
         if let Some(name) = previous_node {
             self.selected = self
                 .rows()
@@ -1086,7 +1124,7 @@ impl App {
                         kind: "ui".into(),
                         channel: None,
                     }),
-                    _ => self.queue_core(Command::Extra(crate::extras::ExtraCommand::CheckUpdates)),
+                    _ => self.check_application_updates(),
                 }
             }
             'g' if self.page == Page::Settings => self.queue_core(Command::Upgrade {
@@ -1742,5 +1780,107 @@ impl App {
             "当前配置 · 认证信息已隐藏",
             serde_yaml_ng::to_string(&value).unwrap_or_default(),
         );
+    }
+}
+
+impl App {
+    pub fn check_application_updates(&mut self) {
+        if matches!(
+            self.application_update.phase,
+            crate::updater::Phase::Installed(_)
+        ) {
+            self.status = "已安装更新，请重启生效".into();
+            return;
+        }
+        if self.application_update.phase.busy() {
+            return;
+        }
+        if let Some(live) = &mut self.live {
+            self.application_update.phase = crate::updater::Phase::Checking;
+            live.outbox
+                .push(Command::ApplicationUpdate(crate::updater::Command::Check));
+        } else {
+            self.status = "演示模式不下载应用更新".into();
+        }
+    }
+    pub fn update_application(&mut self) {
+        use crate::updater::{Command as UpdateCommand, Phase};
+        if self.application_update.phase.busy() {
+            return;
+        }
+        if self.live.is_none() {
+            self.status = "演示模式不下载应用更新".into();
+            return;
+        }
+        if matches!(self.application_update.phase, Phase::Installed(_)) {
+            self.restart_app = true;
+            self.quit = true;
+        } else if let Some(version) = self.application_update.latest.clone() {
+            self.application_update.phase = Phase::Downloading {
+                received: 0,
+                total: None,
+            };
+            self.live
+                .as_mut()
+                .unwrap()
+                .outbox
+                .push(Command::ApplicationUpdate(UpdateCommand::Install(version)));
+        } else {
+            self.check_application_updates();
+        }
+    }
+    fn handle_application_update(&mut self, event: crate::updater::Event) {
+        use crate::updater::{Event, Phase};
+        match event {
+            Event::Checked(result) => match result {
+                Ok(Some(version))
+                    if version > semver::Version::parse(env!("CARGO_PKG_VERSION")).unwrap() =>
+                {
+                    self.application_update.latest = Some(version);
+                    self.application_update.phase = Phase::Available;
+                }
+                Ok(_) => {
+                    self.application_update.latest = None;
+                    self.application_update.phase = Phase::Idle;
+                    self.status = "当前已是最新版本".into();
+                }
+                Err(error) => self.application_update.phase = Phase::Failed(error),
+            },
+            Event::Progress(phase) => self.application_update.phase = phase,
+            Event::Finished(result) => {
+                self.application_update.phase = match result {
+                    Ok(path) => Phase::Installed(path),
+                    Err(error) => Phase::Failed(error),
+                };
+            }
+        }
+        if !self.application_update.visible() && self.home_focus == crate::app::HomeFocus::Update {
+            self.home_focus = crate::app::HomeFocus::Controls;
+        }
+    }
+}
+
+impl App {
+    pub fn default_proxy_group(&self) -> usize {
+        let groups = &self.state.groups;
+        if self.state.mode == 1 {
+            return groups.iter().position(|g| g.name == "GLOBAL").unwrap_or(0);
+        }
+        let rule_group = self
+            .state
+            .rules
+            .iter()
+            .rev()
+            .filter(|rule| rule.enabled)
+            .filter(|rule| rule.kind.eq_ignore_ascii_case("MATCH"))
+            .chain(self.state.rules.iter().filter(|rule| rule.enabled))
+            .find_map(|rule| {
+                groups
+                    .iter()
+                    .position(|group| group.name == rule.target && group.name != "GLOBAL")
+            });
+        rule_group
+            .or_else(|| groups.iter().position(|group| group.name != "GLOBAL"))
+            .unwrap_or(0)
     }
 }

@@ -625,7 +625,93 @@ fn profile_usage(app: &App) -> String {
     }
 }
 fn home(f: &mut Frame, app: &mut App, r: Rect, p: Palette) {
-    if r.width < 50 || r.height < 12 {
+    if app.application_update.visible() {
+        let height = if r.height >= 10 { 3 } else { 1 };
+        let parts = Layout::vertical([Constraint::Min(0), Constraint::Length(height)]).split(r);
+        home_content(f, app, parts[0], p);
+        application_update(f, app, parts[1], p);
+    } else {
+        home_content(f, app, r, p);
+    }
+}
+fn application_update(f: &mut Frame, app: &mut App, r: Rect, p: Palette) {
+    use crate::updater::Phase;
+    let version = app
+        .application_update
+        .latest
+        .as_ref()
+        .map(|v| format!("v{v}"))
+        .unwrap_or_default();
+    let label = match &app.application_update.phase {
+        Phase::Idle => return,
+        Phase::Checking => t("正在检查更新…").to_string(),
+        Phase::Available => {
+            if r.width < 50 {
+                format!("{version} [u {}]", t("更新应用"))
+            } else {
+                format!("{} {version}  [u {}]", t("发现新版本"), t("立即更新"))
+            }
+        }
+        Phase::Downloading { received, total } => {
+            if let Some(total) = total.filter(|n| *n > 0) {
+                format!(
+                    "{:.0}%  {} / {}  {} {version}",
+                    *received as f64 / total as f64 * 100.0,
+                    crate::live::bytes(*received),
+                    crate::live::bytes(total),
+                    t("正在下载")
+                )
+            } else {
+                format!(
+                    "{} {version}  {}",
+                    t("正在下载"),
+                    crate::live::bytes(*received)
+                )
+            }
+        }
+        Phase::Verifying => t("正在校验发行包…").to_string(),
+        Phase::Installing => t("正在安装更新…").to_string(),
+        Phase::Installed(_) => format!("{version}  [u {}]", t("重启生效")),
+        Phase::Failed(error) => format!("{}  [u {}]  {}", t("更新失败"), t("重试"), tr(error)),
+    };
+    let row = if r.height >= 3 {
+        line_area(r, 1, 1)
+    } else {
+        line_area(r, 0, 1)
+    };
+    if app.application_update.phase.busy() {
+        text(f, row, label, p.accent);
+    } else {
+        button(
+            f,
+            app,
+            row,
+            &label,
+            Action::UpdateApplication,
+            p,
+            app.home_focus == HomeFocus::Update,
+        );
+    }
+    if r.height >= 3 {
+        if let Phase::Downloading {
+            received,
+            total: Some(total),
+        } = app.application_update.phase
+        {
+            if total > 0 {
+                f.render_widget(
+                    Gauge::default()
+                        .ratio((received as f64 / total as f64).clamp(0.0, 1.0))
+                        .label("")
+                        .gauge_style(Style::default().fg(p.accent).bg(p.raised)),
+                    line_area(r, 2, 1),
+                );
+            }
+        }
+    }
+}
+fn home_content(f: &mut Frame, app: &mut App, r: Rect, p: Palette) {
+    if r.width < 50 || r.height < 12 || (app.application_update.visible() && r.height < 17) {
         return home_narrow(f, app, r, p);
     }
     let parts = Layout::vertical([

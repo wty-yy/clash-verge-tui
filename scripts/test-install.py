@@ -66,7 +66,7 @@ class InstallerTests(unittest.TestCase):
         archive = self.root / asset
         files = {
             'bin/clash-verge-tui': f'#!/bin/sh\necho "clash-verge-tui {NUMERIC_VERSION}"\n'.encode(),
-            'lib/clash-verge-tui/mihomo': b'#!/bin/sh\necho "Mihomo Meta v1.19.29"\n',
+            'lib/clash-verge-tui/mihomo': b'#!/bin/sh\necho "Mihomo Meta v1.19.32"\n',
             'lib/clash-verge-tui/GeoSite.dat': b'fixture geosite data\n',
             'lib/clash-verge-tui/geoip.metadb': b'fixture geodata database\n',
             'lib/clash-verge-tui/ui/index.html': b'<html>fixture ui</html>\n',
@@ -100,7 +100,7 @@ class InstallerTests(unittest.TestCase):
     def assert_installed(self, result):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertTrue((self.home / '.local/bin/clash-verge-tui').is_file())
-        self.assertTrue((self.home / '.local/lib/clash-verge-tui/core/v1.19.29/mihomo').is_file())
+        self.assertTrue((self.home / '.local/lib/clash-verge-tui/core/v1.19.32/mihomo').is_file())
         self.assertTrue((self.home / '.local/lib/clash-verge-tui/GeoSite.dat').is_file())
         self.assertTrue((self.home / '.local/lib/clash-verge-tui/geoip.metadb').is_file())
         self.assertTrue((self.home / '.local/lib/clash-verge-tui/ui/index.html').is_file())
