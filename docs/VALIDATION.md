@@ -322,3 +322,11 @@
 - x86_64 musl 静态构建与 `scripts/package-linux.sh` 打包通过，TUI 与内核均通过静态链接检查；临时 HOME 中经实际安装脚本安装 `1.7.1`，Mihomo `v1.19.32` 诊断、离线 GeoData 校验、私有权限、退出清理与损坏内核/数据修复全部通过
 - 三语表单及 `120×40` / `76×24` 回归通过；实际 Ratatui 缓冲区预览位于 `docs/previews/startup-zh-CN.svg` 与 `startup-76x24.svg`，已渲染检查
 - 版本同步为 `1.7.1`（Cargo 清单、锁文件与安装脚本）；本记录仅为本地验证，远端 CI 与发布结果单独记录
+
+### v1.7.1 正式发布验收 · 2026-10-29
+
+- 发布代码 `3fa55a0` 与注释标签 `v1.7.1`；[master CI](https://github.com/wty-yy/clash-verge-tui/actions/runs/40830133049)、[标签 CI](https://github.com/wty-yy/clash-verge-tui/actions/runs/40830133029)、[Release](https://github.com/wty-yy/clash-verge-tui/actions/runs/40830133051) 全部 success
+- 双架构完成原生 musl 构建、静态链接检查与 Ubuntu 20.04 安装验证；[发行页](https://github.com/wty-yy/clash-verge-tui/releases/tag/v1.7.1) 包含 x86_64 / aarch64 组合包、对应两个 SHA-256 文件和 `install.sh`
+- 两个公开组合包重新下载后 SHA-256、版本清单、内核与 GeoData 哈希、五份组件许可及静态链接检查通过；发行版安装脚本与仓库一致
+- 公开 x86_64 组合包在临时 HOME 中再次通过实际安装、Mihomo `v1.19.32` 启动、配置权限、退出清理与损坏内核/数据修复；未操作当前用户实际代理或 TUN，未执行真实重启验证
+- 镜像 `/latest-version` 返回 `v1.7.1`，`/install.sh` 的 `release_version` 为 `v1.7.1`
