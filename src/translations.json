@@ -1,4 +1,8 @@
 {
+  "无法启用开机自启；请运行 sudo loginctl enable-linger {uid} 后重试": [
+    "Cannot enable boot autostart; run sudo loginctl enable-linger {uid} and retry",
+    "無法啟用開機自啟；請執行 sudo loginctl enable-linger {uid} 後重試"
+  ],
   "auto": [
     "Follow system",
     "跟隨系統"
@@ -279,9 +283,9 @@
     "Autostart, background service, and silent startup",
     "開機啟動、背景服務與靜默啟動"
   ],
-  "登录后自启": [
-    "Start after login",
-    "登入後自動啟動"
+  "开机自启（无需登录）": [
+    "Start at boot (no login)",
+    "開機自啟（無需登入）"
   ],
   "静默启动": [
     "Silent startup",

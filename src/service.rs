@@ -188,9 +188,6 @@ pub async fn status(dir: &Path) -> String {
         .await
         .unwrap_or("not-installed".into())
 }
-pub fn installed(dir: &Path) -> bool {
-    path(dir).is_file()
-}
 pub async fn wait_ready(dir: &Path) -> Result<()> {
     let endpoint = format!("unix://{}", dir.join("core/controller.sock").display());
     let secret = std::fs::read_to_string(dir.join("core/controller.secret"))?;
@@ -207,6 +204,10 @@ pub async fn wait_ready(dir: &Path) -> Result<()> {
     }
 }
 pub async fn install(dir: &Path, enabled: bool) -> Result<()> {
+    // Linger belongs to the user, so disabling one workspace must not revoke it.
+    if enabled {
+        enable_linger().await?;
+    }
     let app = std::fs::canonicalize(std::env::current_exe()?)?;
     let mut env = BTreeMap::new();
     if let Ok(path) = std::env::var("PATH") {
@@ -228,6 +229,41 @@ pub async fn install(dir: &Path, enabled: bool) -> Result<()> {
         systemctl(&["enable", &name(dir)]).await?;
     } else {
         systemctl(&["disable", &name(dir)]).await?;
+    }
+    Ok(())
+}
+async fn enable_linger() -> Result<()> {
+    let uid = unsafe { libc::getuid() }.to_string();
+    let hint = format!("无法启用开机自启；请运行 sudo loginctl enable-linger {uid} 后重试");
+    let mut command = tokio::process::Command::new("loginctl");
+    command
+        .args(["--no-ask-password", "enable-linger", &uid])
+        .stdin(Stdio::null())
+        .kill_on_drop(true);
+    let output = tokio::time::timeout(Duration::from_secs(10), command.output())
+        .await
+        .context(hint.clone())?
+        .with_context(|| hint.clone())?;
+    if !output.status.success() {
+        bail!("{hint}");
+    }
+    Ok(())
+}
+pub async fn configure_autostart(dir: &Path) -> Result<()> {
+    let snapshot = crate::workspace::load(dir)?;
+    if snapshot
+        .state
+        .preferences
+        .get("auto_launch")
+        .is_some_and(|v| v == "开启")
+    {
+        install(dir, true).await?;
+        let state = if status(dir).await == "active" {
+            "运行中"
+        } else {
+            "已停止"
+        };
+        crate::workspace::save_service_preference(dir, state)?;
     }
     Ok(())
 }

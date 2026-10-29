@@ -393,6 +393,27 @@ fn background_service_preference_is_persisted_in_the_manifest() {
     );
 }
 
+#[test]
+fn autostart_defaults_on_and_preserves_an_explicit_opt_out() {
+    let dir = tempfile::tempdir().unwrap();
+    assert_eq!(
+        workspace::initialize(dir.path()).unwrap().state.preferences["auto_launch"],
+        "开启"
+    );
+    workspace::save_auto_launch_preference(dir.path(), false).unwrap();
+    assert_eq!(
+        workspace::initialize(dir.path()).unwrap().state.preferences["auto_launch"],
+        "关闭"
+    );
+    let mut legacy = workspace::load(dir.path()).unwrap();
+    legacy.state.preferences.remove("auto_launch");
+    workspace::restore_restart_snapshot(dir.path(), &legacy).unwrap();
+    assert_eq!(
+        workspace::initialize(dir.path()).unwrap().state.preferences["auto_launch"],
+        "开启"
+    );
+}
+
 #[tokio::test]
 async fn importing_the_first_profile_and_selecting_profiles_apply_rule_mode() {
     let dir = tempfile::tempdir().unwrap();

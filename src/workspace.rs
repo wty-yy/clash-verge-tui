@@ -134,6 +134,11 @@ pub fn load(dir: &Path) -> Result<WorkspaceSnapshot> {
 }
 
 fn apply_runtime_defaults(snapshot: &mut WorkspaceSnapshot) -> Result<()> {
+    snapshot
+        .state
+        .preferences
+        .entry("auto_launch".into())
+        .or_insert_with(|| "开启".into());
     if snapshot
         .state
         .preferences
@@ -186,6 +191,15 @@ pub fn save_service_preference(dir: &Path, state: &str) -> Result<()> {
         .state
         .preferences
         .insert("service".into(), state.into());
+    save(dir, &snapshot)
+}
+pub fn save_auto_launch_preference(dir: &Path, enabled: bool) -> Result<()> {
+    let _lock = Lock::acquire(dir)?;
+    let mut snapshot = load(dir)?;
+    snapshot.state.preferences.insert(
+        "auto_launch".into(),
+        if enabled { "开启" } else { "关闭" }.into(),
+    );
     save(dir, &snapshot)
 }
 fn save(dir: &Path, snapshot: &WorkspaceSnapshot) -> Result<()> {

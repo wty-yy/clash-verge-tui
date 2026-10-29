@@ -312,3 +312,13 @@
 - 双架构完成原生 musl 构建、静态链接检查、Ubuntu 20.04 容器安装与内核/数据修复验证；[发行页](https://github.com/wty-yy/clash-verge-tui/releases/tag/v1.7.0) 包含两个组合包、两个 SHA-256 与 `install.sh`
 - 公开组合包重新下载后 SHA-256 通过，清单为应用 `1.7.0` / Mihomo `1.19.32` 与对应架构，发行版安装脚本和仓库一致；x86_64 公开下载返回 HTTP 200
 - 镜像 `/latest-version` 返回 `v1.7.0`，`/install.sh` 的 `release_version` 为 `v1.7.0`
+
+### v1.7.1 本地验证 · 2026-10-29
+
+- 新工作区与缺少 `auto_launch` 的旧工作区默认开启自启，显式关闭保持不变；真实 TUI 启动时安装并启用当前工作区的 systemd 用户服务，演示、快照、诊断与 daemon 不执行自动安装
+- 启用自启先执行当前 UID 的 `loginctl --no-ask-password enable-linger`，使用户服务无需登录即可启动；权限失败提供英文 CLI / 本地化 TUI 补救命令，关闭工作区自启只禁用该服务，不撤销其他服务共用的 linger
+- 隔离 HOME、PATH 和模拟 systemd 命令验证服务启用、重复安装、关闭、权限失败；未操作当前用户的实际服务、代理或 TUN，未执行真实重启验证
+- `sh -n scripts/install.sh`、14 项安装脚本回归、18 项镜像 Worker 回归、`cargo fmt --check`、`cargo clippy --locked --all-targets -- -D warnings`、`cargo test --locked` 与 `cargo build --locked --release` 通过；另使用本次实际归档单独运行发行包更新器 ignored 测试，通过
+- x86_64 musl 静态构建与 `scripts/package-linux.sh` 打包通过，TUI 与内核均通过静态链接检查；临时 HOME 中经实际安装脚本安装 `1.7.1`，Mihomo `v1.19.32` 诊断、离线 GeoData 校验、私有权限、退出清理与损坏内核/数据修复全部通过
+- 三语表单及 `120×40` / `76×24` 回归通过；实际 Ratatui 缓冲区预览位于 `docs/previews/startup-zh-CN.svg` 与 `startup-76x24.svg`，已渲染检查
+- 版本同步为 `1.7.1`（Cargo 清单、锁文件与安装脚本）；本记录仅为本地验证，远端 CI 与发布结果单独记录

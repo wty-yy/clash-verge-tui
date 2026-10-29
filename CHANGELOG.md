@@ -4,6 +4,12 @@
 
 See the [feature mapping](docs/FEATURES.md) for planned work.
 
+## v1.7.1 · 2026-10-29
+
+1. Enable boot autostart by default with a workspace systemd user service and user lingering, preserving explicit opt-outs
+2. Synchronize service status and repair autostart when reopening the TUI or keeping the core in the background
+3. Show an actionable permission error when user lingering cannot be enabled
+
 ## v1.7.0 · 2026-10-18
 
 1. Add Home update/download progress, verified release installation, retry, and restart controls

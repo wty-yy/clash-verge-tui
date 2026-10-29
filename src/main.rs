@@ -182,6 +182,7 @@ fn run() -> Result<()> {
         if action == "install" {
             runtime.block_on(core_manager::ensure(&dir, args.core.as_deref()))?;
             runtime.block_on(clash_verge_tui::service::install(&dir, true))?;
+            clash_verge_tui::workspace::save_auto_launch_preference(&dir, true)?;
             println!("installed: {}", clash_verge_tui::service::name(&dir));
         } else {
             println!(
@@ -292,7 +293,25 @@ fn run() -> Result<()> {
             CoreClient::new(&endpoint, secret)?,
             Some(context),
         )?);
-        App::new_live(dir.clone(), endpoint, profiles, active, Some(managed))?
+        let autostart_error = if args.daemon {
+            None
+        } else {
+            runtime
+                .block_on(clash_verge_tui::service::configure_autostart(&dir))
+                .err()
+        };
+        let mut app = App::new_live(dir.clone(), endpoint, profiles, active, Some(managed))?;
+        if let Some(error) = autostart_error {
+            eprintln!(
+                "Warning: {}",
+                clash_verge_tui::locale::error_chain(
+                    &error,
+                    clash_verge_tui::locale::Language::English
+                )
+            );
+            app.status = clash_verge_tui::locale::error_chain(&error, app.language);
+        }
+        app
     };
     app.owns_core = managed_core.is_some();
     if let Some(language) = &args.language {
@@ -544,15 +563,13 @@ fn promote_background(runtime: &tokio::runtime::Runtime, dir: &std::path::Path) 
             );
         }
         let status = clash_verge_tui::service::status(dir).await;
+        let enabled = snapshot
+            .state
+            .preferences
+            .get("auto_launch")
+            .is_some_and(|value| value == "开启");
+        clash_verge_tui::service::install(dir, enabled).await?;
         if status != "active" {
-            if !clash_verge_tui::service::installed(dir) {
-                let enabled = snapshot
-                    .state
-                    .preferences
-                    .get("auto_launch")
-                    .is_some_and(|value| value == "开启");
-                clash_verge_tui::service::install(dir, enabled).await?;
-            }
             clash_verge_tui::service::action(dir, "start").await?;
             tokio::time::timeout(
                 Duration::from_secs(20),
